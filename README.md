@@ -235,11 +235,25 @@ Coins, jobs and unlocks stay entirely on each phone. Nobody can spend anybody
 else's coins, and nobody can be pushed around: other players are drawn and
 nothing more. They do not collide with you.
 
+### It looks after itself
+
+Whoever opens the link first hosts, and that claim is released when they close
+the game or their phone locks. Everyone else notices within a few seconds,
+waits a moment, and tries again — at which point one of them simply becomes the
+new host and play carries on. **Nobody ever has to reload anything.** When the
+original player comes back they join as an ordinary guest.
+
+Switching away from the game stops your character moving for everyone else, and
+after a few seconds the others stop showing you. Switch back and you reappear.
+
 ### If it doesn't connect
 
 The game carries on perfectly well on its own — that is the only thing that
-happens. Check both phones are on the same wifi and using the exact same link.
+happens. Check both devices are on the same wifi and using the exact same link.
 
-One thing worth knowing: switching away from the game stops your character
-moving for everyone else, and after a few seconds the others stop showing you
-at all. Switch back and you reappear.
+### Phones, tablets and computers
+
+Any of them, and mixed together: a phone and a laptop can play in the same
+town. On a computer use `W A S D` to move and `Space` to get in and out of a
+car. Tested on the live site with a phone-shaped browser and a desktop-shaped
+one in the same room.

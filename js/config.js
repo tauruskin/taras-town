@@ -105,6 +105,8 @@ export const CONFIG = {
                                // that leaves doesn't leave a statue behind
     SMOOTHING: 12,             // how quickly other players slide to where
                                // they actually are, between updates
+    RETRY_SECONDS: 5,          // how long to wait before trying to rejoin
+                               // after losing touch with everybody
   },
 
   // ---------------------------------------------------------------------

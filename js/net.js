@@ -85,6 +85,8 @@ export class Net {
 
     this._sendTimer = 0;
     this._me = null;
+    this._joining = false;
+    this._retryIn = 0;
   }
 
   get playerCount() {
@@ -100,13 +102,27 @@ export class Net {
    * failure the status simply becomes 'failed' and play carries on alone.
    */
   async join() {
+    if (this._joining) return;
+    this._joining = true;
     this.status = 'connecting';
+
+    // Throw away any previous attempt, or its leftover connection keeps
+    // firing events over the top of the new one.
+    try { this.peer && this.peer.destroy(); } catch (_) {}
+    this.peer = null;
+    this.toHost = null;
+    this.guests.clear();
+    this.others.clear();
+
     try {
       const Peer = await loadPeerLibrary();
       await this._claimRoomOrJoinIt(Peer);
     } catch (err) {
       console.warn('[net] could not join the room, playing alone.', err);
       this.status = 'failed';
+    } finally {
+      this._joining = false;
+      this._retryIn = CONFIG.NET.RETRY_SECONDS;
     }
   }
 
@@ -172,7 +188,13 @@ export class Net {
           done();
         });
         conn.on('data', (msg) => this._onRoster(msg));
-        conn.on('close', () => { this.toHost = null; this.others.clear(); this.status = 'failed'; });
+        conn.on('close', () => {
+          console.info('[net] lost touch with the host; will try again');
+          this.toHost = null;
+          this.others.clear();
+          this.status = 'failed';
+          this._retryIn = CONFIG.NET.RETRY_SECONDS;
+        });
         conn.on('error', (err) => {
           console.warn('[net] could not reach the host:', err && (err.type || err.message));
           this.status = 'failed';
@@ -231,6 +253,22 @@ export class Net {
    *            we look like. Nothing else is ever sent.
    */
   update(dt, me) {
+    // Lost touch with everybody? Try again in a moment.
+    //
+    // This matters more than it sounds. The room is claimed by whoever opens
+    // the link first, and when they close the game or their phone locks, that
+    // claim is released and everyone else is left staring at an empty town.
+    // Retrying re-claims the room, so somebody else simply becomes the host
+    // and the game carries on — without anyone having to reload anything.
+    if (this.status === 'failed' && !this._joining) {
+      this._retryIn -= dt;
+      if (this._retryIn <= 0) {
+        this._retryIn = CONFIG.NET.RETRY_SECONDS;
+        this.join();
+      }
+      return;
+    }
+
     if (this.status !== 'host' && this.status !== 'guest') return;
     this._me = me;
 
@@ -266,9 +304,10 @@ export class Net {
     }
   }
 
+  /** Hang up for good. Called when the page goes away. */
   leave() {
     try { this.peer && this.peer.destroy(); } catch (_) {}
     this.others.clear();
-    this.status = 'off';
+    this.status = 'off';     // 'off' never retries, unlike 'failed'
   }
 }
