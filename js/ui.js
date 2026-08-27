@@ -255,3 +255,89 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x + w, y, rr);
   ctx.closePath();
 }
+
+// ---------------------------------------------------------------------------
+// Job icons.
+//
+// These are the only way the player is told what a job is, so the same picture
+// has to work everywhere it appears: on the badge over a neighbour's head, on
+// the action button, on the beacon at the destination, and in the corner while
+// the job is in progress. They are drawn around (0, 0) at roughly 2 * `size`
+// across, so the caller can translate and scale freely.
+// ---------------------------------------------------------------------------
+
+export function drawMissionIcon(ctx, type, size) {
+  if (type === 'pizza') drawPizza(ctx, size);
+  else drawTeddy(ctx, size);
+}
+
+/** A slice of pizza, point down. */
+function drawPizza(ctx, s) {
+  const u = s / 16;
+
+  // Crust along the top.
+  ctx.fillStyle = '#E8A33D';
+  ctx.beginPath();
+  ctx.moveTo(-13 * u, -10 * u);
+  ctx.lineTo(13 * u, -10 * u);
+  ctx.lineTo(11 * u, -4 * u);
+  ctx.lineTo(-11 * u, -4 * u);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cheese, tapering to a point.
+  ctx.fillStyle = '#FFD98A';
+  ctx.beginPath();
+  ctx.moveTo(-12 * u, -6 * u);
+  ctx.lineTo(12 * u, -6 * u);
+  ctx.lineTo(0, 14 * u);
+  ctx.closePath();
+  ctx.fill();
+
+  // Pepperoni.
+  ctx.fillStyle = '#E5484D';
+  for (const [px, py, pr] of [[-5, -1, 2.6], [5, -1, 2.6], [0, 6, 2.4]]) {
+    ctx.beginPath();
+    ctx.arc(px * u, py * u, pr * u, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** A teddy bear's head. */
+function drawTeddy(ctx, s) {
+  const u = s / 16;
+
+  ctx.fillStyle = '#A9743F';
+  ctx.beginPath(); ctx.arc(-9 * u, -9 * u, 4.6 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(9 * u, -9 * u, 4.6 * u, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = '#C08A50';
+  ctx.beginPath(); ctx.arc(0, 0, 12 * u, 0, Math.PI * 2); ctx.fill();
+
+  // Muzzle.
+  ctx.fillStyle = '#E8CBA6';
+  ctx.beginPath(); ctx.ellipse(0, 4.5 * u, 6.5 * u, 5 * u, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Eyes and nose.
+  ctx.fillStyle = '#3A2A1C';
+  ctx.beginPath(); ctx.arc(-4.5 * u, -2.5 * u, 1.9 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(4.5 * u, -2.5 * u, 1.9 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 2.5 * u, 2.4 * u, 1.9 * u, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+/** The rounded speech bubble a neighbour's job icon sits in. */
+export function drawBadge(ctx, x, y, r) {
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath(); ctx.arc(x, y + 4, r, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+
+  // Little tail pointing down at whoever is talking.
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.34, y + r * 0.72);
+  ctx.lineTo(x + r * 0.16, y + r * 0.72);
+  ctx.lineTo(x - r * 0.10, y + r * 1.42);
+  ctx.closePath();
+  ctx.fill();
+}

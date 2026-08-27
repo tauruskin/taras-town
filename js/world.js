@@ -309,6 +309,34 @@ export class World {
     return { x: cx, y: cy, blocked };
   }
 
+  /**
+   * The nearest spot to (x, y) that something of this size can stand in.
+   *
+   * Used for placing people and job destinations: a spot can be described
+   * loosely ("outside that front door") and still be guaranteed walkable,
+   * even after the scenery around it changes.
+   *
+   * Returns null if nowhere within `maxRadius` works.
+   */
+  findFreeSpot(x, y, half, extra, maxRadius = 260) {
+    const fits = (px, py) =>
+      px > half && py > half &&
+      px < this.width - half && py < this.height - half &&
+      !this._overlaps(px, py, half, half, extra);
+
+    if (fits(x, y)) return { x, y };
+
+    for (let r = 14; r <= maxRadius; r += 14) {
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * Math.PI * 2;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        if (fits(px, py)) return { x: px, y: py };
+      }
+    }
+    return null;
+  }
+
   _overlaps(cx, cy, halfW, halfH, extra) {
     const l = cx - halfW, r = cx + halfW;
     const t = cy - halfH, b = cy + halfH;

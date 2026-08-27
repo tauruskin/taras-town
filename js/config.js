@@ -59,6 +59,15 @@ export const CONFIG = {
   ],
 
   // ---------------------------------------------------------------------
+  // Jobs for the neighbours
+  // ---------------------------------------------------------------------
+  MISSION: {
+    REWARD: 5,           // coins for finishing one
+    OFFER_RADIUS: 92,    // how close to stand to be offered a job
+    ARRIVE_RADIUS: 62,   // how close counts as "arrived" at the destination
+  },
+
+  // ---------------------------------------------------------------------
   // Camera
   // ---------------------------------------------------------------------
   CAMERA: {

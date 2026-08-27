@@ -9,8 +9,8 @@
  *   - draw the on-screen controls
  *   - save where the player was standing
  *
- * Milestones 1-3: walking around town, driving the cars, and choosing what
- * Taras and his car look like.
+ * Milestones 1-4: walking around town, driving the cars, choosing what Taras
+ * and his car look like, and running errands for the neighbours.
  */
 
 import { CONFIG } from './config.js';
@@ -19,7 +19,11 @@ import { Player } from './player.js';
 import { createCars } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
-import { Menu } from './ui.js';
+import { Menu, drawMissionIcon } from './ui.js';
+import { createNpcs } from './npc.js';
+import { Missions } from './missions.js';
+import { Effects, drawCoin } from './effects.js';
+import { initAudio, playAccept, playSuccess } from './audio.js';
 import { loadGame, saveGame } from './save.js';
 
 // ---------------------------------------------------------------------------
@@ -42,6 +46,9 @@ const player = new Player(world, spawn.x, spawn.y);
 const camera = new Camera(world);
 const input = new Input(canvas);
 const menu = new Menu();
+const npcs = createNpcs(world);
+const missions = new Missions(world);
+const effects = new Effects();
 
 // Put on whatever was chosen last time.
 player.setOutfit(save.hat, save.shirt);
@@ -52,6 +59,7 @@ const DRIVING = 'drive';
 let mode = ON_FOOT;
 let drivenCar = null;      // the Car being driven, or null
 let nearbyCar = null;      // the Car close enough to get into, or null
+let action = null;         // what the action button would do right now
 
 let dpr = 1;       // device pixel ratio, capped for performance
 let scale = 1;     // world pixels -> screen pixels
@@ -76,6 +84,10 @@ function startGame() {
   startScreen.classList.add('hidden');
   // Drop keyboard focus, or Space would keep re-triggering this button.
   startButton.blur();
+
+  // Phones refuse to make any sound until the page has been touched. This
+  // tap is that touch, so it is the only moment audio can be set up.
+  initAudio();
 
   // Both of these are unsupported on iPhone Safari and will simply do
   // nothing there, which is why the CSS "please rotate" screen also exists.
@@ -139,6 +151,7 @@ function update(dt) {
   // Worked out even while the menu is open, so picking a car colour repaints
   // the car he is standing next to and he sees the change straight away.
   nearbyCar = mode === ON_FOOT ? findCarToEnter() : null;
+  action = findAction();
   refreshButtons();
 
   // --- the menu, if it's open, takes every press and pauses the town ----
@@ -153,17 +166,27 @@ function update(dt) {
   }
 
   // --- act on a button press ------------------------------------------
-  if (input.consumePress('action')) {
-    if (mode === ON_FOOT && nearbyCar) enterCar(nearbyCar);
-    else if (mode === DRIVING) exitCar();
+  if (input.consumePress('action') && action) {
+    if (action.kind === 'exit') exitCar();
+    else if (action.kind === 'enter') enterCar(action.car);
+    else if (action.kind === 'job') takeJob(action.npc);
   }
 
   // --- move ------------------------------------------------------------
   if (mode === DRIVING) {
     drivenCar.update(dt, input.vector, cars.filter((c) => c !== drivenCar));
   } else {
-    player.update(dt, input.vector, cars.map((c) => c.boundsBox()));
+    player.update(dt, input.vector, blockers());
   }
+
+  // --- jobs -------------------------------------------------------------
+  // Checked against whatever is carrying the player, so a delivery can be
+  // finished by driving up to the door as well as by walking to it.
+  const who = mode === DRIVING ? drivenCar : player;
+  const finished = missions.update(who.x, who.y);
+  if (finished) completeJob(finished);
+
+  effects.update(dt);
 
   // --- camera -----------------------------------------------------------
   // Ease the zoom rather than jumping, so getting in a car feels like the
@@ -203,8 +226,23 @@ function render() {
     car.draw(ctx);
   }
 
+  // The beacon goes on the ground, under everyone standing on it.
+  missions.drawTarget(ctx, clock);
+
+  const visibleNpcs = npcs.filter((n) =>
+    n.x > view.x - 90 && n.x < view.x + view.w + 90 &&
+    n.y > view.y - 110 && n.y < view.y + view.h + 90);
+
+  for (const npc of visibleNpcs) npc.draw(ctx, clock);
+
   if (mode === ON_FOOT) player.draw(ctx);
   world.drawCanopies(ctx, view);   // leaves overlap the player: instant depth
+
+  // Badges go on top of the leaves. They are the only sign that a job is on
+  // offer here, so a tree must never be able to hide one.
+  for (const npc of visibleNpcs) {
+    if (missions.canOffer(npc)) npc.drawBadge(ctx, clock);
+  }
 
   // --- controls, drawn in screen coordinates ---------------------------
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -219,11 +257,140 @@ function render() {
   drawJoystick();
   drawActionButton();
   menu.drawOpener(ctx, w, h, input.isHeld('menu-open'));
+  drawWaypointArrow(w, h);
+  drawCoinCounter(w, h);
+  effects.draw(ctx);
+}
+
+/**
+ * An arrow pinned to the edge of the screen pointing at the current job,
+ * shown only while the destination is off screen. Once the beacon itself is
+ * visible the arrow would just be clutter over the thing it points at.
+ */
+function drawWaypointArrow(w, h) {
+  if (!missions.active) return;
+
+  const t = missions.active.target;
+  const sx = (t.x - camera.x) * scale;
+  const sy = (t.y - camera.y) * scale;
+
+  const margin = 62;
+  const onScreen = sx > margin && sx < w - margin && sy > margin && sy < h - margin;
+  if (onScreen) return;
+
+  // Slide the arrow along the line from the middle of the screen until it
+  // meets the edge of an inset rectangle.
+  const cx = w / 2, cy = h / 2;
+  const a = Math.atan2(sy - cy, sx - cx);
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const dist = Math.min(
+    Math.abs((w / 2 - margin) / (ca || 1e-6)),
+    Math.abs((h / 2 - margin) / (sa || 1e-6)),
+  );
+  const ax = cx + ca * dist;
+  const ay = cy + sa * dist;
+
+  ctx.save();
+  ctx.translate(ax, ay);
+
+  // The picture of the job, so it says WHAT is over there, not just where.
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath(); ctx.arc(0, 4, 25, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI * 2); ctx.fill();
+  drawMissionIcon(ctx, missions.active.type, 18);
+
+  // The pointer itself, just outside the circle.
+  ctx.rotate(a);
+  ctx.fillStyle = '#FFD23F';
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(41, 0);
+  ctx.lineTo(25, -13);
+  ctx.lineTo(25, 13);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/** Coins collected so far, top left. A number is text a 6-year-old can read. */
+function drawCoinCounter(w, h) {
+  const x = 46, y = 44;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  roundRectPath(x - 28, y - 22, 116, 44, 22);
+  ctx.fill();
+
+  drawCoin(ctx, x, y, 16);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 25px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(save.coins), x + 24, y + 1);
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------
 // Getting in and out of cars
 // ---------------------------------------------------------------------------
+
+/**
+ * What the action button would do if pressed right now, or null if there is
+ * nothing to do. There is only one button, so when the player is standing
+ * between a neighbour and a car, whichever is nearer wins.
+ */
+function findAction() {
+  if (mode === DRIVING) return { kind: 'exit' };
+
+  const npc = findNpcWithJob();
+  if (npc && nearbyCar) {
+    const dn = Math.hypot(npc.x - player.x, npc.y - player.y);
+    const dc = Math.hypot(nearbyCar.x - player.x, nearbyCar.y - player.y);
+    return dn <= dc ? { kind: 'job', npc } : { kind: 'enter', car: nearbyCar };
+  }
+  if (npc) return { kind: 'job', npc };
+  if (nearbyCar) return { kind: 'enter', car: nearbyCar };
+  return null;
+}
+
+/** The nearest neighbour close enough to hand out a job. */
+function findNpcWithJob() {
+  let best = null;
+  let bestDist = CONFIG.MISSION.OFFER_RADIUS;
+
+  for (const npc of npcs) {
+    if (!missions.canOffer(npc)) continue;
+    const d = Math.hypot(npc.x - player.x, npc.y - player.y);
+    if (d < bestDist) { bestDist = d; best = npc; }
+  }
+  return best;
+}
+
+function takeJob(npc) {
+  if (missions.start(npc)) playAccept();
+}
+
+function completeJob(job) {
+  save.coins += job.reward;
+  playSuccess();
+  // Burst from the middle of the screen: that is where the player is looking,
+  // and the camera may be about to move on from where the job actually ended.
+  effects.celebrate(canvas.clientWidth / 2, canvas.clientHeight / 2, job.reward);
+  persist();
+}
+
+/** Everything solid that moves about: the cars, and the neighbours. */
+function blockers() {
+  return [
+    ...cars.map((c) => c.boundsBox()),
+    ...npcs.map((n) => n.boundsBox()),
+  ];
+}
 
 /** The closest car within reach, or null. */
 function findCarToEnter() {
@@ -291,7 +458,7 @@ function refreshButtons() {
   const opener = Menu.openerPos(w, h);
   const list = [{ id: 'menu-open', x: opener.x, y: opener.y, r: opener.r }];
 
-  if (mode === DRIVING || nearbyCar !== null) {
+  if (action) {
     const b = actionButtonPos();
     list.push({ id: 'action', x: b.x, y: b.y, r: b.r });
   }
@@ -374,12 +541,17 @@ function drawJoystick() {
  * No words — it has to be readable by someone who cannot reliably read.
  */
 function drawActionButton() {
-  const showAction = mode === DRIVING || nearbyCar !== null;
-  if (!showAction) return;
+  if (!action) return;
 
   const b = actionButtonPos();
   const held = input.isHeld('action');
   const r = held ? b.r - 3 : b.r;
+
+  // A colour per job, so the button's meaning is readable at a glance even
+  // before you look at the picture on it.
+  const colour = action.kind === 'exit' ? '#FF9F45'
+               : action.kind === 'enter' ? '#5AC85A'
+               : '#4EA8FF';
 
   ctx.save();
 
@@ -389,7 +561,7 @@ function drawActionButton() {
   ctx.arc(b.x, b.y + (held ? 3 : 7), r, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = mode === DRIVING ? '#FF9F45' : '#5AC85A';
+  ctx.fillStyle = colour;
   ctx.beginPath();
   ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
   ctx.fill();
@@ -399,18 +571,20 @@ function drawActionButton() {
   ctx.stroke();
 
   ctx.translate(b.x, b.y);
-  if (mode === DRIVING) drawPersonIcon(); else drawCarIcon();
+  if (action.kind === 'exit') drawPersonIcon();
+  else if (action.kind === 'enter') drawCarIcon(colour);
+  else drawMissionIcon(ctx, action.npc.mission, 22);
 
   ctx.restore();
 }
 
 /** A tiny car, drawn from above, for the "get in" button. */
-function drawCarIcon() {
+function drawCarIcon(colour) {
   ctx.fillStyle = '#FFFFFF';
   roundRectPath(-22, -13, 44, 26, 8);
   ctx.fill();
 
-  ctx.fillStyle = '#5AC85A';
+  ctx.fillStyle = colour;
   roundRectPath(-9, -9, 15, 18, 4);
   ctx.fill();
 

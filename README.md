@@ -75,6 +75,10 @@ the old version after that, pull down to refresh the page.
 | `js/camera.js` | Follows the player, never scrolls past the edge of town. |
 | `js/input.js` | The touch joystick, and the keyboard controls. |
 | `js/ui.js` | The customisation menu: the colour rows and the pictures beside them. |
+| `js/npc.js` | The neighbours who hand out jobs, and their badges. |
+| `js/missions.js` | Jobs: where they send you, and when they are finished. |
+| `js/effects.js` | Confetti and the floating coin when a job is done. |
+| `js/audio.js` | Little sounds, generated live. There are no sound files. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
 
 ### Want to change something?
@@ -110,7 +114,12 @@ there in map squares, not pixels.
 - [x] **3 — Customising.** A palette button in the top corner opens a menu with
       three rows of colour dots: hat, shirt and car. Choices apply the instant
       they're tapped and are remembered between visits. No text anywhere.
-- [ ] 4 — Friendly errands to run for the neighbours.
+- [~] **4 — Errands (2 of 4 kinds so far).** Neighbours stand around town with a
+      picture over their head showing what they need. Walk up, press the button,
+      and somewhere in town lights up with a beacon; an arrow pins to the screen
+      edge while it is off-screen. Arriving pays coins with confetti and a
+      fanfare. Built so far: **take a pizza to a front door**, and **find a lost
+      teddy**. Still to come: drive a friend to the park, and a checkpoint race.
 - [ ] 5 — Coins to collect and things to unlock with them.
 - [ ] 6 — A silly game of tag with the town helper.
 
@@ -137,3 +146,20 @@ re-spaces itself to fit.
 Choices are saved as **positions in those lists**, not as colour strings. So
 editing a palette entry restyles everyone who had picked it, rather than
 leaving old saves pointing at a colour that no longer exists.
+
+## Where jobs send you
+
+Delivery addresses and hiding places are **worked out from the map when the game
+starts**, not typed out as coordinates. Every house's doorstep is taken from the
+building itself, so adding a building to `js/world.js` gives it a delivery
+address for free.
+
+Both lists are filtered on *openness* — the fraction of directions you can walk
+away from a spot. Anything below 45% is dropped.
+
+This matters more than it sounds. An earlier version listed destinations as
+literal coordinates. Several were **inside buildings**, and `findFreeSpot`
+quietly rescued them by shifting up to 182px, so a "front door" was nowhere near
+a door. Two others sat in gaps only 8% open: reachable on paper, but a child
+would just bump around in them. Hand-typed coordinates rot as the town changes;
+derived ones cannot.
