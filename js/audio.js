@@ -15,6 +15,7 @@
 
 let ctx = null;
 let muted = false;
+let music = null;
 
 /** Call once, from inside a real user gesture. */
 export function initAudio() {
@@ -24,6 +25,16 @@ export function initAudio() {
     ctx = new AC();
     // Safari often hands back a suspended context even inside a gesture.
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    // Background music
+if (!music) {
+  music = new Audio('./audio/jazz-bossa-nova-cooking-show-music-312826.mp3');
+  music.loop = true;
+  music.volume = 0.25;
+}
+
+if (!muted) {
+  music.play().catch(() => {});
+}
   } catch (err) {
     ctx = null;
   }
