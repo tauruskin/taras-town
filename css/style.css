@@ -1,0 +1,145 @@
+/* ==========================================================================
+   Taras Town — layout and overlays.
+
+   The canvas fills the screen; everything the player actually sees in the
+   game is drawn by JavaScript. This file only handles the page around it:
+   the tap-to-start panel and the "please turn your phone" screen.
+   ========================================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #4A9F3E;                 /* matches the grass, so any gap blends in */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Nothing on this page should be selectable, draggable, or long-pressable —
+     small hands press and hold a lot. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#game {
+  display: block;
+  position: fixed;
+  inset: 0;
+  touch-action: none;                  /* no scrolling or zooming on the canvas */
+}
+
+/* --------------------------------------------------------------------------
+   Tap to start
+   -------------------------------------------------------------------------- */
+#start-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #7FD4FF 0%, #B8ECFF 55%, #9BE87A 100%);
+  transition: opacity 0.35s ease;
+}
+
+#start-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#start-screen .panel {
+  text-align: center;
+}
+
+#start-screen .sun {
+  width: 74px;
+  height: 74px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: #FFD93D;
+  box-shadow: 0 0 0 12px rgba(255, 217, 61, 0.35);
+  animation: bob 2.4s ease-in-out infinite;
+}
+
+#start-screen h1 {
+  font-size: clamp(30px, 7vh, 58px);
+  color: #fff;
+  letter-spacing: 1px;
+  margin-bottom: 22px;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.16);
+}
+
+#start-button {
+  width: 108px;
+  height: 108px;
+  border: none;
+  border-radius: 50%;
+  background: #FF6B6B;
+  color: #fff;
+  font-size: 46px;
+  line-height: 108px;
+  padding-left: 8px;                   /* optically centres the ▶ glyph */
+  cursor: pointer;
+  box-shadow: 0 8px 0 #D64545;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+#start-button:active {
+  transform: translateY(6px);
+  box-shadow: 0 2px 0 #D64545;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+
+/* --------------------------------------------------------------------------
+   Please turn your phone
+
+   The game is landscape-only. Phones ignore the JavaScript orientation-lock
+   API in a normal browser tab (iPhone Safari has never supported it), so this
+   overlay is the thing that actually enforces it.
+   -------------------------------------------------------------------------- */
+#rotate-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: #2FA8E0;
+  color: #fff;
+}
+
+#rotate-screen .phone {
+  width: 78px;
+  height: 138px;
+  border: 7px solid #fff;
+  border-radius: 14px;
+  animation: turn 2.2s ease-in-out infinite;
+}
+
+#rotate-screen p {
+  font-size: 54px;
+  line-height: 1;
+}
+
+@keyframes turn {
+  0%, 30%   { transform: rotate(0deg); }
+  70%, 100% { transform: rotate(-90deg); }
+}
+
+@media (orientation: portrait) {
+  #rotate-screen { display: flex; }
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Taras Town</title>
+
+  <!-- Fill the whole phone screen, including behind the notch, and stop the
+       page from being pinch-zoomed or double-tap-zoomed while playing. -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+  <!-- Lets the game run without Safari's browser chrome when added to the
+       home screen. -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#7ED957">
+
+  <!-- A little sun, inline so there is no extra file to load. -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='9' fill='%23FFD93D'/></svg>">
+
+  <!-- All paths are relative (no leading slash) so the game works from a
+       GitHub Pages sub-folder such as /taras-town/. -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- The game itself -->
+  <canvas id="game"></canvas>
+
+  <!-- Tap-to-start. The tap is what lets us go full screen on a phone. -->
+  <div id="start-screen">
+    <div class="panel">
+      <div class="sun"></div>
+      <h1>Taras Town</h1>
+      <button id="start-button" aria-label="Play">▶</button>
+    </div>
+  </div>
+
+  <!-- Shown automatically by CSS whenever the phone is held upright. -->
+  <div id="rotate-screen">
+    <div class="phone"></div>
+    <p>↻</p>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

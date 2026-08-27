@@ -1,0 +1,26 @@
+# Taras Town is a pure static site — there is nothing to build and nothing to
+# install. This file just keeps operating-system and editor clutter out of git.
+
+# Windows / macOS junk
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+._*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# In case a tool is ever used locally, its output should never be committed:
+# what is in this repo must be exactly what GitHub Pages serves.
+node_modules/
+dist/
+build/
+.cache/
+*.log
+
+# Local Claude Code settings — not part of the game
+.claude/
