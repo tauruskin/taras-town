@@ -26,6 +26,39 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Cars
+  // ---------------------------------------------------------------------
+  CAR: {
+    ACCEL: 430,          // pixels per second, per second
+    MAX_SPEED: 340,      // top speed going forwards
+    REVERSE_SPEED: 120,  // much slower backwards, on purpose
+    DRAG: 1.7,           // how quickly it coasts to a stop
+    TURN_RATE: 3.0,      // radians per second at speed
+    TURN_MIN: 0.30,      // fraction of that available at a standstill, so a
+                         // car nosed into a corner can always turn out of it
+    BOUNCE: 0.32,        // speed kept after bumping something (soft, not bouncy)
+
+    HITBOX: 40,          // square used for collision — deliberately smaller
+                         // than the car looks, so it fits wherever it seems
+                         // like it should and never wedges on a corner
+    ENTER_RADIUS: 104,   // how close you must stand to get in. Measured from
+                         // the car's centre, so it is stricter than it looks:
+                         // this is roughly 'touching the side of the car'.
+
+    CAR: { LENGTH: 62, WIDTH: 34 },
+    VAN: { LENGTH: 74, WIDTH: 38 },
+  },
+
+  CAR_BODY_PALETTE: [
+    '#FF6B6B', '#4EA8FF', '#FFD93D', '#6BCB77',
+    '#C77DFF', '#FF9F45', '#4ECDC4', '#F78FB3',
+  ],
+  CAR_ROOF_PALETTE: [
+    '#E05252', '#3A8CDB', '#E6BE2A', '#54AC61',
+    '#A863DB', '#E08838', '#3FB0A8', '#DB7699',
+  ],
+
+  // ---------------------------------------------------------------------
   // Camera
   // ---------------------------------------------------------------------
   CAMERA: {
@@ -36,6 +69,10 @@ export const CONFIG = {
     // the phone screen. Smaller number = more zoomed in.
     // 380 keeps the character comfortably big on a phone held sideways.
     VIEW_HEIGHT: 380,
+    // Driving pulls the camera back so there is time to see a corner coming.
+    VIEW_HEIGHT_CAR: 445,
+    // How quickly the view changes between those two when getting in or out.
+    ZOOM_LERP: 3.5,
   },
 
   // ---------------------------------------------------------------------

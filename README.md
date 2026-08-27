@@ -54,6 +54,7 @@ the old version after that, pull down to refresh the page.
 | `js/main.js` | Starts the game, runs the loop, draws the on-screen controls. |
 | `js/world.js` | The town: map layout, buildings, trees, and everything solid. |
 | `js/player.js` | The character on foot. |
+| `js/car.js` | The parked cars, how they drive, and where they are parked. |
 | `js/camera.js` | Follows the player, never scrolls past the edge of town. |
 | `js/input.js` | The touch joystick. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
@@ -84,8 +85,24 @@ there in map squares, not pixels.
 - [x] **1 — Walking.** Explore the town on foot: roads, pavements, houses,
       shops, a park with a fountain and a pond, a river. Solid collision,
       following camera, touch joystick, position saved between visits.
-- [ ] 2 — Driving: cars parked around town, get in and out, soft driving feel.
+- [x] **2 — Driving.** Ten cars parked around town. Walk up to one and a green
+      button appears; press it to get in, press it again to get out. Steering
+      is "point where you want to go", with a turning circle, momentum and
+      soft bumps. The camera pulls back while driving.
 - [ ] 3 — Customising the character and the cars.
 - [ ] 4 — Friendly errands to run for the neighbours.
 - [ ] 5 — Coins to collect and things to unlock with them.
 - [ ] 6 — A silly game of tag with the town helper.
+
+## Two hitboxes per car, on purpose
+
+A car has two different collision boxes, and they are not interchangeable:
+
+- **`half`** (40px square) is what the car itself uses to move around town.
+  It is deliberately smaller than the car looks, so a child driving badly
+  never wedges the car on a corner.
+- **`boundsBox()`** is the car's real footprint, and it is what *other* things
+  collide with. Using the small box here let the player walk up onto the
+  bonnet and stand on the car.
+
+If you change one, think about whether the other should follow.

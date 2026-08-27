@@ -24,10 +24,11 @@ export class Player {
   }
 
   /**
-   * @param dt     seconds since last frame
-   * @param stick  { x, y, mag } from the joystick
+   * @param dt        seconds since last frame
+   * @param stick     { x, y, mag } from the joystick
+   * @param blockers  extra rectangles to walk around, i.e. the parked cars
    */
-  update(dt, stick) {
+  update(dt, stick, blockers) {
     const P = CONFIG.PLAYER;
 
     if (stick.mag > 0) {
@@ -37,6 +38,7 @@ export class Player {
         this.x, this.y,
         P.HITBOX / 2, P.HITBOX / 2,
         stick.x * dist, stick.y * dist,
+        blockers,
       );
       this.x = next.x;
       this.y = next.y;
@@ -94,19 +96,20 @@ export class Player {
     ctx.fillStyle = C.SHIRT;
     roundRect(ctx, -12, -12, 24, 20, 8); ctx.fill();
 
-    // --- head: hair all round, face showing at the front
+    // --- head. Seen from above: a full circle of hair, with the face as a
+    //     smaller circle pushed towards the front so the hair reads as a
+    //     crescent behind it. Two eyes then make the facing direction
+    //     unmistakable — an earlier version used a single nose dot on a
+    //     half-circle of skin and just looked like a smudge at phone size.
     ctx.fillStyle = C.HAIR;
-    ctx.beginPath(); ctx.arc(0, -10, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -9, 11, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = C.SKIN;
-    ctx.beginPath();
-    ctx.arc(0, -10, 9, Math.PI, 0);   // the front half of the head
-    ctx.closePath();
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -12.5, 8.5, 0, Math.PI * 2); ctx.fill();
 
-    // --- a tiny nose so it's obvious which way he's looking
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.beginPath(); ctx.arc(0, -17, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(50,30,20,0.75)';
+    ctx.beginPath(); ctx.arc(-3.4, -14.5, 1.9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.4, -14.5, 1.9, 0, Math.PI * 2); ctx.fill();
 
     ctx.restore();
   }

@@ -287,28 +287,39 @@ export class World {
    * Each axis is resolved separately, which is what lets the player slide
    * along a wall instead of sticking to it.
    *
-   * Returns the new { x, y } centre position.
+   * @param extra  additional rectangles to treat as solid for this move —
+   *               used for cars, which move about and so cannot live in the
+   *               fixed `solids` list.
+   * @returns { x, y, blocked } — the new centre, and whether anything was hit.
    */
-  moveBox(x, y, halfW, halfH, dx, dy) {
+  moveBox(x, y, halfW, halfH, dx, dy, extra) {
+    let blocked = false;
+
     let nx = x + dx;
-    if (this._overlaps(nx, y, halfW, halfH)) nx = x;   // blocked horizontally
+    if (this._overlaps(nx, y, halfW, halfH, extra)) { nx = x; blocked = true; }
 
     let ny = y + dy;
-    if (this._overlaps(nx, ny, halfW, halfH)) ny = y;  // blocked vertically
+    if (this._overlaps(nx, ny, halfW, halfH, extra)) { ny = y; blocked = true; }
 
     // Never leave the map.
-    nx = Math.min(Math.max(nx, halfW), this.width - halfW);
-    ny = Math.min(Math.max(ny, halfH), this.height - halfH);
+    const cx = Math.min(Math.max(nx, halfW), this.width - halfW);
+    const cy = Math.min(Math.max(ny, halfH), this.height - halfH);
+    if (cx !== nx || cy !== ny) blocked = true;
 
-    return { x: nx, y: ny };
+    return { x: cx, y: cy, blocked };
   }
 
-  _overlaps(cx, cy, halfW, halfH) {
+  _overlaps(cx, cy, halfW, halfH, extra) {
     const l = cx - halfW, r = cx + halfW;
     const t = cy - halfH, b = cy + halfH;
 
     for (const s of this.solids) {
       if (r > s.x && l < s.x + s.w && b > s.y && t < s.y + s.h) return true;
+    }
+    if (extra) {
+      for (const s of extra) {
+        if (r > s.x && l < s.x + s.w && b > s.y && t < s.y + s.h) return true;
+      }
     }
     return false;
   }

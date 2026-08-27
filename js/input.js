@@ -28,7 +28,44 @@ export class Input {
     // Output, read by the game each frame
     this.vector = { x: 0, y: 0, mag: 0 };
 
+    // Round action buttons. The game replaces this list every frame with
+    // whatever buttons currently apply: { id, x, y, r }.
+    this.buttons = [];
+    this._buttonPointers = new Map();  // pointerId -> button id (held down)
+    this._presses = new Set();         // buttons pressed since last checked
+
     this._bind();
+  }
+
+  /** Called each frame by the game to say which buttons exist right now. */
+  setButtons(list) {
+    this.buttons = list;
+  }
+
+  /**
+   * Did this button get pressed? Reading it clears it, so a single tap
+   * triggers exactly one action however long the frame took.
+   */
+  consumePress(id) {
+    if (!this._presses.has(id)) return false;
+    this._presses.delete(id);
+    return true;
+  }
+
+  /** Is a finger currently resting on this button? Used to draw it pushed in. */
+  isHeld(id) {
+    for (const held of this._buttonPointers.values()) {
+      if (held === id) return true;
+    }
+    return false;
+  }
+
+  _hitButton(p) {
+    for (const b of this.buttons) {
+      // A generous margin: a 6-year-old's aim is not precise.
+      if (Math.hypot(p.x - b.x, p.y - b.y) <= b.r + 12) return b;
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------
@@ -66,8 +103,16 @@ export class Input {
     const p = this._pos(e);
     const halfWidth = this.canvas.clientWidth / 2;
 
-    // Left half of the screen drives the joystick.
-    // (The right half is reserved for action buttons in milestone 2.)
+    // Buttons are checked first, wherever they happen to be on screen.
+    const hit = this._hitButton(p);
+    if (hit) {
+      this._buttonPointers.set(e.pointerId, hit.id);
+      this._presses.add(hit.id);
+      try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      return;
+    }
+
+    // Otherwise the left half of the screen drives the joystick.
     if (this.stickPointerId === null && p.x < halfWidth) {
       this.stickPointerId = e.pointerId;
       this.origin = this._clampOriginToScreen(p);
@@ -85,6 +130,12 @@ export class Input {
   }
 
   _onUp(e) {
+    if (this._buttonPointers.has(e.pointerId)) {
+      this._buttonPointers.delete(e.pointerId);
+      try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      return;
+    }
+
     if (e.pointerId !== this.stickPointerId) return;
     this.stickPointerId = null;
     this.vector = { x: 0, y: 0, mag: 0 };
