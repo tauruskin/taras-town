@@ -1,0 +1,7 @@
+# Keep the vendored library byte-for-byte identical to what was downloaded.
+# Without this, git rewrites its line endings on checkout, and the file in a
+# working copy no longer matches the upstream release it claims to be.
+js/vendor/* -text
+
+# Everything else is ordinary text; let git normalise it.
+* text=auto
