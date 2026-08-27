@@ -9,7 +9,8 @@
  *   - draw the on-screen controls
  *   - save where the player was standing
  *
- * Milestones 1-2: walking around town, and driving the cars.
+ * Milestones 1-3: walking around town, driving the cars, and choosing what
+ * Taras and his car look like.
  */
 
 import { CONFIG } from './config.js';
@@ -18,6 +19,7 @@ import { Player } from './player.js';
 import { createCars } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
+import { Menu } from './ui.js';
 import { loadGame, saveGame } from './save.js';
 
 // ---------------------------------------------------------------------------
@@ -39,6 +41,10 @@ const player = new Player(world, spawn.x, spawn.y);
 
 const camera = new Camera(world);
 const input = new Input(canvas);
+const menu = new Menu();
+
+// Put on whatever was chosen last time.
+player.setOutfit(save.hat, save.shirt);
 
 // What the player is doing right now.
 const ON_FOOT = 'foot';
@@ -130,8 +136,21 @@ function frame(now) {
 
 function update(dt) {
   // --- what buttons exist this frame? ---------------------------------
+  // Worked out even while the menu is open, so picking a car colour repaints
+  // the car he is standing next to and he sees the change straight away.
   nearbyCar = mode === ON_FOOT ? findCarToEnter() : null;
   refreshButtons();
+
+  // --- the menu, if it's open, takes every press and pauses the town ----
+  if (menu.open) {
+    handleMenuPresses();
+    return;
+  }
+
+  if (input.consumePress('menu-open')) {
+    menu.open = true;
+    return;
+  }
 
   // --- act on a button press ------------------------------------------
   if (input.consumePress('action')) {
@@ -189,8 +208,17 @@ function render() {
 
   // --- controls, drawn in screen coordinates ---------------------------
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+
+  if (menu.open) {
+    menu.draw(ctx, w, h, { hat: save.hat, shirt: save.shirt, car: save.car });
+    return;
+  }
+
   drawJoystick();
   drawActionButton();
+  menu.drawOpener(ctx, w, h, input.isHeld('menu-open'));
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +240,8 @@ function findCarToEnter() {
 function enterCar(car) {
   drivenCar = car;
   mode = DRIVING;
+  // Whatever he drives becomes his chosen colour.
+  car.repaint(save.car);
 }
 
 function exitCar() {
@@ -249,13 +279,56 @@ function actionButtonPos() {
 
 /** Tell the input layer which buttons are live this frame. */
 function refreshButtons() {
-  const showAction = mode === DRIVING || nearbyCar !== null;
-  if (!showAction) {
-    input.setButtons([]);
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+
+  // While the menu is open it owns the whole screen.
+  if (menu.open) {
+    input.setButtons(menu.buttons(w, h));
     return;
   }
-  const b = actionButtonPos();
-  input.setButtons([{ id: 'action', x: b.x, y: b.y, r: b.r }]);
+
+  const opener = Menu.openerPos(w, h);
+  const list = [{ id: 'menu-open', x: opener.x, y: opener.y, r: opener.r }];
+
+  if (mode === DRIVING || nearbyCar !== null) {
+    const b = actionButtonPos();
+    list.push({ id: 'action', x: b.x, y: b.y, r: b.r });
+  }
+  input.setButtons(list);
+}
+
+/**
+ * Menu taps. Choices apply the instant they're pressed — there is no confirm
+ * step, so the change is its own feedback.
+ */
+function handleMenuPresses() {
+  if (input.consumePress('menu-close')) {
+    menu.open = false;
+    persist();
+    return;
+  }
+
+  for (const row of menu.rows()) {
+    for (let i = 0; i < row.count; i++) {
+      if (!input.consumePress(`${row.id}:${i}`)) continue;
+
+      save[row.id] = i;
+      applyChoices();
+      persist();
+    }
+  }
+}
+
+/** Push the saved choices onto the things they affect. */
+function applyChoices() {
+  player.setOutfit(save.hat, save.shirt);
+
+  // Repaint the car he's sitting in, or the one he's standing beside, so a
+  // colour change is visible right there behind the menu rather than being
+  // a surprise later.
+  const target = drivenCar || nearbyCar;
+  if (target) target.repaint(save.car);
 }
 
 function drawJoystick() {

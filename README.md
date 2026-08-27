@@ -25,7 +25,8 @@ of progress in the browser's own `localStorage`, which never leaves the phone.
 ## Controls
 
 On a phone: the joystick on the left half of the screen (grab it anywhere),
-and the round button on the right to get in and out of a car.
+the round button on the bottom right to get in and out of a car, and the
+palette button in the top right to change colours.
 
 On a computer, for testing:
 
@@ -73,6 +74,7 @@ the old version after that, pull down to refresh the page.
 | `js/car.js` | The parked cars, how they drive, and where they are parked. |
 | `js/camera.js` | Follows the player, never scrolls past the edge of town. |
 | `js/input.js` | The touch joystick, and the keyboard controls. |
+| `js/ui.js` | The customisation menu: the colour rows and the pictures beside them. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
 
 ### Want to change something?
@@ -105,7 +107,9 @@ there in map squares, not pixels.
       button appears; press it to get in, press it again to get out. Steering
       is "point where you want to go", with a turning circle, momentum and
       soft bumps. The camera pulls back while driving.
-- [ ] 3 — Customising the character and the cars.
+- [x] **3 — Customising.** A palette button in the top corner opens a menu with
+      three rows of colour dots: hat, shirt and car. Choices apply the instant
+      they're tapped and are remembered between visits. No text anywhere.
 - [ ] 4 — Friendly errands to run for the neighbours.
 - [ ] 5 — Coins to collect and things to unlock with them.
 - [ ] 6 — A silly game of tag with the town helper.
@@ -122,3 +126,14 @@ A car has two different collision boxes, and they are not interchangeable:
   bonnet and stand on the car.
 
 If you change one, think about whether the other should follow.
+
+## Adding a colour to the menu
+
+Add an entry to `HAT_PALETTE`, `SHIRT_PALETTE` or `CAR_BODY_PALETTE` (plus the
+matching `CAR_ROOF_PALETTE` entry) in `js/config.js`. The menu builds its rows
+from the length of those lists, so a new dot appears on its own and the row
+re-spaces itself to fit.
+
+Choices are saved as **positions in those lists**, not as colour strings. So
+editing a palette entry restyles everyone who had picked it, rather than
+leaving old saves pointing at a colour that no longer exists.

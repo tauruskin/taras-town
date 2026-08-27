@@ -119,6 +119,20 @@ export class Car {
     return { x: this.x - w / 2, y: this.y - h / 2, w, h };
   }
 
+  /**
+   * Repaint this car, by index into the car palettes in config.js.
+   * Used when the player gets into a car, so the car he drives is always
+   * his chosen colour.
+   */
+  repaint(index) {
+    const i = index % CONFIG.CAR_BODY_PALETTE.length;
+    this.style = {
+      ...this.style,
+      body: CONFIG.CAR_BODY_PALETTE[i],
+      roof: CONFIG.CAR_ROOF_PALETTE[i],
+    };
+  }
+
   /** How fast it is going, regardless of direction. Used by milestone 6. */
   get speedAbs() {
     return Math.abs(this.speed);

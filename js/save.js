@@ -18,6 +18,13 @@ function defaultSave() {
     coins: 0,
     // Where the player was standing last time, so we can put them back.
     lastPos: null,
+
+    // Chosen appearance, as indexes into the palettes in config.js.
+    // Indexes rather than colour strings so that changing a palette entry
+    // restyles existing saves instead of leaving them on a dead colour.
+    hat: 0,
+    shirt: 0,
+    car: 0,
   };
 }
 

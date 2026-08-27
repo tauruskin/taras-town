@@ -21,6 +21,17 @@ export class Player {
     this.angle = 0;      // radians; 0 = facing right, like Math.atan2
     this.walkPhase = 0;  // drives the arm and leg swing
     this.speed01 = 0;    // 0 = still, 1 = full pelt (smoothed, for animation)
+
+    // What he's wearing. These are instance fields rather than constants
+    // because the customisation menu changes them at runtime.
+    this.hat = CONFIG.HAT_PALETTE[0];
+    this.shirt = CONFIG.SHIRT_PALETTE[0];
+  }
+
+  /** Apply a chosen outfit, by index into the palettes in config.js. */
+  setOutfit(hatIndex, shirtIndex) {
+    this.hat = CONFIG.HAT_PALETTE[hatIndex] || CONFIG.HAT_PALETTE[0];
+    this.shirt = CONFIG.SHIRT_PALETTE[shirtIndex] || CONFIG.SHIRT_PALETTE[0];
   }
 
   /**
@@ -93,19 +104,19 @@ export class Player {
     ctx.beginPath(); ctx.arc(14, -2 + swing * 0.7, 5.5, 0, Math.PI * 2); ctx.fill();
 
     // --- body
-    ctx.fillStyle = C.SHIRT;
+    ctx.fillStyle = this.shirt;
     roundRect(ctx, -12, -12, 24, 20, 8); ctx.fill();
 
     // --- head: a cap, seen from straight above. There is no face or hair to
     //     draw from this angle, and the brim is a much stronger direction
     //     cue at phone size than a face ever was — it physically points the
     //     way he is walking.
-    ctx.fillStyle = C.HAT_BRIM;
+    ctx.fillStyle = this.hat.brim;
     ctx.beginPath();
     ctx.ellipse(0, -19, 11, 8.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = C.HAT;
+    ctx.fillStyle = this.hat.crown;
     ctx.beginPath(); ctx.arc(0, -9, 11, 0, Math.PI * 2); ctx.fill();
 
     // The little button on the crown.

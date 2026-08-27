@@ -119,19 +119,37 @@ export const CONFIG = {
     SHADOW:       'rgba(0,0,0,0.16)',
 
     SKIN:         '#F8C89B',
-    // Seen from above he wears a cap, so there is no hair or face to draw.
-    // Bright yellow on purpose: it makes him easy to pick out against grass,
-    // road and pavement alike.
-    // The brim is MUCH darker than the crown on purpose. They started out as
-    // near neighbours and the brim disappeared into the hat at phone size,
-    // which is exactly the cue that tells you which way he is facing.
-    HAT:          '#FFD23F',
-    HAT_BRIM:     '#B87A0C',
-    HAT_TOP:      '#FFF0A8',
-    SHIRT:        '#FF6B6B',   // milestone 3 will let Taras change this
+    HAT_TOP:      '#FFF0A8',   // the little button on the crown
     PANTS:        '#3B7DD8',
     SHOE:         '#5A6785',   // soft navy trainers, not black boots
   },
+
+  // ---------------------------------------------------------------------
+  // What Taras can change about himself and his car (milestone 3).
+  //
+  // Each list is what one row of the customisation menu offers. Adding a
+  // colour here adds a dot to that row; nothing else needs touching.
+  // ---------------------------------------------------------------------
+
+  // Seen from above he wears a cap, so there is no hair or face to draw.
+  // In every pair the brim is MUCH darker than the crown, on purpose: they
+  // started out as near neighbours and the brim disappeared into the hat at
+  // phone size, losing the very cue that shows which way he is facing.
+  HAT_PALETTE: [
+    { crown: '#FFD23F', brim: '#B87A0C' },   // yellow (default)
+    { crown: '#FF6B6B', brim: '#B03B3B' },   // red
+    { crown: '#4EA8FF', brim: '#2A6AB0' },   // blue
+    { crown: '#6BCB77', brim: '#3C8547' },   // green
+    { crown: '#C77DFF', brim: '#8442B0' },   // purple
+    { crown: '#FF9F45', brim: '#BE6712' },   // orange
+    { crown: '#4ECDC4', brim: '#2A857E' },   // teal
+    { crown: '#F78FB3', brim: '#B25076' },   // pink
+  ],
+
+  SHIRT_PALETTE: [
+    '#FF6B6B', '#4EA8FF', '#FFD93D', '#6BCB77',
+    '#C77DFF', '#FF9F45', '#4ECDC4', '#F78FB3',
+  ],
 
   // Roofs are the big colour you see from above, so they are the cheerful
   // ones. Walls are a deeper version of the same hue and show as a rim
