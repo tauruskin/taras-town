@@ -15,7 +15,6 @@
 
 let ctx = null;
 let muted = false;
-let music = null;
 
 /** Call once, from inside a real user gesture. */
 export function initAudio() {
@@ -25,40 +24,13 @@ export function initAudio() {
     ctx = new AC();
     // Safari often hands back a suspended context even inside a gesture.
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    // Background music
-if (!music) {
-  music = new Audio('./audio/jazz-bossa-nova-cooking-show-music-312826.mp3');
-  music.loop = true;
-  music.volume = 0.25;
-}
-
-if (!muted) {
-  music.play().catch(() => {});
-}
   } catch (err) {
     ctx = null;
   }
 }
 
-/**
- * Silence everything, or let it speak again.
- *
- * Deliberately the single switch for ALL sound, not just the effects that
- * exist today. When music is added it should go through `note()` or check
- * `isMuted()` too, so the one button in the corner keeps meaning "quiet
- * please" rather than becoming "quiet except for the bit I forgot about".
- */
 export function setMuted(v) {
   muted = !!v;
-
-  if (music) {
-    if (muted) {
-      music.pause();
-    } else {
-      music.play().catch(() => {});
-    }
-  }
-};
 }
 
 export function isMuted() {
