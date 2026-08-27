@@ -59,6 +59,7 @@ game.
 | `jobs` | Walk to a neighbour, take a job, arrive, get paid. Also that single player downloads no networking code at all. |
 | `job-friend-lift` / `job-race` | The two more complicated jobs, including that race checkpoints pay nothing until the last one. |
 | `shop` | A locked colour cannot be worn while broke, coins are collected off the street, buying deducts the right amount and survives a reload. |
+| `sound` | The speaker button toggles, looks different in each state, is remembered across a reload, and works from inside the menu. |
 | `multiplayer` | Two browsers, a real connection: they find each other and moving one moves the other's view of them. |
 | `multiplayer-phone-and-desktop` | The same, with one phone-shaped browser and one desktop-shaped one. |
 | `multiplayer-rejoin` | The host leaves; the other player takes over hosting on its own; the first rejoins. Nobody reloads anything. |

@@ -29,6 +29,14 @@ export function initAudio() {
   }
 }
 
+/**
+ * Silence everything, or let it speak again.
+ *
+ * Deliberately the single switch for ALL sound, not just the effects that
+ * exist today. When music is added it should go through `note()` or check
+ * `isMuted()` too, so the one button in the corner keeps meaning "quiet
+ * please" rather than becoming "quiet except for the bit I forgot about".
+ */
 export function setMuted(v) {
   muted = !!v;
 }

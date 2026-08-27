@@ -233,6 +233,66 @@ function drawPrice(ctx, x, y, r, affordable) {
   ctx.restore();
 }
 
+/**
+ * The sound button: a speaker, with waves coming out of it when sound is on
+ * and a line struck through it when it is off.
+ *
+ * Both states are drawn as a speaker rather than one being an empty space, so
+ * it always looks like the same button doing the same job.
+ */
+export function drawSoundButton(ctx, x, y, r, on, held) {
+  const rr = held ? r - 2 : r;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath();
+  ctx.arc(x, y + (held ? 2 : 5), rr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(x, y, rr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.translate(x, y);
+  const u = rr / 26;
+  const body = on ? '#3A3A42' : '#9AA0AC';
+
+  // The speaker: a little box with a cone opening out of it.
+  ctx.fillStyle = body;
+  roundRect(ctx, -11 * u, -5 * u, 7 * u, 10 * u, 2 * u);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-4 * u, -4.5 * u);
+  ctx.lineTo(3 * u, -11 * u);
+  ctx.lineTo(3 * u, 11 * u);
+  ctx.lineTo(-4 * u, 4.5 * u);
+  ctx.closePath();
+  ctx.fill();
+
+  if (on) {
+    // Two arcs of sound coming out.
+    ctx.strokeStyle = body;
+    ctx.lineWidth = 2.6 * u;
+    ctx.lineCap = 'round';
+    for (const rad of [7, 12]) {
+      ctx.beginPath();
+      ctx.arc(4 * u, 0, rad * u, -0.9, 0.9);
+      ctx.stroke();
+    }
+  } else {
+    // A red line through it. Unmistakable, and needs no reading.
+    ctx.strokeStyle = '#E5484D';
+    ctx.lineWidth = 4 * u;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(5 * u, -10 * u);
+    ctx.lineTo(15 * u, 10 * u);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** The colour a given swatch shows. */
 export function swatchColour(rowId, i) {
   if (rowId === 'hat') return CONFIG.HAT_PALETTE[i].crown;

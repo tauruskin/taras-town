@@ -25,8 +25,13 @@ of progress in the browser's own `localStorage`, which never leaves the phone.
 ## Controls
 
 On a phone: the joystick on the left half of the screen (grab it anywhere),
-the round button on the bottom right to get in and out of a car, and the
-palette button in the top right to change colours.
+the round button on the bottom right to get in and out of a car, the palette
+button in the top right to change colours, and the speaker button beside it to
+turn the sound off.
+
+The speaker silences **everything**, and being switched off is remembered
+between visits. It stays in the same corner whether the menu is open or not,
+because a mute button you have to go looking for is not much use.
 
 On a computer, for testing:
 

@@ -19,6 +19,10 @@ function defaultSave() {
     // Where the player was standing last time, so we can put them back.
     lastPos: null,
 
+    // Sound on or off. Off is remembered, so a household that plays quietly
+    // does not have to switch it off again every single time.
+    muted: false,
+
     // Chosen appearance, as indexes into the palettes in config.js.
     // Indexes rather than colour strings so that changing a palette entry
     // restyles existing saves instead of leaving them on a dead colour.
@@ -60,6 +64,7 @@ export function loadGame() {
         : [];
     }
     if (!Number.isFinite(merged.coins) || merged.coins < 0) merged.coins = 0;
+    merged.muted = merged.muted === true;
 
     return merged;
   } catch (err) {

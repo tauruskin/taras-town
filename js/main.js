@@ -20,12 +20,12 @@ import { Player } from './player.js';
 import { Car, createCars } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
-import { Menu, drawMissionIcon } from './ui.js';
+import { Menu, drawMissionIcon, drawSoundButton } from './ui.js';
 import { createNpcs } from './npc.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
-import { initAudio, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
+import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
 
@@ -67,6 +67,7 @@ const ghosts = new Map();   // peer id -> { player, car, x, y, angle, ... }
 
 // Put on whatever was chosen last time.
 player.setOutfit(save.hat, save.shirt);
+setMuted(save.muted);
 
 // What the player is doing right now.
 const ON_FOOT = 'foot';
@@ -173,6 +174,9 @@ function update(dt) {
   nearbyCar = mode === ON_FOOT ? findCarToEnter() : null;
   action = findAction();
   refreshButtons();
+
+  // The sound button works whether the menu is open or shut.
+  if (input.consumePress('sound')) toggleSound();
 
   // --- the menu, if it's open, takes every press and pauses the town ----
   if (menu.open) {
@@ -316,6 +320,7 @@ function render() {
     // The purse stays on screen in the shop. Deciding whether you can afford
     // something while your total is hidden is no decision at all.
     drawCoinCounter(w, h);
+    drawSound(w, h);
     effects.draw(ctx);
     return;
   }
@@ -323,10 +328,16 @@ function render() {
   drawJoystick();
   drawActionButton();
   menu.drawOpener(ctx, w, h, input.isHeld('menu-open'));
+  drawSound(w, h);
   drawWaypointArrow(w, h);
   drawCoinCounter(w, h);
   drawPlayerCount(w, h);
   effects.draw(ctx);
+}
+
+function drawSound(w, h) {
+  const b = soundButtonPos();
+  drawSoundButton(ctx, b.x, b.y, b.r, !save.muted, input.isHeld('sound'));
 }
 
 /**
@@ -618,6 +629,15 @@ function exitCar() {
   persist();
 }
 
+function toggleSound() {
+  save.muted = !save.muted;
+  setMuted(save.muted);
+  // A little pip on the way back on, so you can hear that it worked. Nothing
+  // on the way off, for obvious reasons.
+  if (!save.muted) playPickup();
+  persist();
+}
+
 /** Somewhere clear beside `car` for the player to step out onto. */
 function findExitSpot(car) {
   return car.exitSpot(cars.filter((c) => c !== car));
@@ -626,6 +646,17 @@ function findExitSpot(car) {
 // ---------------------------------------------------------------------------
 // On-screen controls
 // ---------------------------------------------------------------------------
+
+/**
+ * The sound button, tucked beside the palette button in the top corner.
+ *
+ * It stays put whether the menu is open or not, so switching the sound off is
+ * never something you have to go looking for — which is the whole point of a
+ * mute button.
+ */
+function soundButtonPos() {
+  return { x: canvas.clientWidth - 116, y: 52, r: 26 };
+}
 
 /** Where the big action button sits, in screen pixels. */
 function actionButtonPos() {
@@ -641,14 +672,21 @@ function refreshButtons() {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
 
-  // While the menu is open it owns the whole screen.
+  const sound = soundButtonPos();
+  const soundButton = { id: 'sound', x: sound.x, y: sound.y, r: sound.r };
+
+  // While the menu is open it owns the whole screen — except the sound
+  // button, which stays where it is.
   if (menu.open) {
-    input.setButtons(menu.buttons(w, h));
+    input.setButtons([...menu.buttons(w, h), soundButton]);
     return;
   }
 
   const opener = Menu.openerPos(w, h);
-  const list = [{ id: 'menu-open', x: opener.x, y: opener.y, r: opener.r }];
+  const list = [
+    { id: 'menu-open', x: opener.x, y: opener.y, r: opener.r },
+    soundButton,
+  ];
 
   if (action) {
     const b = actionButtonPos();
