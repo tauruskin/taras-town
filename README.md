@@ -78,6 +78,8 @@ the old version after that, pull down to refresh the page.
 | `js/npc.js` | The neighbours who hand out jobs, and their badges. |
 | `js/missions.js` | Jobs: where they send you, and when they are finished. |
 | `js/coins.js` | The coins lying around town. |
+| `js/net.js` | Playing together. Only ever loaded when a `?room=` is present. |
+| `js/vendor/` | The one piece of third-party code. See the README in there. |
 | `js/effects.js` | Confetti and the floating coin when a job is done. |
 | `js/audio.js` | Little sounds, generated live. There are no sound files. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
@@ -127,7 +129,10 @@ there in map squares, not pixels.
       the shop: the first three colours in each row are free, the rest cost 10
       coins and show a price tag — dark when you cannot afford it, gold when
       you can.
-- [ ] 6 — Playing together on the same wifi (peer-to-peer).
+- [x] **6 — Playing together.** Open the same `?room=` link on two phones on
+      the same wifi and you can see each other walking and driving around the
+      same town, in each other's chosen colours. A badge at the top shows how
+      many of you there are.
 - [ ] 7 — A silly game of tag with the town helper.
 
 ## Two hitboxes per car, on purpose
@@ -195,3 +200,46 @@ saved** — only the total is. Every session starts with a full town.
 One consequence needed handling: closing the game while standing on a coin and
 reopening it used to hand out a free coin every single time. `clearAtStart`
 quietly removes whatever you were standing on, without paying for it.
+
+## Playing together
+
+Add `?room=` and a name of your own to the address, and open that same link on
+both phones:
+
+```
+https://tauruskin.github.io/taras-town/?room=our-secret-name-4821
+```
+
+Whoever opens it first hosts; everyone else joins them. **Only people you send
+that link to can join**, so pick something nobody would guess.
+
+### How it works, and what it costs
+
+The phones talk **directly to each other** over the local wifi. The only
+outside help is a free introduction service, which is needed because a browser
+cannot listen for incoming connections on its own — it tells the two browsers
+how to find each other and then gets out of the way. No game data ever goes
+through it.
+
+`js/vendor/peerjs.min.js` is the only third-party code in the project. It is
+checked in rather than loaded from a CDN, and **it is only downloaded when
+there is a `?room=` in the address**. Playing on your own never fetches it.
+
+### What is deliberately not there
+
+No chat. No typed names. No way to send words or pictures between players. The
+only things that ever cross the wire are where somebody is and what colour
+their hat is — there is a test that fails if that ever stops being true.
+
+Coins, jobs and unlocks stay entirely on each phone. Nobody can spend anybody
+else's coins, and nobody can be pushed around: other players are drawn and
+nothing more. They do not collide with you.
+
+### If it doesn't connect
+
+The game carries on perfectly well on its own — that is the only thing that
+happens. Check both phones are on the same wifi and using the exact same link.
+
+One thing worth knowing: switching away from the game stops your character
+moving for everyone else, and after a few seconds the others stop showing you
+at all. Switch back and you reappear.

@@ -9,15 +9,15 @@
  *   - draw the on-screen controls
  *   - save where the player was standing
  *
- * Milestones 1-5: walking around town, driving the cars, choosing what Taras
- * and his car look like, running errands for the neighbours, and collecting
- * coins to spend on new colours.
+ * Milestones 1-6: walking around town, driving the cars, choosing what Taras
+ * and his car look like, running errands for the neighbours, collecting coins
+ * to spend on new colours, and playing together on the same wifi.
  */
 
 import { CONFIG } from './config.js';
 import { World } from './world.js';
 import { Player } from './player.js';
-import { createCars } from './car.js';
+import { Car, createCars } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Menu, drawMissionIcon } from './ui.js';
@@ -27,6 +27,7 @@ import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
 import { initAudio, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
 import { loadGame, saveGame } from './save.js';
+import { Net, roomFromUrl } from './net.js';
 
 // ---------------------------------------------------------------------------
 // Set-up
@@ -54,6 +55,15 @@ const effects = new Effects();
 const coins = new Coins(world);
 // Don't hand out whatever coin he happened to log off standing on.
 coins.clearAtStart(spawn.x, spawn.y);
+
+// Playing together only happens when there is a ?room= in the address. With
+// no room, none of the networking code is even downloaded.
+const room = roomFromUrl();
+const net = room ? new Net(room) : null;
+
+// Stand-in characters and cars for the other players. They are only ever
+// drawn — they never move themselves, collide, or touch the town.
+const ghosts = new Map();   // peer id -> { player, car, x, y, angle, ... }
 
 // Put on whatever was chosen last time.
 player.setOutfit(save.hat, save.shirt);
@@ -114,6 +124,10 @@ function startGame() {
     camera.snapTo(player.x, player.y);
     lastFrame = performance.now();
     requestAnimationFrame(frame);
+
+    // Joining happens in the background. If it fails, or takes a while, the
+    // game is already running and nobody has waited for anything.
+    if (net) net.join();
   }
 }
 
@@ -204,6 +218,19 @@ function update(dt) {
 
   effects.update(dt);
 
+  if (net) {
+    net.update(dt, {
+      x: Math.round(who.x),
+      y: Math.round(who.y),
+      angle: Math.round(who.angle * 100) / 100,
+      mode,
+      hat: save.hat,
+      shirt: save.shirt,
+      car: save.car,
+    });
+    updateGhosts(dt);
+  }
+
   // The shake after a failed purchase runs itself down.
   if (shake) {
     shake.amount -= dt;
@@ -264,6 +291,8 @@ function render() {
   }
   for (const npc of visibleNpcs) npc.draw(ctx, clock);
 
+  if (net) drawGhosts(ctx, view);
+
   if (mode === ON_FOOT) player.draw(ctx);
 
   // A friend being given a lift rides along with whoever is moving.
@@ -296,7 +325,62 @@ function render() {
   menu.drawOpener(ctx, w, h, input.isHeld('menu-open'));
   drawWaypointArrow(w, h);
   drawCoinCounter(w, h);
+  drawPlayerCount(w, h);
   effects.draw(ctx);
+}
+
+/**
+ * How many of you are playing, top middle. Only appears when a room is in the
+ * address at all.
+ *
+ * A failure shows nothing: if joining didn't work the game is simply a
+ * single-player game, and telling a 6-year-old that something went wrong on
+ * the network helps nobody.
+ */
+function drawPlayerCount(w, h) {
+  if (!net) return;
+  if (net.status === 'failed' || net.status === 'off') return;
+
+  const connecting = net.status === 'connecting';
+  const count = net.playerCount;
+
+  // Nothing worth saying yet if we're the only one here.
+  if (!connecting && count < 2) return;
+
+  const x = w / 2;
+  const y = 34;
+
+  ctx.save();
+  ctx.fillStyle = connecting ? 'rgba(0,0,0,0.28)' : 'rgba(40,150,60,0.85)';
+  roundRectPath(x - 44, y - 19, 88, 38, 19);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  if (connecting) {
+    // Three dots breathing in turn: "hold on".
+    for (let i = 0; i < 3; i++) {
+      const a = 0.35 + 0.65 * Math.max(0, Math.sin(clock * 4 - i * 0.7));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(x - 14 + i * 14, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // A little person, and the number of you.
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x - 16, y - 6, 6.5, 0, Math.PI * 2); ctx.fill();
+    roundRectPath(x - 24, y + 2, 16, 13, 6);
+    ctx.fill();
+
+    ctx.font = 'bold 24px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(count), x + 2, y + 1);
+  }
+  ctx.restore();
 }
 
 /**
@@ -425,6 +509,69 @@ function completeJob(job) {
   // and the camera may be about to move on from where the job actually ended.
   effects.celebrate(canvas.clientWidth / 2, canvas.clientHeight / 2, job.reward);
   persist();
+}
+
+// ---------------------------------------------------------------------------
+// The other players
+//
+// They are drawn and nothing more: they do not collide, cannot be bumped into,
+// and have no effect on the town. Two children should never be able to shove
+// each other into a wall, and a dropped connection should never be able to
+// leave the town in a strange state.
+// ---------------------------------------------------------------------------
+
+function updateGhosts(dt) {
+  // Add or refresh a stand-in for everyone we have heard from.
+  for (const [id, p] of net.others) {
+    let g = ghosts.get(id);
+    if (!g) {
+      g = {
+        player: new Player(world, p.x, p.y),
+        car: new Car(world, p.x, p.y, p.angle, { body: '#FFFFFF', roof: '#FFFFFF', type: 'car' }),
+        x: p.x, y: p.y, angle: p.angle, mode: p.mode,
+      };
+      ghosts.set(id, g);
+    }
+
+    // Updates arrive ten times a second; slide towards them so other players
+    // glide instead of jumping from spot to spot.
+    const t = Math.min(1, CONFIG.NET.SMOOTHING * dt);
+    g.x += (p.x - g.x) * t;
+    g.y += (p.y - g.y) * t;
+
+    let d = p.angle - g.angle;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    g.angle += d * t;
+
+    g.mode = p.mode;
+    g.player.setOutfit(p.hat, p.shirt);
+    g.car.repaint(p.car);
+  }
+
+  // Anybody the network has forgotten loses their stand-in too.
+  for (const id of [...ghosts.keys()]) {
+    if (!net.others.has(id)) ghosts.delete(id);
+  }
+}
+
+function drawGhosts(ctx, view) {
+  for (const g of ghosts.values()) {
+    if (g.x < view.x - 120 || g.x > view.x + view.w + 120) continue;
+    if (g.y < view.y - 120 || g.y > view.y + view.h + 120) continue;
+
+    if (g.mode === DRIVING) {
+      g.car.x = g.x; g.car.y = g.y; g.car.angle = g.angle;
+      g.car.draw(ctx);
+    } else {
+      g.player.x = g.x; g.player.y = g.y; g.player.angle = g.angle;
+      // Always mid-stride, so a distant friend reads as somebody walking
+      // about rather than as a statue.
+      g.player.speed01 = 1;
+      g.player.walkPhase = clock * 9;
+      g.player.draw(ctx);
+    }
+  }
 }
 
 /** Everything solid that moves about: the cars, and the neighbours. */
@@ -714,7 +861,10 @@ function persist() {
 
 // Save when the player leaves the page or locks the phone. `pagehide` and
 // `visibilitychange` are the two that actually fire reliably on mobile.
-window.addEventListener('pagehide', persist);
+window.addEventListener('pagehide', () => {
+  persist();
+  if (net) net.leave();
+});
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') persist();
 });

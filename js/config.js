@@ -96,6 +96,18 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Playing together (only used when there is a ?room= in the address)
+  // ---------------------------------------------------------------------
+  NET: {
+    SENDS_PER_SECOND: 10,      // plenty: the drawing smooths between updates
+    JOIN_TIMEOUT_MS: 9000,     // give up quietly rather than hanging the game
+    FORGET_AFTER_SECONDS: 4,   // drop a player who has gone quiet, so a phone
+                               // that leaves doesn't leave a statue behind
+    SMOOTHING: 12,             // how quickly other players slide to where
+                               // they actually are, between updates
+  },
+
+  // ---------------------------------------------------------------------
   // Camera
   // ---------------------------------------------------------------------
   CAMERA: {
