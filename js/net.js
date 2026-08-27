@@ -87,6 +87,7 @@ export class Net {
     this._me = null;
     this._joining = false;
     this._retryIn = 0;
+    this._silence = 0;      // how long since the host last said anything
   }
 
   get playerCount() {
@@ -184,6 +185,7 @@ export class Net {
           this.toHost = conn;
           this.isHost = false;
           this.status = 'guest';
+          this._silence = 0;
           console.info('[net] joined room "' + this.room + '"');
           done();
         });
@@ -232,6 +234,7 @@ export class Net {
   /** Guests: take the host's word for who is where. */
   _onRoster(msg) {
     if (!msg || msg.t !== 'all' || !Array.isArray(msg.p)) return;
+    this._silence = 0;
 
     const fresh = new Set();
     for (const p of msg.p) {
@@ -271,6 +274,25 @@ export class Net {
 
     if (this.status !== 'host' && this.status !== 'guest') return;
     this._me = me;
+
+    // A guest that stops hearing from the host has lost it, whether or not
+    // the connection ever admits as much.
+    //
+    // Waiting to be told is not enough: when the host's page goes away
+    // abruptly — a phone locking, a tab closing — the connection often just
+    // stops carrying anything, with no close event at all. That left this
+    // player attached to a host that no longer existed, never retrying, and
+    // unable to rejoin even once somebody else took over the room.
+    if (this.status === 'guest') {
+      this._silence += dt;
+      if (this._silence > CONFIG.NET.SILENCE_SECONDS) {
+        console.info('[net] the host has gone quiet; will try again');
+        this.others.clear();
+        this.status = 'failed';
+        this._retryIn = CONFIG.NET.RETRY_SECONDS;
+        return;
+      }
+    }
 
     // Forget anyone who has gone quiet, so a phone that walks out of range
     // doesn't leave a statue standing in the road.

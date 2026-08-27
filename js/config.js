@@ -107,6 +107,11 @@ export const CONFIG = {
                                // they actually are, between updates
     RETRY_SECONDS: 5,          // how long to wait before trying to rejoin
                                // after losing touch with everybody
+    SILENCE_SECONDS: 6,        // a guest hearing nothing for this long treats
+                               // the host as gone. A connection that simply
+                               // stops carrying anything does not reliably
+                               // report itself as closed, so waiting to be
+                               // told is not enough
   },
 
   // ---------------------------------------------------------------------
