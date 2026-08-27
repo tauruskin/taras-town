@@ -1,8 +1,8 @@
 /**
- * input.js — Touch controls.
+ * input.js — Touch and keyboard controls.
  *
- * Milestone 1 provides one thing: a virtual joystick on the left half of the
- * screen. It is deliberately forgiving for small hands:
+ * The phone is the real target, so the virtual joystick comes first. It is
+ * deliberately forgiving for small hands:
  *
  *   - You can start the drag ANYWHERE in the left half; the ring jumps to
  *     wherever the thumb landed instead of demanding a precise hit.
@@ -10,11 +10,36 @@
  *     so it is always visible and obvious.
  *   - A dead zone swallows tiny wobbles so the character doesn't jitter.
  *
+ * Keyboard (W/A/S/D or the arrow keys, plus Space/E for the action button)
+ * is supported too, mainly so the game can be tried on a computer. Both
+ * feed the same direction vector, so nothing downstream knows or cares
+ * which one is being used.
+ *
  * All coordinates here are CSS pixels relative to the canvas element, which
  * is the same space the HUD is drawn in.
  */
 
 import { CONFIG } from './config.js';
+
+/**
+ * Keyboard movement. W/A/S/D and the arrow keys both work.
+ *
+ * These produce a direction exactly like the joystick does, rather than being
+ * wired separately into walking and driving. That means one control model
+ * everywhere: on foot the direction is the way he walks, and in a car it is
+ * the heading the car steers towards.
+ */
+const MOVE_KEYS = {
+  w: 'up',    arrowup: 'up',
+  s: 'down',  arrowdown: 'down',
+  a: 'left',  arrowleft: 'left',
+  d: 'right', arrowright: 'right',
+};
+
+/** Keys that press the on-screen action button (get in / out of a car). */
+const ACTION_KEYS = new Set([' ', 'enter', 'e']);
+
+const ZERO = { x: 0, y: 0, mag: 0 };
 
 export class Input {
   constructor(canvas) {
@@ -25,8 +50,13 @@ export class Input {
     this.origin = { x: 0, y: 0 }; // centre of the ring right now
     this.current = { x: 0, y: 0 };// where that finger is
 
-    // Output, read by the game each frame
-    this.vector = { x: 0, y: 0, mag: 0 };
+    // The joystick's own output. Read `this.vector` instead — it falls back
+    // to the keyboard when no thumb is on the stick.
+    this._stickVector = { x: 0, y: 0, mag: 0 };
+
+    // Movement keys currently held down, as directions ('up', 'left', ...).
+    this.keys = new Set();
+    this._actionKeyDown = false;
 
     // Round action buttons. The game replaces this list every frame with
     // whatever buttons currently apply: { id, x, y, r }.
@@ -35,6 +65,63 @@ export class Input {
     this._presses = new Set();         // buttons pressed since last checked
 
     this._bind();
+    this._bindKeys();
+  }
+
+  /**
+   * Which way the player wants to go this frame.
+   *
+   * A thumb on the joystick always wins; otherwise the keyboard is used. They
+   * are never blended, so holding W while dragging the stick can't fight it.
+   */
+  get vector() {
+    if (this.stickPointerId !== null) return this._stickVector;
+    return this._keyVector();
+  }
+
+  _keyVector() {
+    let x = 0, y = 0;
+    if (this.keys.has('left')) x -= 1;
+    if (this.keys.has('right')) x += 1;
+    if (this.keys.has('up')) y -= 1;     // screen y grows downwards
+    if (this.keys.has('down')) y += 1;
+
+    if (x === 0 && y === 0) return ZERO;
+
+    // Normalise so diagonals aren't faster than the straight directions.
+    const d = Math.hypot(x, y);
+    return { x: x / d, y: y / d, mag: 1 };
+  }
+
+  _bindKeys() {
+    const onKey = (e, down) => {
+      if (e.repeat && down) return;      // ignore auto-repeat while held
+      const k = e.key.toLowerCase();
+
+      const dir = MOVE_KEYS[k];
+      if (dir) {
+        if (down) this.keys.add(dir); else this.keys.delete(dir);
+        e.preventDefault();              // stop arrow keys scrolling the page
+        return;
+      }
+
+      if (ACTION_KEYS.has(k)) {
+        // Edge-triggered, exactly like a tap on the on-screen button.
+        if (down && !this._actionKeyDown) this._presses.add('action');
+        this._actionKeyDown = down;
+        e.preventDefault();              // stop Space re-clicking the Play button
+      }
+    };
+
+    window.addEventListener('keydown', (e) => onKey(e, true));
+    window.addEventListener('keyup', (e) => onKey(e, false));
+
+    // If the window loses focus mid-press the keyup never arrives, and the
+    // player would walk off on his own for ever.
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this._actionKeyDown = false;
+    });
   }
 
   /** Called each frame by the game to say which buttons exist right now. */
@@ -54,6 +141,7 @@ export class Input {
 
   /** Is a finger currently resting on this button? Used to draw it pushed in. */
   isHeld(id) {
+    if (id === 'action' && this._actionKeyDown) return true;
     for (const held of this._buttonPointers.values()) {
       if (held === id) return true;
     }
@@ -138,7 +226,7 @@ export class Input {
 
     if (e.pointerId !== this.stickPointerId) return;
     this.stickPointerId = null;
-    this.vector = { x: 0, y: 0, mag: 0 };
+    this._stickVector = { x: 0, y: 0, mag: 0 };
     try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
   }
 
@@ -165,14 +253,14 @@ export class Input {
     const dist = Math.hypot(dx, dy);
 
     if (dist < 0.0001) {
-      this.vector = { x: 0, y: 0, mag: 0 };
+      this._stickVector = { x: 0, y: 0, mag: 0 };
       return;
     }
 
     // Strength grows with distance and caps out at MAX_PUSH.
     let mag = Math.min(dist / MAX_PUSH, 1);
     if (mag < DEAD_ZONE) {
-      this.vector = { x: 0, y: 0, mag: 0 };
+      this._stickVector = { x: 0, y: 0, mag: 0 };
       return;
     }
 
@@ -180,7 +268,7 @@ export class Input {
     // rather than jumping straight to a jog.
     mag = (mag - DEAD_ZONE) / (1 - DEAD_ZONE);
 
-    this.vector = { x: dx / dist, y: dy / dist, mag };
+    this._stickVector = { x: dx / dist, y: dy / dist, mag };
   }
 
   // ---------------------------------------------------------------------

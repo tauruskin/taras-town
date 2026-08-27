@@ -22,6 +22,22 @@ changed.
 There is no server, no database and no account. The only thing stored is a bit
 of progress in the browser's own `localStorage`, which never leaves the phone.
 
+## Controls
+
+On a phone: the joystick on the left half of the screen (grab it anywhere),
+and the round button on the right to get in and out of a car.
+
+On a computer, for testing:
+
+| Key | Does |
+|---|---|
+| `W` / `A` / `S` / `D` | Up / left / right / down. Arrow keys work too. |
+| `Space`, `E` or `Enter` | Get in or out of a car — the same as the round button. |
+
+The keyboard produces the same direction the joystick does, rather than being
+wired in separately. So on foot it's the way he walks, and in a car it's the
+heading the car steers towards — one control model, whichever you use.
+
 ## Running it on your own computer
 
 The JavaScript uses ES modules, which browsers refuse to load from a
@@ -56,7 +72,7 @@ the old version after that, pull down to refresh the page.
 | `js/player.js` | The character on foot. |
 | `js/car.js` | The parked cars, how they drive, and where they are parked. |
 | `js/camera.js` | Follows the player, never scrolls past the edge of town. |
-| `js/input.js` | The touch joystick. |
+| `js/input.js` | The touch joystick, and the keyboard controls. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
 
 ### Want to change something?

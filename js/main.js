@@ -68,6 +68,8 @@ startButton.addEventListener('click', startGame);
 
 function startGame() {
   startScreen.classList.add('hidden');
+  // Drop keyboard focus, or Space would keep re-triggering this button.
+  startButton.blur();
 
   // Both of these are unsupported on iPhone Safari and will simply do
   // nothing there, which is why the CSS "please rotate" screen also exists.

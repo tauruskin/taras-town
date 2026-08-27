@@ -119,7 +119,15 @@ export const CONFIG = {
     SHADOW:       'rgba(0,0,0,0.16)',
 
     SKIN:         '#F8C89B',
-    HAIR:         '#5A3A22',
+    // Seen from above he wears a cap, so there is no hair or face to draw.
+    // Bright yellow on purpose: it makes him easy to pick out against grass,
+    // road and pavement alike.
+    // The brim is MUCH darker than the crown on purpose. They started out as
+    // near neighbours and the brim disappeared into the hat at phone size,
+    // which is exactly the cue that tells you which way he is facing.
+    HAT:          '#FFD23F',
+    HAT_BRIM:     '#B87A0C',
+    HAT_TOP:      '#FFF0A8',
     SHIRT:        '#FF6B6B',   // milestone 3 will let Taras change this
     PANTS:        '#3B7DD8',
     SHOE:         '#5A6785',   // soft navy trainers, not black boots
