@@ -235,6 +235,10 @@ function render() {
     n.x > view.x - 90 && n.x < view.x + view.w + 90 &&
     n.y > view.y - 110 && n.y < view.y + view.h + 90);
 
+  // The ground ring goes down first, so the person stands on top of it.
+  for (const npc of visibleNpcs) {
+    if (missions.canOffer(npc)) npc.drawGlow(ctx, clock);
+  }
   for (const npc of visibleNpcs) npc.draw(ctx, clock);
 
   if (mode === ON_FOOT) player.draw(ctx);

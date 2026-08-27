@@ -36,10 +36,35 @@ export class Npc {
     return { x: this.x - h, y: this.y - h, w: h * 2, h: h * 2 };
   }
 
+  /**
+   * A ring pulsing on the ground at their feet, drawn before anyone stands on
+   * it. This is what says "there is somebody here to go and see".
+   *
+   * The badge above their head alone wasn't enough: a big white circle
+   * floating over a small character reads as "a pizza", not as "a person who
+   * wants something". Marking the ground under their feet puts the emphasis
+   * back on the person, and it reuses the same ring the game already draws
+   * under a car you can get into, so it means the same thing both times.
+   */
+  drawGlow(ctx, time) {
+    const pulse = (time * 0.75 + this.bobSeed) % 1;
+
+    ctx.save();
+    ctx.globalAlpha = (1 - pulse) * 0.75;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y + 10, 16 + pulse * 26, (16 + pulse * 26) * 0.55, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   /** The person themselves. Drawn under the trees, like everyone else. */
   draw(ctx, time) {
     ctx.save();
-    ctx.translate(this.x, this.y);
+    // A gentle idle bob, so they read as somebody standing there waiting
+    // rather than as another piece of scenery.
+    ctx.translate(this.x, this.y + Math.sin(time * 2.2 + this.bobSeed) * 1.6);
 
     // --- the person, drawn like the player but standing still
     ctx.save();
@@ -90,12 +115,14 @@ export class Npc {
    */
   drawBadge(ctx, time) {
     const bob = Math.sin(time * 2.6 + this.bobSeed) * 4;
-    const by = this.y - 52 + bob;
+    const by = this.y - 54 + bob;
 
-    drawBadgeShape(ctx, this.x, by, 20);
+    // Slightly smaller than it was, so it reads as something the person is
+    // holding up rather than as their head.
+    drawBadgeShape(ctx, this.x, by, 18);
     ctx.save();
     ctx.translate(this.x, by);
-    drawMissionIcon(ctx, this.mission, 15);
+    drawMissionIcon(ctx, this.mission, 13.5);
     ctx.restore();
   }
 }

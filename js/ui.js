@@ -370,11 +370,12 @@ export function drawBadge(ctx, x, y, r) {
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
 
-  // Little tail pointing down at whoever is talking.
+  // A long tail reaching down towards whoever is talking. The stubby original
+  // left the bubble looking like a balloon floating on its own.
   ctx.beginPath();
-  ctx.moveTo(x - r * 0.34, y + r * 0.72);
-  ctx.lineTo(x + r * 0.16, y + r * 0.72);
-  ctx.lineTo(x - r * 0.10, y + r * 1.42);
+  ctx.moveTo(x - r * 0.40, y + r * 0.66);
+  ctx.lineTo(x + r * 0.22, y + r * 0.66);
+  ctx.lineTo(x - r * 0.06, y + r * 1.95);
   ctx.closePath();
   ctx.fill();
 }
