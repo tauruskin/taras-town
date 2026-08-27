@@ -210,16 +210,40 @@ both phones:
 https://tauruskin.github.io/taras-town/?room=our-secret-name-4821
 ```
 
-Whoever opens it first hosts; everyone else joins them. **Only people you send
-that link to can join**, so pick something nobody would guess.
+Whoever opens it first hosts; everyone else joins them.
 
-### How it works, and what it costs
+**The link is the only lock on the door.** Anyone who has it — or who guesses
+the room name — can walk in, from anywhere. Room names live in a space shared
+with every other project using the same introduction service, so a room called
+`park` or `taras` is genuinely likely to be stumbled into. Use something long
+and made-up, like `maple-lantern-xoj1zf`, and treat the link like a house key.
 
-The phones talk **directly to each other** over the local wifi. The only
-outside help is a free introduction service, which is needed because a browser
-cannot listen for incoming connections on its own — it tells the two browsers
-how to find each other and then gets out of the way. No game data ever goes
-through it.
+The worst case remains mild: there is no chat and no way to send words, so an
+uninvited guest is a cartoon character driving about. But a guessable room is
+still worth avoiding.
+
+### Same wifi, or anywhere?
+
+**Same wifi: reliable.** The devices talk straight to each other and nothing
+else is involved.
+
+**Different places: usually works, but not guaranteed.** When two devices
+cannot reach each other directly — which depends entirely on the two routers
+or mobile networks involved, and is nothing to do with this game — the
+connection falls back to a relay run by the makers of the library. That is a
+free shared service with no promises attached, so it may be slow or
+unavailable. It has not been tested between two genuinely different networks.
+
+### What goes through somebody else's server
+
+An **introduction service** is always used. A browser cannot listen for
+incoming connections on its own, so something has to tell the two browsers how
+to find each other. No game data goes through it.
+
+A **relay** is used only when a direct connection cannot be made. On the same
+wifi this never happens. When it is used, positions do travel through
+somebody else's server — still no words and no names, because none are ever
+sent at all.
 
 `js/vendor/peerjs.min.js` is the only third-party code in the project. It is
 checked in rather than loaded from a CDN, and **it is only downloaded when

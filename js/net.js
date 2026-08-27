@@ -1,11 +1,21 @@
 /**
  * net.js — Playing together on the same wifi.
  *
- * Two phones talk directly to each other over WebRTC. Nothing about the game
- * runs on a server: the only outside help is a free "introduction service"
- * (PeerServer Cloud) that tells two browsers how to find each other, because
- * a browser cannot listen for incoming connections on its own. Once they are
- * introduced, every message goes phone-to-phone across the local wifi.
+ * Two devices talk to each other over WebRTC. Nothing about the game runs on
+ * a server, but two pieces of outside help are involved, and it is worth being
+ * precise about what each one does:
+ *
+ *   - An INTRODUCTION service (PeerServer Cloud) tells two browsers how to
+ *     find each other, because a browser cannot listen for incoming
+ *     connections on its own. It is always used, and no game data goes
+ *     through it.
+ *
+ *   - A RELAY (the TURN servers in the library's default settings) is used
+ *     ONLY when a direct connection cannot be made — typically between two
+ *     different networks with unhelpful routers. On the same wifi this never
+ *     happens and the devices talk straight to each other. When it is used,
+ *     positions do pass through somebody else's server; still no words and no
+ *     names, because none are ever sent at all.
  *
  * Shape of a session:
  *   - Everyone opens the same `?room=...` address.
