@@ -113,6 +113,12 @@ const PEOPLE = [
 
   // A child in the park who has lost a teddy.
   { tx: 23.0, ty: 21.0, mission: 'toy', hat: 4, shirt: 6, angle: Math.PI / 2 },
+
+  // A friend on the pavement who would like a lift to the park.
+  { tx: 8.5, ty: 18.5, mission: 'ride', hat: 2, shirt: 3, angle: Math.PI / 2 },
+
+  // Someone up by the shops who has marked out a course to follow.
+  { tx: 33.0, ty: 8.5, mission: 'race', hat: 5, shirt: 0, angle: Math.PI / 2 },
 ];
 
 export function createNpcs(world) {

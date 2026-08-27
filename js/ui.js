@@ -268,7 +268,44 @@ function roundRect(ctx, x, y, w, h, r) {
 
 export function drawMissionIcon(ctx, type, size) {
   if (type === 'pizza') drawPizza(ctx, size);
+  else if (type === 'ride') drawFriends(ctx, size);
+  else if (type === 'race') drawFlag(ctx, size);
   else drawTeddy(ctx, size);
+}
+
+/** Two friends side by side — "come with me". */
+function drawFriends(ctx, s) {
+  const u = s / 16;
+
+  // The one behind, slightly smaller and offset.
+  ctx.fillStyle = '#7FB8FF';
+  ctx.beginPath(); ctx.arc(5 * u, -3 * u, 6.5 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#5E95E0';
+  roundRect(ctx, -0.5 * u, 3 * u, 11 * u, 10 * u, 4 * u); ctx.fill();
+
+  // The one in front.
+  ctx.fillStyle = '#FFD23F';
+  ctx.beginPath(); ctx.arc(-5 * u, -4 * u, 7.5 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#FF6B6B';
+  roundRect(ctx, -11 * u, 2.5 * u, 12 * u, 11 * u, 4.5 * u); ctx.fill();
+}
+
+/** A chequered flag. */
+function drawFlag(ctx, s) {
+  const u = s / 16;
+
+  // Pole.
+  ctx.fillStyle = '#8B5E3C';
+  roundRect(ctx, -11 * u, -13 * u, 3 * u, 27 * u, 1.5 * u); ctx.fill();
+
+  // Chequers: a 4 x 3 board of alternating squares.
+  const cell = 4.5 * u;
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 4; col++) {
+      ctx.fillStyle = (row + col) % 2 === 0 ? '#2B2B33' : '#FFFFFF';
+      ctx.fillRect(-8 * u + col * cell, -12 * u + row * cell, cell + 0.5, cell + 0.5);
+    }
+  }
 }
 
 /** A slice of pizza, point down. */

@@ -62,9 +62,16 @@ export const CONFIG = {
   // Jobs for the neighbours
   // ---------------------------------------------------------------------
   MISSION: {
-    REWARD: 5,           // coins for finishing one
+    REWARD: 5,           // coins for finishing an ordinary job
+    RACE_REWARD: 12,     // more for a race, which takes longer
     OFFER_RADIUS: 92,    // how close to stand to be offered a job
     ARRIVE_RADIUS: 62,   // how close counts as "arrived" at the destination
+
+    RACE_CHECKPOINTS: 4,
+    // Checkpoints are more forgiving than a doorstep: they are usually taken
+    // at speed, and missing one by a metre and having to loop round is the
+    // sort of thing that ends the game for a 6-year-old.
+    RACE_ARRIVE_RADIUS: 84,
   },
 
   // ---------------------------------------------------------------------

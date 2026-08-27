@@ -114,12 +114,12 @@ there in map squares, not pixels.
 - [x] **3 — Customising.** A palette button in the top corner opens a menu with
       three rows of colour dots: hat, shirt and car. Choices apply the instant
       they're tapped and are remembered between visits. No text anywhere.
-- [~] **4 — Errands (2 of 4 kinds so far).** Neighbours stand around town with a
-      picture over their head showing what they need. Walk up, press the button,
-      and somewhere in town lights up with a beacon; an arrow pins to the screen
-      edge while it is off-screen. Arriving pays coins with confetti and a
-      fanfare. Built so far: **take a pizza to a front door**, and **find a lost
-      teddy**. Still to come: drive a friend to the park, and a checkpoint race.
+- [x] **4 — Errands.** Four neighbours stand around town with a picture over
+      their head showing what they need. Walk up, press the button, and
+      somewhere lights up with a beacon; an arrow pins to the screen edge while
+      it is off-screen. Arriving pays coins with confetti and a fanfare.
+      The four: **take a pizza to a front door**, **find a lost teddy**,
+      **give a friend a lift to the park**, and **follow a race course**.
 - [ ] 5 — Coins to collect and things to unlock with them.
 - [ ] 6 — A silly game of tag with the town helper.
 
@@ -163,3 +163,17 @@ quietly rescued them by shifting up to 182px, so a "front door" was nowhere near
 a door. Two others sat in gaps only 8% open: reachable on paper, but a child
 would just bump around in them. Hand-typed coordinates rot as the town changes;
 derived ones cannot.
+
+## How a job works
+
+Every job is the same thing underneath: a **list of places to reach, in order**.
+Most have one. The race has four, and reaching one lights up the next. That is
+the only difference between a delivery and a race — there is no separate race
+code path.
+
+Nothing can be failed and there is no timer, not even on the race. A child who
+wanders off to look at the river comes back to a job still waiting.
+
+To add a fifth kind: add a `mission` name to a neighbour in `js/npc.js`, a
+picture for it in `drawMissionIcon` in `js/ui.js`, and a list of destinations in
+the `Missions` constructor. Nothing else needs touching.

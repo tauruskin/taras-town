@@ -23,7 +23,7 @@ import { Menu, drawMissionIcon } from './ui.js';
 import { createNpcs } from './npc.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
-import { initAudio, playAccept, playSuccess } from './audio.js';
+import { initAudio, playAccept, playPickup, playSuccess } from './audio.js';
 import { loadGame, saveGame } from './save.js';
 
 // ---------------------------------------------------------------------------
@@ -183,8 +183,9 @@ function update(dt) {
   // Checked against whatever is carrying the player, so a delivery can be
   // finished by driving up to the door as well as by walking to it.
   const who = mode === DRIVING ? drivenCar : player;
-  const finished = missions.update(who.x, who.y);
-  if (finished) completeJob(finished);
+  const event = missions.update(who.x, who.y);
+  if (event && event.kind === 'checkpoint') passCheckpoint();
+  else if (event && event.kind === 'done') completeJob(event.job);
 
   effects.update(dt);
 
@@ -230,12 +231,17 @@ function render() {
   missions.drawTarget(ctx, clock);
 
   const visibleNpcs = npcs.filter((n) =>
+    !missions.isRidingAlong(n) &&
     n.x > view.x - 90 && n.x < view.x + view.w + 90 &&
     n.y > view.y - 110 && n.y < view.y + view.h + 90);
 
   for (const npc of visibleNpcs) npc.draw(ctx, clock);
 
   if (mode === ON_FOOT) player.draw(ctx);
+
+  // A friend being given a lift rides along with whoever is moving.
+  missions.drawPassenger(ctx, mode === DRIVING ? drivenCar : player);
+
   world.drawCanopies(ctx, view);   // leaves overlap the player: instant depth
 
   // Badges go on top of the leaves. They are the only sign that a job is on
@@ -270,7 +276,7 @@ function render() {
 function drawWaypointArrow(w, h) {
   if (!missions.active) return;
 
-  const t = missions.active.target;
+  const t = missions.target;
   const sx = (t.x - camera.x) * scale;
   const sy = (t.y - camera.y) * scale;
 
@@ -375,6 +381,12 @@ function takeJob(npc) {
   if (missions.start(npc)) playAccept();
 }
 
+/** A race checkpoint ticked off. Small reward, small noise, keep driving. */
+function passCheckpoint() {
+  playPickup();
+  effects.celebrate(canvas.clientWidth / 2, canvas.clientHeight / 2, 0, 22);
+}
+
 function completeJob(job) {
   save.coins += job.reward;
   playSuccess();
@@ -388,7 +400,9 @@ function completeJob(job) {
 function blockers() {
   return [
     ...cars.map((c) => c.boundsBox()),
-    ...npcs.map((n) => n.boundsBox()),
+    // A neighbour riding along isn't standing there any more, so they must
+    // not be left behind as an invisible wall.
+    ...npcs.filter((n) => !missions.isRidingAlong(n)).map((n) => n.boundsBox()),
   ];
 }
 

@@ -25,9 +25,13 @@ export class Effects {
   /**
    * Throw confetti from a point on screen.
    * @param reward  how many coins to float up, or 0 for none
+   * @param count   how many pieces. A race checkpoint gets a small puff and
+   *                finishing a job gets the full burst — using the same
+   *                amount for both made ticking off a checkpoint feel exactly
+   *                as big as completing the whole job.
    */
-  celebrate(x, y, reward = 0) {
-    for (let i = 0; i < 70; i++) {
+  celebrate(x, y, reward = 0, count = 70) {
+    for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
       const speed = 150 + Math.random() * 320;
       this.bits.push({
