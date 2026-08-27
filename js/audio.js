@@ -50,6 +50,15 @@ if (!muted) {
  */
 export function setMuted(v) {
   muted = !!v;
+
+  if (music) {
+    if (muted) {
+      music.pause();
+    } else {
+      music.play().catch(() => {});
+    }
+  }
+};
 }
 
 export function isMuted() {
