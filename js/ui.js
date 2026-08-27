@@ -87,8 +87,21 @@ export class Menu {
   // Drawing
   // =====================================================================
 
-  /** @param choice { hat, shirt, car } — the selected index in each row */
-  draw(ctx, w, h, choice) {
+  /** Is this colour free, or already bought? */
+  static isUnlocked(rowId, i, save) {
+    if (i < CONFIG.SHOP.FREE_PER_ROW) return true;
+    const list = save.unlocked && save.unlocked[rowId];
+    return Array.isArray(list) && list.includes(i);
+  }
+
+  /**
+   * @param choice { hat, shirt, car } — the selected index in each row
+   * @param save   the whole save, for coins and what has been bought
+   * @param shake  { id, amount } — a locked dot being wobbled after a failed
+   *               purchase, which is how "not enough coins yet" is said
+   *               without any words
+   */
+  draw(ctx, w, h, choice, save, shake) {
     const L = this.layout(w, h);
 
     // Dim the town behind so the dots are unmistakably the thing to press.
@@ -108,9 +121,19 @@ export class Menu {
 
       // The colour dots.
       for (let i = 0; i < row.count; i++) {
-        const x = L.firstX + i * L.gap;
+        const id = row.id + ':' + i;
+        let x = L.firstX + i * L.gap;
         const picked = choice[row.id] === i;
+        const unlocked = Menu.isUnlocked(row.id, i, save);
         const rr = picked ? L.r * 1.12 : L.r;
+
+        // A locked dot that has just been pressed without enough coins wobbles.
+        if (shake && shake.id === id) x += Math.sin(shake.amount * 34) * 9;
+
+        ctx.save();
+        // Locked colours are shown, not hidden: seeing what there is to work
+        // towards is the whole point of having anything to buy.
+        if (!unlocked) ctx.globalAlpha = 0.42;
 
         ctx.fillStyle = swatchColour(row.id, i);
         ctx.beginPath();
@@ -120,6 +143,9 @@ export class Menu {
         ctx.strokeStyle = picked ? '#FFFFFF' : 'rgba(255,255,255,0.45)';
         ctx.lineWidth = picked ? 5 : 2.5;
         ctx.stroke();
+        ctx.restore();
+
+        if (!unlocked) drawPrice(ctx, x, y, L.r, save.coins >= CONFIG.SHOP.PRICE);
       }
     });
 
@@ -172,6 +198,39 @@ export class Menu {
       ctx.fill();
     });
   }
+}
+
+/**
+ * The price on a locked colour: a coin and a number.
+ *
+ * A digit is the one piece of text a 6-year-old reliably reads, and the coin
+ * beside it says what the number means. When there is enough saved up the tag
+ * turns gold, so "I can have that one now" is visible at a glance without
+ * having to compare two numbers.
+ */
+function drawPrice(ctx, x, y, r, affordable) {
+  const cy = y + r * 0.62;
+
+  ctx.save();
+  ctx.fillStyle = affordable ? '#FFD23F' : 'rgba(20,24,34,0.82)';
+  roundRect(ctx, x - 26, cy - 12, 52, 24, 12);
+  ctx.fill();
+  ctx.strokeStyle = affordable ? '#FFFFFF' : 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Small coin.
+  ctx.fillStyle = affordable ? '#B87A0C' : '#E0A81F';
+  ctx.beginPath(); ctx.arc(x - 13, cy, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = affordable ? '#FFF0A8' : '#FFD23F';
+  ctx.beginPath(); ctx.arc(x - 13, cy, 4.6, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = affordable ? '#3A2A00' : '#FFFFFF';
+  ctx.font = 'bold 16px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(CONFIG.SHOP.PRICE), x - 3, cy + 1);
+  ctx.restore();
 }
 
 /** The colour a given swatch shows. */

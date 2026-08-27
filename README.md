@@ -77,6 +77,7 @@ the old version after that, pull down to refresh the page.
 | `js/ui.js` | The customisation menu: the colour rows and the pictures beside them. |
 | `js/npc.js` | The neighbours who hand out jobs, and their badges. |
 | `js/missions.js` | Jobs: where they send you, and when they are finished. |
+| `js/coins.js` | The coins lying around town. |
 | `js/effects.js` | Confetti and the floating coin when a job is done. |
 | `js/audio.js` | Little sounds, generated live. There are no sound files. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
@@ -120,8 +121,14 @@ there in map squares, not pixels.
       it is off-screen. Arriving pays coins with confetti and a fanfare.
       The four: **take a pizza to a front door**, **find a lost teddy**,
       **give a friend a lift to the park**, and **follow a race course**.
-- [ ] 5 — Coins to collect and things to unlock with them.
-- [ ] 6 — A silly game of tag with the town helper.
+- [x] **5 — Coins and the shop.** 90 coins lie around town, on pavements, grass
+      and roads, so they can be collected on foot or at speed in a car. A
+      collected one comes back after 45 seconds. The colour menu is now also
+      the shop: the first three colours in each row are free, the rest cost 10
+      coins and show a price tag — dark when you cannot afford it, gold when
+      you can.
+- [ ] 6 — Playing together on the same wifi (peer-to-peer).
+- [ ] 7 — A silly game of tag with the town helper.
 
 ## Two hitboxes per car, on purpose
 
@@ -177,3 +184,14 @@ wanders off to look at the river comes back to a job still waiting.
 To add a fifth kind: add a `mission` name to a neighbour in `js/npc.js`, a
 picture for it in `drawMissionIcon` in `js/ui.js`, and a list of destinations in
 the `Missions` constructor. Nothing else needs touching.
+
+## Coins
+
+Where they lie is worked out from the map, the same way job destinations are,
+so they are never inside a wall and always reachable. Because that calculation
+is deterministic, **which coins are currently collected is deliberately not
+saved** — only the total is. Every session starts with a full town.
+
+One consequence needed handling: closing the game while standing on a coin and
+reopening it used to hand out a free coin every single time. `clearAtStart`
+quietly removes whatever you were standing on, without paying for it.

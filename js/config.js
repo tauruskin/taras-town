@@ -75,6 +75,27 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Coins lying around town
+  // ---------------------------------------------------------------------
+  COIN: {
+    SPACING: 210,        // how far apart they lie
+    MIN_OPENNESS: 0.40,  // never tucked into a corner you can't reach
+    PICKUP_RADIUS: 34,   // generous: you should not have to aim at one
+    RESPAWN_SECONDS: 45, // a collected coin comes back, so the town never
+                         // runs permanently dry
+  },
+
+  // ---------------------------------------------------------------------
+  // The shop
+  // ---------------------------------------------------------------------
+  SHOP: {
+    // The first few colours in every row cost nothing, so there is always
+    // something to change even with an empty purse.
+    FREE_PER_ROW: 3,
+    PRICE: 10,
+  },
+
+  // ---------------------------------------------------------------------
   // Camera
   // ---------------------------------------------------------------------
   CAMERA: {

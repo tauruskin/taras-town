@@ -29,36 +29,14 @@ import { T } from './world.js';
 import { drawMissionIcon } from './ui.js';
 
 /**
- * How open a spot is: the fraction of directions you can walk 84px away in.
+ * A spot is only good enough to send a child to if it is this open.
  *
- * This exists because hand-typed destinations rot. An earlier version listed
- * doors and hiding places as literal coordinates; several of them were inside
- * buildings, and `findFreeSpot` quietly rescued them by shifting up to 182px,
- * so the "front door" wasn't at a door at all. Two others sat in gaps only 8%
- * open — reachable on paper, but a child would just bump around in them.
- *
- * Every list is now derived from the map and filtered on this, so adding a
- * building adds a delivery address, and nowhere cramped can be chosen.
+ * This threshold exists because hand-typed destinations rot. An earlier
+ * version listed doors and hiding places as literal coordinates; several were
+ * inside buildings, and `findFreeSpot` quietly rescued them by shifting up to
+ * 182px, so a "front door" wasn't at a door at all. Two others sat in gaps
+ * only 8% open — reachable on paper, but a child would just bump around.
  */
-function openness(world, x, y, half) {
-  const DIRS = 16;
-  let open = 0;
-
-  for (let k = 0; k < DIRS; k++) {
-    const a = (k / DIRS) * Math.PI * 2;
-    let clear = true;
-    for (let d = 14; d <= 84; d += 14) {
-      const px = x + Math.cos(a) * d;
-      const py = y + Math.sin(a) * d;
-      if (px < half || py < half || px > world.width - half || py > world.height - half ||
-          world._overlaps(px, py, half, half)) { clear = false; break; }
-    }
-    if (clear) open++;
-  }
-  return open / DIRS;
-}
-
-/** A spot is only good enough to send a child to if it is this open. */
 const MIN_OPENNESS = 0.45;
 
 /** How far apart hiding places must be, so they feel spread around town. */
@@ -105,7 +83,7 @@ export class Missions {
       // the door is, this isn't a doorstep and we'd rather not use it.
       const spot = this.world.findFreeSpot(x, y, half, null, 40);
       if (!spot) continue;
-      if (openness(this.world, spot.x, spot.y, half) < MIN_OPENNESS) continue;
+      if (this.world.openness(spot.x, spot.y, half) < MIN_OPENNESS) continue;
 
       out.push(spot);
     }
@@ -133,29 +111,9 @@ export class Missions {
     return this._sweep((kind) => kind === T.ROAD, RACE_SEPARATION);
   }
 
-  /**
-   * Walk the map and collect open, well-spread spots on matching squares.
-   * Deterministic — the same town always offers the same places.
-   */
+  /** Open, well-spread spots on matching squares. Shared with the coins. */
   _sweep(matches, separation) {
-    const half = CONFIG.PLAYER.HITBOX / 2;
-    const tile = this.world.tile;
-    const out = [];
-
-    for (let r = 1; r < this.world.rows - 1; r += 2) {
-      for (let c = 1; c < this.world.cols - 1; c += 2) {
-        if (!matches(this.world.grid[r][c])) continue;
-
-        const x = c * tile + tile / 2;
-        const y = r * tile + tile / 2;
-        if (this.world._overlaps(x, y, half, half)) continue;
-        if (openness(this.world, x, y, half) < MIN_OPENNESS) continue;
-        if (out.some((s) => Math.hypot(s.x - x, s.y - y) < separation)) continue;
-
-        out.push({ x, y });
-      }
-    }
-    return out;
+    return this.world.sweepSpots(matches, separation, MIN_OPENNESS, CONFIG.PLAYER.HITBOX / 2);
   }
 
   // =====================================================================

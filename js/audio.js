@@ -89,3 +89,14 @@ export function playAccept() {
   note(659.25, 0, 0.12, 0.14, 'triangle');
   note(880, 0.09, 0.18, 0.13, 'triangle');
 }
+
+/**
+ * A soft downward "not yet" for trying to buy something unaffordable.
+ *
+ * Deliberately gentle rather than a buzzer: wanting something you cannot
+ * afford yet is not a mistake to be told off for.
+ */
+export function playDenied() {
+  note(392.00, 0, 0.14, 0.12, 'sine');     // G4
+  note(293.66, 0.10, 0.22, 0.11, 'sine');  // D4
+}

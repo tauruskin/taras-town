@@ -310,6 +310,60 @@ export class World {
   }
 
   /**
+   * How open a spot is: the fraction of directions you can walk `reach` away in.
+   *
+   * Jobs and scattered coins both need this. Somewhere with a low score is
+   * reachable on paper but is a pocket a child would just bump around in.
+   */
+  openness(x, y, half, reach = 84) {
+    const DIRS = 16;
+    let open = 0;
+
+    for (let k = 0; k < DIRS; k++) {
+      const a = (k / DIRS) * Math.PI * 2;
+      let clear = true;
+      for (let d = 14; d <= reach; d += 14) {
+        const px = x + Math.cos(a) * d;
+        const py = y + Math.sin(a) * d;
+        if (px < half || py < half || px > this.width - half || py > this.height - half ||
+            this._overlaps(px, py, half, half)) { clear = false; break; }
+      }
+      if (clear) open++;
+    }
+    return open / DIRS;
+  }
+
+  /**
+   * Walk the map and collect open, well-spread spots on matching squares.
+   *
+   * Deterministic: the same town always yields the same list, so nothing has
+   * to be saved and every player sees things in the same places.
+   *
+   * @param matches      (tileKind) => boolean
+   * @param separation   how far apart the results must be, in pixels
+   * @param minOpenness  reject anywhere more hemmed-in than this
+   * @param stride       how many squares to skip while sweeping
+   */
+  sweepSpots(matches, separation, minOpenness, half, stride = 2) {
+    const out = [];
+
+    for (let r = 1; r < this.rows - 1; r += stride) {
+      for (let c = 1; c < this.cols - 1; c += stride) {
+        if (!matches(this.grid[r][c])) continue;
+
+        const x = c * this.tile + this.tile / 2;
+        const y = r * this.tile + this.tile / 2;
+        if (this._overlaps(x, y, half, half)) continue;
+        if (this.openness(x, y, half) < minOpenness) continue;
+        if (out.some((s) => Math.hypot(s.x - x, s.y - y) < separation)) continue;
+
+        out.push({ x, y });
+      }
+    }
+    return out;
+  }
+
+  /**
    * The nearest spot to (x, y) that something of this size can stand in.
    *
    * Used for placing people and job destinations: a spot can be described

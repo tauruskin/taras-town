@@ -25,6 +25,11 @@ function defaultSave() {
     hat: 0,
     shirt: 0,
     car: 0,
+
+    // Which colours have been bought, as positions in those same palettes.
+    // The free ones are added on load rather than stored, so changing
+    // FREE_PER_ROW takes effect for existing saves too.
+    unlocked: { hat: [], shirt: [], car: [] },
   };
 }
 
@@ -43,7 +48,20 @@ export function loadGame() {
 
     // Merge over the defaults so a save written by an older version of the
     // game (missing newer fields) still works.
-    return { ...defaults, ...parsed };
+    const merged = { ...defaults, ...parsed };
+
+    // Anything nested needs merging by hand, and needs checking: a corrupt
+    // or hand-edited save must not be able to crash the shop.
+    merged.unlocked = { ...defaults.unlocked, ...(parsed.unlocked || {}) };
+    for (const row of ['hat', 'shirt', 'car']) {
+      const list = merged.unlocked[row];
+      merged.unlocked[row] = Array.isArray(list)
+        ? list.filter((n) => Number.isInteger(n) && n >= 0)
+        : [];
+    }
+    if (!Number.isFinite(merged.coins) || merged.coins < 0) merged.coins = 0;
+
+    return merged;
   } catch (err) {
     console.warn('[save] Could not load, starting fresh.', err);
     return defaults;

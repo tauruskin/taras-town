@@ -9,8 +9,9 @@
  *   - draw the on-screen controls
  *   - save where the player was standing
  *
- * Milestones 1-4: walking around town, driving the cars, choosing what Taras
- * and his car look like, and running errands for the neighbours.
+ * Milestones 1-5: walking around town, driving the cars, choosing what Taras
+ * and his car look like, running errands for the neighbours, and collecting
+ * coins to spend on new colours.
  */
 
 import { CONFIG } from './config.js';
@@ -23,7 +24,8 @@ import { Menu, drawMissionIcon } from './ui.js';
 import { createNpcs } from './npc.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
-import { initAudio, playAccept, playPickup, playSuccess } from './audio.js';
+import { Coins } from './coins.js';
+import { initAudio, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
 import { loadGame, saveGame } from './save.js';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +51,9 @@ const menu = new Menu();
 const npcs = createNpcs(world);
 const missions = new Missions(world);
 const effects = new Effects();
+const coins = new Coins(world);
+// Don't hand out whatever coin he happened to log off standing on.
+coins.clearAtStart(spawn.x, spawn.y);
 
 // Put on whatever was chosen last time.
 player.setOutfit(save.hat, save.shirt);
@@ -60,6 +65,7 @@ let mode = ON_FOOT;
 let drivenCar = null;      // the Car being driven, or null
 let nearbyCar = null;      // the Car close enough to get into, or null
 let action = null;         // what the action button would do right now
+let shake = null;          // a locked colour wobbling after a failed purchase
 
 let dpr = 1;       // device pixel ratio, capped for performance
 let scale = 1;     // world pixels -> screen pixels
@@ -187,7 +193,22 @@ function update(dt) {
   if (event && event.kind === 'checkpoint') passCheckpoint();
   else if (event && event.kind === 'done') completeJob(event.job);
 
+  // Coins are picked up by whoever is moving, so they can be collected at
+  // speed in a car as well as on foot.
+  const picked = coins.update(dt, who.x, who.y);
+  if (picked > 0) {
+    save.coins += picked;
+    playPickup();
+    persist();
+  }
+
   effects.update(dt);
+
+  // The shake after a failed purchase runs itself down.
+  if (shake) {
+    shake.amount -= dt;
+    if (shake.amount <= 0) shake = null;
+  }
 
   // --- camera -----------------------------------------------------------
   // Ease the zoom rather than jumping, so getting in a car feels like the
@@ -217,6 +238,8 @@ function render() {
 
   world.drawGround(ctx, view, clock);
   world.drawBuildings(ctx, view);
+
+  coins.draw(ctx, view, clock);
 
   // A ring under the car you are about to get into, so it is obvious which.
   if (nearbyCar) drawHighlight(nearbyCar);
@@ -260,7 +283,11 @@ function render() {
   const h = canvas.clientHeight;
 
   if (menu.open) {
-    menu.draw(ctx, w, h, { hat: save.hat, shirt: save.shirt, car: save.car });
+    menu.draw(ctx, w, h, { hat: save.hat, shirt: save.shirt, car: save.car }, save, shake);
+    // The purse stays on screen in the shop. Deciding whether you can afford
+    // something while your total is hidden is no decision at all.
+    drawCoinCounter(w, h);
+    effects.draw(ctx);
     return;
   }
 
@@ -498,9 +525,29 @@ function handleMenuPresses() {
     for (let i = 0; i < row.count; i++) {
       if (!input.consumePress(`${row.id}:${i}`)) continue;
 
-      save[row.id] = i;
-      applyChoices();
-      persist();
+      // Already his? Just wear it.
+      if (Menu.isUnlocked(row.id, i, save)) {
+        save[row.id] = i;
+        applyChoices();
+        persist();
+        continue;
+      }
+
+      // Otherwise it has to be bought.
+      if (save.coins >= CONFIG.SHOP.PRICE) {
+        save.coins -= CONFIG.SHOP.PRICE;
+        save.unlocked[row.id].push(i);
+        save[row.id] = i;              // and put it on straight away
+        applyChoices();
+        playSuccess();
+        effects.celebrate(canvas.clientWidth / 2, canvas.clientHeight / 2, 0, 40);
+        persist();
+      } else {
+        // Not enough yet. Say so by wobbling the dot and making an unhappy
+        // noise — never with a message, which he could not read anyway.
+        shake = { id: `${row.id}:${i}`, amount: 0.45 };
+        playDenied();
+      }
     }
   }
 }
