@@ -50,6 +50,19 @@ python -m http.server 8777
 
 Then open <http://127.0.0.1:8777/> and press play.
 
+## Checking nothing broke
+
+```
+node tests/run.mjs
+```
+
+Starts a web server and two browsers, runs seventeen suites, and shuts
+everything down. Nothing to install. After a deploy, `node tests/run.mjs --live`
+runs the same checks against the real site — which catches things a local copy
+never will.
+
+See `tests/README.md` for what each one covers.
+
 ## Publishing an update
 
 ```
@@ -80,6 +93,7 @@ the old version after that, pull down to refresh the page.
 | `js/coins.js` | The coins lying around town. |
 | `js/net.js` | Playing together. Only ever loaded when a `?room=` is present. |
 | `js/vendor/` | The one piece of third-party code. See the README in there. |
+| `tests/` | Everything that checks the game still works. See the README in there. |
 | `js/effects.js` | Confetti and the floating coin when a job is done. |
 | `js/audio.js` | Little sounds, generated live. There are no sound files. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |

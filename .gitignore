@@ -24,3 +24,6 @@ build/
 
 # Local Claude Code settings — not part of the game
 .claude/
+
+# Test output: screenshots and throwaway browser profiles
+tests/screenshots/
