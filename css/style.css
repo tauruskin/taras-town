@@ -57,6 +57,21 @@ html, body {
 
 #start-screen .panel {
   text-align: center;
+
+  /* Every panel covers the whole screen; only one is ever not hidden.
+     Filling the screen matters: the panels shrink-wrapped their contents at
+     first, which put the corner "go back" button on top of the left-hand
+     choice button and swallowed taps meant for it. */
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#start-screen .panel.hidden {
+  display: none;
 }
 
 #start-screen .sun {
@@ -70,31 +85,143 @@ html, body {
 }
 
 #start-screen h1 {
-  font-size: clamp(30px, 7vh, 58px);
+  font-size: clamp(26px, 6vh, 50px);
   color: #fff;
   letter-spacing: 1px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
   text-shadow: 0 4px 0 rgba(0, 0, 0, 0.16);
 }
 
-#start-button {
-  width: 108px;
-  height: 108px;
+/* --------------------------------------------------------------------------
+   The big round choice buttons.
+
+   Every one is a picture, never a word: the player may not read. They are
+   sized in vh so two of them always sit side by side on a phone held
+   sideways, which is the only orientation the game runs in.
+   -------------------------------------------------------------------------- */
+#start-screen .choices {
+  display: flex;
+  gap: clamp(18px, 5vw, 44px);
+  align-items: center;
+  justify-content: center;
+}
+
+#start-screen button.big {
+  width: clamp(78px, 22vh, 116px);
+  height: clamp(78px, 22vh, 116px);
   border: none;
   border-radius: 50%;
-  background: #FF6B6B;
-  color: #fff;
-  font-size: 46px;
-  line-height: 108px;
-  padding-left: 8px;                   /* optically centres the ▶ glyph */
   cursor: pointer;
-  box-shadow: 0 8px 0 #D64545;
+  padding: 0;
+  display: grid;
+  place-items: center;
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
 
-#start-button:active {
+#start-screen button.big svg {
+  width: 58%;
+  height: 58%;
+  fill: #fff;
+}
+
+#start-screen button.big.red   { background: #FF6B6B; box-shadow: 0 8px 0 #D64545; }
+#start-screen button.big.blue  { background: #4EA8FF; box-shadow: 0 8px 0 #2A6AB0; }
+#start-screen button.big.green { background: #5AC85A; box-shadow: 0 8px 0 #3C8547; }
+
+#start-screen button.big:active {
   transform: translateY(6px);
-  box-shadow: 0 2px 0 #D64545;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* A small way back out of any panel, for a tap made by mistake. */
+#start-screen .back {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  color: #3A6B8A;
+  font-size: 24px;
+  line-height: 46px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.16);
+}
+
+#start-screen .back:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.16);
+}
+
+/* --------------------------------------------------------------------------
+   The room code
+
+   Digits are the one kind of text a 6-year-old reliably reads, which is the
+   whole reason codes are numbers and not words. Shown big enough to be read
+   out across a room.
+   -------------------------------------------------------------------------- */
+#start-screen .code-row {
+  display: flex;
+  gap: clamp(6px, 1.6vw, 14px);
+  margin-bottom: clamp(10px, 3vh, 22px);
+}
+
+#start-screen .code-row .digit {
+  width: clamp(42px, 12vh, 68px);
+  height: clamp(52px, 15vh, 84px);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2B4B60;
+  font-size: clamp(30px, 9vh, 52px);
+  font-weight: 800;
+  line-height: clamp(52px, 15vh, 84px);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.14);
+}
+
+/* A slot still waiting to be filled in. */
+#start-screen .code-row .digit.empty {
+  background: rgba(255, 255, 255, 0.35);
+  color: rgba(43, 75, 96, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   The number pad
+
+   Two rows of five, because the game only ever runs in landscape and a tall
+   3x4 telephone keypad would not fit above the code.
+   -------------------------------------------------------------------------- */
+#start-screen .keys {
+  display: grid;
+  /* Six across, so the ten digits and the delete key make two even rows
+     (1-6 then 7,8,9,0,delete) rather than leaving delete stranded on a third
+     row of its own. */
+  grid-template-columns: repeat(6, auto);
+  gap: clamp(5px, 1.4vh, 12px);
+  justify-content: center;
+}
+
+#start-screen .keys button {
+  width: clamp(38px, 9.5vh, 58px);
+  height: clamp(38px, 10vh, 58px);
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2B4B60;
+  font-size: clamp(20px, 5.5vh, 30px);
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.16);
+}
+
+#start-screen .keys button:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.16);
+}
+
+#start-screen .keys button.erase {
+  background: #FFC93C;
 }
 
 @keyframes bob {

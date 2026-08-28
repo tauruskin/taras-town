@@ -63,6 +63,7 @@ game.
 | `shop` | A locked colour cannot be worn while broke, coins are collected off the street, buying deducts the right amount and survives a reload. |
 | `sound` | The speaker button toggles, looks different in each state, is remembered across a reload, and works from inside the menu. |
 | `multiplayer` | Two browsers, a real connection: they find each other and moving one moves the other's view of them. |
+| `multiplayer-code` | The opening screen: one player makes a game and is shown a code, the other types it on the number pad, and the two end up in the same town. |
 | `multiplayer-phone-and-desktop` | The same, with one phone-shaped browser and one desktop-shaped one. |
 | `multiplayer-rejoin` | The host leaves; the other player takes over hosting on its own; the first rejoins. Nobody reloads anything. |
 | `vehicle-shop` | Buying a vehicle: the right price comes out of the purse, an unaffordable one stays locked, an owned one is free to re-select, it survives a reload — and the bus bought actually appears on the road. |
@@ -96,6 +97,12 @@ game.
   it silently missed every time. Every other suite calls `.click()` on the
   element directly for exactly this reason; follow that pattern rather than
   guessing coordinates.
+- **Checking an element "has width" is not the same as checking it is
+  showing.** With the stylesheet missing, `multiplayer-code` found every panel
+  visible at once and its width-based checks passed anyway, while the screen
+  was unusable. It now asserts exactly one panel is showing, and disables the
+  browser's HTTP cache so a stale stylesheet cannot cause that in the first
+  place.
 - **The game saves on `pagehide`, so you cannot seed a save and then navigate
   to the game** — leaving the page writes the running game's state straight
   over your seed. `browser/vehicle-shop` seeds from `tools/icon.html`, a

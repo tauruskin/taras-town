@@ -28,6 +28,7 @@ import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
+import { StartScreen } from './startscreen.js';
 import { registerServiceWorker } from './pwa.js';
 
 // ---------------------------------------------------------------------------
@@ -59,8 +60,12 @@ coins.clearAtStart(spawn.x, spawn.y);
 
 // Playing together only happens when there is a ?room= in the address. With
 // no room, none of the networking code is even downloaded.
-const room = roomFromUrl();
-const net = room ? new Net(room) : null;
+// Which room, if any, is decided on the opening screen — or taken from the
+// address when a link already says. `net` stays null until then, and stays
+// null for good when playing alone, so none of the networking code is even
+// downloaded in that case.
+let net = null;
+let roomCode = null;
 
 // Stand-in characters and cars for the other players. They are only ever
 // drawn — they never move themselves, collide, or touch the town.
@@ -98,12 +103,33 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 150));
 // ---------------------------------------------------------------------------
 // A tap is required before we begin: it gives us the user gesture that phones
 // demand before going full screen (and, later, before playing any sound).
-startButton.addEventListener('click', startGame);
+// The opening screen decides who we are playing with, then hands over.
+const fromUrl = roomFromUrl();
+const startScreenUi = new StartScreen(startGame);
+if (fromUrl) {
+  // A link that already names a room has made the choice for us; asking
+  // again would be pointless, and this keeps shared links working exactly
+  // as they did before there was an opening screen at all.
+  startScreenUi.straightToPlay();
+}
 
-function startGame() {
+function startGame(chosenRoom) {
+  const room = fromUrl || chosenRoom || null;
+  if (room) {
+    roomCode = room;
+    net = new Net(room);
+    // Put the room in the address, so this game can be bookmarked or the
+    // link shared, exactly like the ones typed in by hand.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', room);
+      window.history.replaceState({}, '', url);
+    } catch (_) {}
+  }
+
   startScreen.classList.add('hidden');
   // Drop keyboard focus, or Space would keep re-triggering this button.
-  startButton.blur();
+  if (startButton) startButton.blur();
 
   // Phones refuse to make any sound until the page has been touched. This
   // tap is that touch, so it is the only moment audio can be set up.
@@ -361,19 +387,41 @@ function drawPlayerCount(w, h) {
   const connecting = net.status === 'connecting';
   const count = net.playerCount;
 
-  // Nothing worth saying yet if we're the only one here.
-  if (!connecting && count < 2) return;
+  // On your own in a room, the code is the useful thing to show: whoever
+  // started the game still has to read it out to everybody else, and it
+  // would be unkind to make them remember it from the opening screen.
+  const waitingAlone = !connecting && count < 2 && roomCode;
+  if (!connecting && !waitingAlone && count < 2) return;
 
   const x = w / 2;
   const y = 34;
+  const halfWidth = waitingAlone ? 62 : 44;
 
   ctx.save();
-  ctx.fillStyle = connecting ? 'rgba(0,0,0,0.28)' : 'rgba(40,150,60,0.85)';
-  roundRectPath(x - 44, y - 19, 88, 38, 19);
+  ctx.fillStyle = connecting ? 'rgba(0,0,0,0.28)'
+                : waitingAlone ? 'rgba(0,0,0,0.45)'
+                : 'rgba(40,150,60,0.85)';
+  roundRectPath(x - halfWidth, y - 19, halfWidth * 2, 38, 19);
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.75)';
   ctx.lineWidth = 2.5;
   ctx.stroke();
+
+  if (waitingAlone) {
+    // The code, and one faint figure: somebody is expected but not here yet.
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath(); ctx.arc(x - 44, y - 6, 6, 0, Math.PI * 2); ctx.fill();
+    roundRectPath(x - 51, y + 2, 14, 12, 5);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 25px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(roomCode, x + 16, y + 1);
+    ctx.restore();
+    return;
+  }
 
   if (connecting) {
     // Three dots breathing in turn: "hold on".

@@ -248,8 +248,27 @@ quietly removes whatever you were standing on, without paying for it.
 
 ## Playing together
 
-Add `?room=` and a name of your own to the address, and open that same link on
-both phones:
+**On the opening screen**, tap the blue button with two people on it. Then:
+
+- **One of you taps `+`** and is shown a four-digit code. Read it out, tap
+  play, and the code stays in the corner of the screen so it can be read again.
+- **The other taps the keypad button**, types those four digits, and the game
+  starts by itself on the fourth digit.
+
+Codes are digits and not words on purpose: digits are the one kind of text a
+6-year-old reliably reads and types.
+
+### Or by link
+
+Every game also puts its code in the address, so a game can be bookmarked or
+its link shared, and opening such a link skips straight to playing:
+
+```
+https://tauruskin.github.io/taras-town/?room=2398
+```
+
+A made-up longer name works too, and is worth using when you want privacy —
+see the warning below.
 
 ```
 https://tauruskin.github.io/taras-town/?room=our-secret-name-4821
@@ -257,8 +276,12 @@ https://tauruskin.github.io/taras-town/?room=our-secret-name-4821
 
 Whoever opens it first hosts; everyone else joins them.
 
-**The link is the only lock on the door.** Anyone who has it — or who guesses
-the room name — can walk in, from anywhere. Room names live in a space shared
+**The code is the only lock on the door.** Anyone who has it — or who guesses
+it — can walk in, from anywhere. A four-digit code is deliberately easy for a
+child to read out, and that also makes it easy to guess: there are only nine
+thousand of them. For a game that exists only while you are playing it, with
+no chat and nothing to take, that is a fair trade. When you want privacy, use
+a long made-up name in the address instead. Room names live in a space shared
 with every other project using the same introduction service, so a room called
 `park` or `taras` is genuinely likely to be stumbled into. Use something long
 and made-up, like `maple-lantern-xoj1zf`, and treat the link like a house key.
