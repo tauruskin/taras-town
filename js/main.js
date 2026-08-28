@@ -28,6 +28,7 @@ import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
+import { registerServiceWorker } from './pwa.js';
 
 // ---------------------------------------------------------------------------
 // Set-up
@@ -85,6 +86,8 @@ let running = false;
 let lastFrame = 0;
 let clock = 0;     // total seconds elapsed, used for water sparkle etc.
 let saveTimer = 0;
+
+registerServiceWorker();
 
 resize();
 window.addEventListener('resize', resize);

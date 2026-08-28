@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<!--
+  icon.html — draws the app icon.
+
+  Not part of the game. This exists only so the home-screen icon can be
+  GENERATED like everything else in Taras Town rather than hand-drawn or
+  downloaded — the project's one rule about assets is that there aren't any
+  that didn't come from code.
+
+  Rendered once by tools/make-icons.mjs into the three PNG files under
+  icons/. If the icon ever needs to change, edit this file and re-run that
+  script rather than editing a PNG by hand.
+
+  Drawn fully opaque, with the sun kept well inside a safe zone: Android's
+  maskable-icon spec can crop up to the outer ~20% of the square depending on
+  the launcher's shape, and iOS fills any transparency in with black — so
+  nothing here can touch the very edge or rely on being see-through.
+-->
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; }
+</style></head>
+<body>
+<canvas id="c" width="512" height="512"></canvas>
+<script>
+  const ctx = document.getElementById('c').getContext('2d');
+  const S = 512;
+
+  // Sky-to-grass gradient, the same feeling as the tap-to-start screen.
+  const sky = ctx.createLinearGradient(0, 0, 0, S);
+  sky.addColorStop(0, '#7FD4FF');
+  sky.addColorStop(0.62, '#B8ECFF');
+  sky.addColorStop(1, '#9BE87A');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, S, S);
+
+  // The sun: a soft outer glow, then a solid disc. Kept inside the middle
+  // 80% of the square — the safe zone a maskable icon must not rely on
+  // anything outside of.
+  const cx = S / 2, cy = S * 0.46, r = S * 0.225;
+
+  ctx.fillStyle = 'rgba(255, 217, 61, 0.35)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 1.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#FFD93D';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // A hinted road, low enough that a circular mask never reaches it, so the
+  // icon reads as "a place" rather than only "a sun".
+  ctx.fillStyle = '#8A94A3';
+  ctx.fillRect(0, S * 0.80, S, S * 0.10);
+  ctx.strokeStyle = '#FFE86B';
+  ctx.lineWidth = S * 0.014;
+  ctx.setLineDash([S * 0.05, S * 0.035]);
+  ctx.beginPath();
+  ctx.moveTo(0, S * 0.85);
+  ctx.lineTo(S, S * 0.85);
+  ctx.stroke();
+
+  document.title = 'ready';
+</script>
+</body></html>

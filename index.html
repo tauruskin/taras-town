@@ -19,6 +19,11 @@
   <!-- A little sun, inline so there is no extra file to load. -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='9' fill='%23FFD93D'/></svg>">
 
+  <!-- What makes the game installable: a name, an icon, and how it should
+       open (full screen, landscape). See manifest.json and js/pwa.js. -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
   <!-- All paths are relative (no leading slash) so the game works from a
        GitHub Pages sub-folder such as /taras-town/. -->
   <link rel="stylesheet" href="css/style.css">

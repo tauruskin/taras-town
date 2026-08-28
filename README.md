@@ -22,6 +22,25 @@ changed.
 There is no server, no database and no account. The only thing stored is a bit
 of progress in the browser's own `localStorage`, which never leaves the phone.
 
+## Installing it
+
+On the phone, open the game once with the internet on, then:
+
+- **Android (Chrome):** the browser menu offers "Add to Home screen" or
+  "Install app".
+- **iPhone (Safari):** tap the Share icon, then "Add to Home Screen". This
+  only works from Safari — Chrome on iPhone cannot install a web app; that is
+  an Apple restriction, not something this game can work around.
+
+Once installed it opens full screen from its own icon, with no browser
+address bar, and — after that first online visit — **it opens with no
+internet connection at all.** A phone in flight mode, or a car with no
+signal, still plays the game exactly the same.
+
+Updates still arrive the normal way: whenever the installed app is opened with
+any connectivity, it quietly fetches whatever was last pushed. It only falls
+back to the offline copy when there truly is no connection.
+
 ## Controls
 
 On a phone: the joystick on the left half of the screen (grab it anywhere),
@@ -99,6 +118,8 @@ the old version after that, pull down to refresh the page.
 | `js/net.js` | Playing together. Only ever loaded when a `?room=` is present. |
 | `js/vendor/` | The one piece of third-party code. See the README in there. |
 | `tests/` | Everything that checks the game still works. See the README in there. |
+| `manifest.json` / `sw.js` / `js/pwa.js` | What makes the game installable and playable offline. |
+| `icons/`, `tools/` | The home-screen icons, and the script that generated them from code. |
 | `js/effects.js` | Confetti and the floating coin when a job is done. |
 | `js/audio.js` | Little sounds, generated live. There are no sound files. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |

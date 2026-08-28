@@ -43,6 +43,7 @@ the drawing surface.
 | `jobs` | All four job kinds offer, run and complete. Every destination is clear, reachable and not cramped. Races do not zig-zag or start with a long haul. |
 | `coins-and-shop` | Coins lie somewhere sensible and come back after being taken. Free colours are free, the rest are locked, and a corrupt save cannot break the shop. |
 | `net` | Room parsing, roster merging, forgetting players who go quiet — and that **only position and appearance are ever sent**. |
+| `pwa` | `manifest.json` is valid and internally consistent, every icon it references exists at the size it claims, and the service worker's precache list is neither missing a real file nor missing a real `js/*.js` file. |
 
 ### `browser/` — drives a real browser
 
@@ -63,6 +64,7 @@ game.
 | `multiplayer` | Two browsers, a real connection: they find each other and moving one moves the other's view of them. |
 | `multiplayer-phone-and-desktop` | The same, with one phone-shaped browser and one desktop-shaped one. |
 | `multiplayer-rejoin` | The host leaves; the other player takes over hosting on its own; the first rejoins. Nobody reloads anything. |
+| `pwa` | The one that matters: loads the game online so the service worker installs, cuts the network off entirely, then opens the game again as a fresh visit and confirms it still boots and plays. |
 
 ## Things worth knowing before changing these
 
@@ -86,3 +88,13 @@ game.
   the boolean.
 - **Look at the screenshots** in `tests/screenshots/`. Code that passes every
   assertion has looked visibly broken more than once.
+- **A button's on-screen position is not its visual centre.** `browser/pwa`
+  once dispatched a touch at the viewport centre expecting to hit the start
+  button, which actually sits below the sun and title inside its panel — so
+  it silently missed every time. Every other suite calls `.click()` on the
+  element directly for exactly this reason; follow that pattern rather than
+  guessing coordinates.
+- **A CDP screenshot's clip `scale` and an emulated device pixel ratio both
+  resize the capture — setting both multiplies them together.** `tools/make-
+  icons.mjs` did this once and silently produced icons a third of the size
+  they claimed to be. Use one or the other, never both.
