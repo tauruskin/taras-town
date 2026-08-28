@@ -45,20 +45,55 @@ export class Menu {
     // reads as one control that toggles rather than two that nearly overlap.
     const opener = Menu.openerPos(w, h);
 
+    const closeR = opener.r + 2;
+
+    // Where the rows may start.
+    //
+    // This used to be a plain fraction of the height, "pushed down far enough
+    // that the top row clears the close button" — which it does on a roomy
+    // screen and does NOT on a squat one. On a short landscape phone the top
+    // row rose under the corner buttons and the last hat colour could not be
+    // chosen at all: the tap landed on the done button instead. Nothing looked
+    // wrong, which is exactly why it went unnoticed.
+    //
+    // So the top is now derived from what is actually up there rather than
+    // guessed, and the rows are spread through whatever is left. See
+    // offline/menu-buttons, which presses the middle of every button at a
+    // range of screen sizes and checks the right one answers.
+    const rowsN = this.rows().length;
+    const biggestR = r * Math.max(...this.rows().map((row) => row.scale || 1));
+    const top = Math.max(h * 0.30, opener.y + closeR + r + 8);
+    const bottom = h - biggestR - 8;
+    const step = rowsN > 1 ? (bottom - top) / (rowsN - 1) : 0;
+
     return {
       r,
       gap,
       firstX,
       previewX: w * 0.075,
-      // Pushed down far enough that the top row clears the close button.
-      rowY: [h * 0.30, h * 0.465, h * 0.63, h * 0.795],
-      close: { x: opener.x, y: opener.y, r: opener.r + 2 },
+      rowY: Array.from({ length: rowsN }, (_, i) => top + i * step),
+      close: { x: opener.x, y: opener.y, r: closeR },
     };
   }
 
   /** Where the menu button itself lives when the menu is shut. */
   static openerPos(w, h) {
     return { x: w - 52, y: 52, r: 26 };
+  }
+
+  /**
+   * The way back to the opening screen — for leaving a game you are playing
+   * with somebody else and carrying on by yourself.
+   *
+   * It lives INSIDE the menu rather than out on the playing screen on purpose.
+   * Leaving cuts you off from whoever you were playing with, and a single
+   * stray finger beside the joystick should not be able to do that; having to
+   * open the menu first makes it two deliberate taps. It sits in the same top
+   * corner row as the sound and done buttons, which is where this game keeps
+   * things that are about the game rather than about the town.
+   */
+  static homePos(w, h) {
+    return { x: w - 180, y: 52, r: 26 };
   }
 
   /** The rows, in order. Kept as data so milestone 5 can mark items locked. */
@@ -77,7 +112,7 @@ export class Menu {
     ];
   }
 
-  /** Round buttons for the input layer: every swatch, plus close. */
+  /** Round buttons for the input layer: every swatch, plus close and home. */
   buttons(w, h) {
     const L = this.layout(w, h);
     const out = [{ id: 'menu-close', x: L.close.x, y: L.close.y, r: L.close.r }];
@@ -92,6 +127,16 @@ export class Menu {
         });
       }
     });
+
+    // Home goes LAST on purpose. A tap is matched against this list in order,
+    // and on a short landscape screen the top row of swatches rises close
+    // enough to the corner buttons to overlap. Whoever is listed first wins
+    // such a tie, and choosing a colour is the thing he does constantly while
+    // leaving the game is the thing he does once — so the swatch must win.
+    // Home stays comfortably reachable at its own centre, which is what
+    // offline/menu-buttons checks, at every screen size worth caring about.
+    const home = Menu.homePos(w, h);
+    out.push({ id: 'menu-home', x: home.x, y: home.y, r: home.r });
     return out;
   }
 
@@ -420,6 +465,53 @@ export function drawSoundButton(ctx, x, y, r, on, held) {
     ctx.lineTo(15 * u, 10 * u);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/**
+ * The way back to the opening screen: a little house.
+ *
+ * A house is the one picture that says "back to the start" to somebody who
+ * cannot read "menu" — it is the same idea as the home button on the phone
+ * itself, which he already knows.
+ */
+export function drawHomeButton(ctx, x, y, r, held) {
+  const rr = held ? r - 2 : r;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath();
+  ctx.arc(x, y + (held ? 2 : 5), rr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(x, y, rr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.translate(x, y);
+  const u = rr / 26;
+
+  ctx.fillStyle = '#3A3A42';
+  // Roof, drawn wider than the walls so the shape reads as a house and not
+  // as an arrow at this size.
+  ctx.beginPath();
+  ctx.moveTo(-13 * u, -1 * u);
+  ctx.lineTo(0, -12.5 * u);
+  ctx.lineTo(13 * u, -1 * u);
+  ctx.closePath();
+  ctx.fill();
+
+  // Walls.
+  roundRect(ctx, -9 * u, -2 * u, 18 * u, 13 * u, 2 * u);
+  ctx.fill();
+
+  // A doorway punched back out in white, which is what stops the walls
+  // reading as a plain dark block.
+  ctx.fillStyle = '#FFFFFF';
+  roundRect(ctx, -3.5 * u, 3 * u, 7 * u, 8 * u, 1.5 * u);
+  ctx.fill();
+
   ctx.restore();
 }
 
