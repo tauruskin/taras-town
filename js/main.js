@@ -239,6 +239,14 @@ function update(dt) {
   // The sound button works whether the menu is open or shut.
   if (input.consumePress('sound')) toggleSound();
 
+  // So does the way home. It is on the playing screen as well as in the menu,
+  // so that leaving a game you are playing with somebody else is one tap and
+  // does not mean hunting through the menu first.
+  if (input.consumePress('menu-home')) {
+    backToMainMenu();
+    return;
+  }
+
   // --- the menu, if it's open, takes every press and pauses the town ----
   if (menu.open) {
     handleMenuPresses();
@@ -394,6 +402,7 @@ function render() {
   drawActionButton();
   menu.drawOpener(ctx, w, h, input.isHeld('menu-open'));
   drawSound(w, h);
+  drawHome(w, h);
   drawWaypointArrow(w, h);
   drawCoinCounter(w, h);
   drawPlayerCount(w, h);
@@ -800,9 +809,11 @@ function refreshButtons() {
   }
 
   const opener = Menu.openerPos(w, h);
+  const home = Menu.homePos(w, h);
   const list = [
     { id: 'menu-open', x: opener.x, y: opener.y, r: opener.r },
     soundButton,
+    { id: 'menu-home', x: home.x, y: home.y, r: home.r },
   ];
 
   if (action) {
@@ -817,11 +828,6 @@ function refreshButtons() {
  * step, so the change is its own feedback.
  */
 function handleMenuPresses() {
-  if (input.consumePress('menu-home')) {
-    backToMainMenu();
-    return;
-  }
-
   if (input.consumePress('menu-close')) {
     menu.open = false;
     persist();
