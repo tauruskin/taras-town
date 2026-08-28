@@ -163,6 +163,11 @@ there in map squares, not pixels.
       it is off-screen. Arriving pays coins with confetti and a fanfare.
       The four: **take a pizza to a front door**, **find a lost teddy**,
       **give a friend a lift to the park**, and **follow a race course**.
+- [x] **5b — Vehicles.** Six of them: a car and a van to start with, then a
+      jeep (100), a sports car (200), a monster truck (300) and a bus (400).
+      Each one genuinely *drives* differently — the sports car is quick and
+      darty, the bus is slow with a wide turning circle — so the money buys
+      more than a repaint.
 - [x] **5 — Coins and the shop.** 90 coins lie around town, on pavements, grass
       and roads, so they can be collected on foot or at speed in a car. A
       collected one comes back after 45 seconds. The colour menu is now also
@@ -321,3 +326,25 @@ Any of them, and mixed together: a phone and a laptop can play in the same
 town. On a computer use `W A S D` to move and `Space` to get in and out of a
 car. Tested on the live site with a phone-shaped browser and a desktop-shaped
 one in the same room.
+
+## Vehicles
+
+They live in `CONFIG.VEHICLES` in `js/config.js`, in the order they appear in
+the shop. Each entry carries its own size, top speed, acceleration, turning
+rate and price, so adding a seventh vehicle means adding one entry there and
+one `case` to the `switch` in `Car.draw`.
+
+Two things about them are less obvious than they look:
+
+**They have two different sizes.** `half` is the square used to move around
+town, scaled from the vehicle's width — small and forgiving, so nothing ever
+wedges on a corner. `boundsBox()` is the real footprint that everything else
+collides with. Making them the same would either let the player stand on the
+bonnet or make the bus impossible to drive.
+
+**Swapping vehicles can fail.** A bus does not fit everywhere a hatchback
+does, so `setVehicle` checks whether the new shape fits where the old one was
+standing, nudges it to the nearest place it does, and if there is nowhere at
+all, refuses the change rather than leaving it embedded in a wall. That last
+path is deliberately exercised by `tests/offline/vehicles.mjs`, because an
+untested safety net is not a safety net.

@@ -23,9 +23,19 @@ function angleDelta(target, from) {
   return d;
 }
 
+/** Look a vehicle up by its id, falling back to the first one. */
+export function vehicleById(id) {
+  return CONFIG.VEHICLES.find((v) => v.id === id) || CONFIG.VEHICLES[0];
+}
+
+/** Look a vehicle up by its position in the shop, falling back to the first. */
+export function vehicleByIndex(i) {
+  return CONFIG.VEHICLES[i] || CONFIG.VEHICLES[0];
+}
+
 export class Car {
   /**
-   * @param style { body, roof, type } — type is 'car' or 'van'
+   * @param style { body, roof, type } — `type` is a vehicle id, e.g. 'bus'
    */
   constructor(world, x, y, angle, style) {
     this.world = world;
@@ -35,17 +45,82 @@ export class Car {
     this.speed = 0;          // along the car's own heading; negative = reversing
     this.style = style;
 
-    const size = CONFIG.CAR[style.type === 'van' ? 'VAN' : 'CAR'];
-    this.length = size.LENGTH;
-    this.width = size.WIDTH;
+    this._applySpec(vehicleById(style.type));
 
     // Where the car started, so it can be put back if it ever needs to be.
     this.home = { x, y, angle };
   }
 
-  /** Half-size of the square used for collision. */
+  /** Take on a vehicle's size and handling. */
+  _applySpec(spec) {
+    this.spec = spec;
+    this.length = spec.LENGTH;
+    this.width = spec.WIDTH;
+    this.style = { ...this.style, type: spec.id };
+  }
+
+  /**
+   * Half-size of the square used to move around town.
+   *
+   * Scaled from the vehicle's width rather than being one fixed number for
+   * everything, so a bus really is less nimble than a hatchback — but still
+   * smaller than the vehicle looks, and clamped, so nothing can ever wedge.
+   */
   get half() {
-    return CONFIG.CAR.HITBOX / 2;
+    const C = CONFIG.CAR;
+    const raw = this.width * C.HITBOX_FROM_WIDTH;
+    return Math.max(C.HITBOX_MIN, Math.min(C.HITBOX_MAX, raw)) / 2;
+  }
+
+  /**
+   * Take on a vehicle's appearance and nothing else — no collision check, no
+   * nudging out of the way.
+   *
+   * This is for the stand-ins that represent other players: they are drawn
+   * and nothing more, so shoving one out of a wall would be meaningless, and
+   * running the check on somebody else's position would be wrong anyway.
+   */
+  setVehicleVisual(index) {
+    this._applySpec(vehicleByIndex(index));
+  }
+
+  /**
+   * Swap this vehicle for another, by its position in the shop.
+   *
+   * Changing vehicle changes its SIZE, so this has to be careful: turning a
+   * hatchback into a bus while parked in a tight spot would otherwise leave
+   * it embedded in a wall. If the new shape does not fit where the old one
+   * was standing, it is nudged to the nearest place it does.
+   *
+   * @param otherCars vehicles that would be in the way
+   * @returns false if there was nowhere at all for the new shape to go, in
+   *          which case nothing is changed
+   */
+  setVehicle(index, otherCars = []) {
+    const spec = vehicleByIndex(index);
+    if (spec.id === this.spec.id) return true;      // already driving it
+
+    const before = { spec: this.spec, length: this.length, width: this.width, style: this.style };
+    this._applySpec(spec);
+
+    const blockers = otherCars.filter((c) => c !== this).map((c) => c.boundsBox());
+    if (!this.world._overlaps(this.x, this.y, this.half, this.half, blockers)) return true;
+
+    // It does not fit here. Find the nearest spot it does.
+    const spot = this.world.findFreeSpot(this.x, this.y, this.half, blockers, 200);
+    if (spot) {
+      this.x = spot.x;
+      this.y = spot.y;
+      this.speed = 0;      // do not let a nudge fling it off somewhere
+      return true;
+    }
+
+    // Nowhere to put it. Stay as we were rather than end up inside a wall.
+    this.spec = before.spec;
+    this.length = before.length;
+    this.width = before.width;
+    this.style = before.style;
+    return false;
   }
 
   /**
@@ -54,7 +129,14 @@ export class Car {
    * @param otherCars  the cars this one can bump into (not including itself)
    */
   update(dt, stick, otherCars) {
-    const A = CONFIG.CAR;
+    // Speed, acceleration and turning come from THIS vehicle; the shared
+    // feel — reversing, drag, how softly it bumps — stays common to all.
+    const A = {
+      ...CONFIG.CAR,
+      MAX_SPEED: this.spec.MAX_SPEED,
+      ACCEL: this.spec.ACCEL,
+      TURN_RATE: this.spec.TURN_RATE,
+    };
     const throttle = stick.mag;
 
     if (throttle > 0) {
@@ -167,58 +249,246 @@ export class Car {
   // Drawing
   // =====================================================================
   draw(ctx) {
-    const L = this.length;
-    const W = this.width;
-    const s = this.style;
-
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.rotate(this.angle);   // local +x is the front of the car
+    ctx.rotate(this.angle);   // local +x is the front of the vehicle
 
-    // Shadow.
+    const L = this.length;
+    const W = this.width;
+
+    // Shadow, common to everything, so they all sit on the road the same way.
     ctx.fillStyle = CONFIG.COLORS.SHADOW;
     roundRect(ctx, -L / 2 + 3, -W / 2 + 5, L, W, 10);
     ctx.fill();
 
-    // Wheels, poking out slightly at each corner.
+    this._drawWheels(ctx, L, W);
+
+    switch (this.spec.shape) {
+      case 'van':     this._drawVan(ctx, L, W); break;
+      case 'jeep':    this._drawJeep(ctx, L, W); break;
+      case 'sports':  this._drawSports(ctx, L, W); break;
+      case 'monster': this._drawMonster(ctx, L, W); break;
+      case 'bus':     this._drawBus(ctx, L, W); break;
+      default:        this._drawCar(ctx, L, W); break;
+    }
+
+    this._drawLights(ctx, L, W);
+    ctx.restore();
+  }
+
+  /**
+   * Wheels at each corner, sized by the vehicle's own `wheel` factor.
+   *
+   * Drawn before the body so they tuck underneath it — except on the monster
+   * truck, where they are big enough to stick right out past the sides, which
+   * is the entire point of a monster truck.
+   */
+  _drawWheels(ctx, L, W) {
+    const k = this.spec.wheel;
+    const long = 18 * k;
+    const across = 10 * k;
+
     ctx.fillStyle = '#3A3A42';
-    const wx = L * 0.28, wy = W / 2;
+    const wx = L * 0.28;
+    const wy = W / 2;
     for (const sx of [-1, 1]) {
       for (const sy of [-1, 1]) {
-        roundRect(ctx, sx * wx - 9, sy * wy - 5, 18, 10, 4);
+        roundRect(ctx, sx * wx - long / 2, sy * wy - across / 2, long, across, 4 * k);
         ctx.fill();
       }
     }
 
-    // Body.
-    ctx.fillStyle = s.body;
-    roundRect(ctx, -L / 2, -W / 2, L, W, 10);
-    ctx.fill();
+    // Big wheels get a hub, so they read as wheels rather than dark blocks.
+    if (k >= 1.4) {
+      ctx.fillStyle = '#8A8F9C';
+      for (const sx of [-1, 1]) {
+        for (const sy of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(sx * wx, sy * wy, across * 0.22, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
 
-    // Windscreen and rear window, seen from above.
-    ctx.fillStyle = '#BFE6F5';
-    roundRect(ctx, L * 0.10, -W / 2 + 5, L * 0.20, W - 10, 4);
-    ctx.fill();
-    roundRect(ctx, -L * 0.34, -W / 2 + 5, L * 0.14, W - 10, 4);
-    ctx.fill();
-
-    // Roof.
-    ctx.fillStyle = s.roof;
-    roundRect(ctx, -L * 0.18, -W / 2 + 4, L * 0.26, W - 8, 6);
-    ctx.fill();
-
-    // Headlights.
+  /** Head and rear lights, common to everything. */
+  _drawLights(ctx, L, W) {
     ctx.fillStyle = '#FFF6C9';
     roundRect(ctx, L / 2 - 7, -W / 2 + 5, 6, 8, 3); ctx.fill();
     roundRect(ctx, L / 2 - 7, W / 2 - 13, 6, 8, 3); ctx.fill();
 
-    // Rear lights.
     ctx.fillStyle = '#FF7A7A';
     roundRect(ctx, -L / 2 + 2, -W / 2 + 5, 5, 8, 3); ctx.fill();
     roundRect(ctx, -L / 2 + 2, W / 2 - 13, 5, 8, 3); ctx.fill();
-
-    ctx.restore();
   }
+
+  /** Windows are the same pale blue everywhere, so they read as glass. */
+  _glass(ctx, x, y, w, h, r = 4) {
+    ctx.fillStyle = '#BFE6F5';
+    roundRect(ctx, x, y, w, h, r);
+    ctx.fill();
+  }
+
+  // --- the six shapes ---------------------------------------------------
+
+  _drawCar(ctx, L, W) {
+    const s = this.style;
+    ctx.fillStyle = s.body;
+    roundRect(ctx, -L / 2, -W / 2, L, W, 10);
+    ctx.fill();
+
+    this._glass(ctx, L * 0.10, -W / 2 + 5, L * 0.20, W - 10);
+    this._glass(ctx, -L * 0.34, -W / 2 + 5, L * 0.14, W - 10);
+
+    ctx.fillStyle = s.roof;
+    roundRect(ctx, -L * 0.18, -W / 2 + 4, L * 0.26, W - 8, 6);
+    ctx.fill();
+  }
+
+  /** Boxier than the car, with a long blank flank where the load goes. */
+  _drawVan(ctx, L, W) {
+    const s = this.style;
+    ctx.fillStyle = s.body;
+    roundRect(ctx, -L / 2, -W / 2, L, W, 8);
+    ctx.fill();
+
+    this._glass(ctx, L * 0.24, -W / 2 + 5, L * 0.16, W - 10);
+
+    ctx.fillStyle = s.roof;
+    roundRect(ctx, -L * 0.44, -W / 2 + 4, L * 0.62, W - 8, 6);
+    ctx.fill();
+
+    // A seam down the middle of the back doors.
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.44, 0);
+    ctx.lineTo(-L * 0.44 + L * 0.62, 0);
+    ctx.stroke();
+  }
+
+  /** Squarer and stubbier, with roof bars and a spare wheel on the back. */
+  _drawJeep(ctx, L, W) {
+    const s = this.style;
+    ctx.fillStyle = s.body;
+    roundRect(ctx, -L / 2, -W / 2, L, W, 6);
+    ctx.fill();
+
+    this._glass(ctx, L * 0.14, -W / 2 + 5, L * 0.18, W - 10, 3);
+
+    ctx.fillStyle = s.roof;
+    roundRect(ctx, -L * 0.30, -W / 2 + 4, L * 0.42, W - 8, 4);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.lineWidth = 3;
+    for (const t of [-0.22, 0, 0.22]) {
+      ctx.beginPath();
+      ctx.moveTo(L * t - L * 0.06, -W / 2 + 5);
+      ctx.lineTo(L * t - L * 0.06, W / 2 - 5);
+      ctx.stroke();
+    }
+
+    // Spare wheel on the tail.
+    ctx.fillStyle = '#3A3A42';
+    ctx.beginPath();
+    ctx.arc(-L / 2 + 3, 0, W * 0.20, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8A8F9C';
+    ctx.beginPath();
+    ctx.arc(-L / 2 + 3, 0, W * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** Low, tapered to a point at the nose, with a spoiler and a racing stripe. */
+  _drawSports(ctx, L, W) {
+    const s = this.style;
+
+    ctx.fillStyle = s.body;
+    ctx.beginPath();
+    ctx.moveTo(L / 2, 0);                        // the point of the nose
+    ctx.lineTo(L * 0.22, -W / 2);
+    ctx.lineTo(-L * 0.46, -W / 2);
+    ctx.quadraticCurveTo(-L / 2, 0, -L * 0.46, W / 2);
+    ctx.lineTo(L * 0.22, W / 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // A stripe from nose to tail.
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    roundRect(ctx, -L * 0.42, -W * 0.09, L * 0.80, W * 0.18, 2);
+    ctx.fill();
+
+    this._glass(ctx, -L * 0.02, -W / 2 + 5, L * 0.20, W - 10, 5);
+
+    ctx.fillStyle = s.roof;
+    roundRect(ctx, -L * 0.30, -W / 2 + 5, L * 0.26, W - 10, 5);
+    ctx.fill();
+
+    // Spoiler across the tail.
+    ctx.fillStyle = s.roof;
+    roundRect(ctx, -L / 2 - 1, -W / 2 - 2, 6, W + 4, 2);
+    ctx.fill();
+  }
+
+  /** A small cab perched on a big chassis. The wheels do the talking. */
+  _drawMonster(ctx, L, W) {
+    const s = this.style;
+
+    // Chassis, narrower than the wheels so they stick out past it.
+    ctx.fillStyle = 'rgba(40,42,52,0.9)';
+    roundRect(ctx, -L * 0.42, -W * 0.30, L * 0.84, W * 0.60, 4);
+    ctx.fill();
+
+    // The cab sits high and short.
+    ctx.fillStyle = s.body;
+    roundRect(ctx, -L * 0.26, -W * 0.40, L * 0.62, W * 0.80, 7);
+    ctx.fill();
+
+    this._glass(ctx, L * 0.16, -W * 0.34, L * 0.16, W * 0.68, 3);
+
+    ctx.fillStyle = s.roof;
+    roundRect(ctx, -L * 0.20, -W * 0.36, L * 0.32, W * 0.72, 5);
+    ctx.fill();
+
+    // Exhaust stacks either side of the cab.
+    ctx.fillStyle = '#C9CDD6';
+    roundRect(ctx, -L * 0.24, -W * 0.44, 5, 7, 2); ctx.fill();
+    roundRect(ctx, -L * 0.24, W * 0.44 - 7, 5, 7, 2); ctx.fill();
+  }
+
+  /** Long, flat, and lined with windows. */
+  _drawBus(ctx, L, W) {
+    const s = this.style;
+
+    ctx.fillStyle = s.body;
+    roundRect(ctx, -L / 2, -W / 2, L, W, 9);
+    ctx.fill();
+
+    // A stripe down each flank, the way a real bus is liveried.
+    ctx.fillStyle = s.roof;
+    roundRect(ctx, -L / 2 + 4, -W / 2 + 3, L - 8, 5, 2); ctx.fill();
+    roundRect(ctx, -L / 2 + 4, W / 2 - 8, L - 8, 5, 2); ctx.fill();
+
+    // Windscreen, then a row of side windows.
+    this._glass(ctx, L * 0.36, -W / 2 + 6, L * 0.10, W - 12, 3);
+
+    const first = -L * 0.40;
+    const span = L * 0.72;
+    const count = 5;
+    const gap = span / count;
+    for (let i = 0; i < count; i++) {
+      const x = first + i * gap + 2;
+      this._glass(ctx, x, -W / 2 + 8, gap - 5, 6, 2);
+      this._glass(ctx, x, W / 2 - 14, gap - 5, 6, 2);
+    }
+
+    // The door, just behind the windscreen.
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    roundRect(ctx, L * 0.20, W / 2 - 6, L * 0.12, 5, 2);
+    ctx.fill();
+  }
+
 }
 
 /**

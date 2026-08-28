@@ -88,10 +88,12 @@ let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
 
 // Menu geometry, mirroring ui.js.
-const R = Math.min(34, H * 0.095);
+// Mirrors ui.js. Four rows now that vehicles are for sale, so the dots are
+// smaller and sit differently than they did with three.
+const R = Math.min(26, H * 0.072);
 const FIRST = W * 0.175;
-const GAP = ((W - R - 24) - FIRST) / 7;
-const ROW_Y = [H * 0.33, H * 0.56, H * 0.79];
+const GAP = ((W - R - 20) - FIRST) / 7;   // spacing comes from the widest row (8)
+const ROW_Y = [H * 0.30, H * 0.465, H * 0.63, H * 0.795];
 const swatch = (row, i) => ({ x: FIRST + i * GAP, y: ROW_Y[row] });
 const OPENER = { x: W - 52, y: 52 };
 

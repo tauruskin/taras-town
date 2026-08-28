@@ -28,12 +28,13 @@ function defaultSave() {
     // restyles existing saves instead of leaving them on a dead colour.
     hat: 0,
     shirt: 0,
-    car: 0,
+    car: 0,        // the colour it is painted
+    vehicle: 0,    // which vehicle, by its position in CONFIG.VEHICLES
 
     // Which colours have been bought, as positions in those same palettes.
     // The free ones are added on load rather than stored, so changing
     // FREE_PER_ROW takes effect for existing saves too.
-    unlocked: { hat: [], shirt: [], car: [] },
+    unlocked: { hat: [], shirt: [], car: [], vehicle: [] },
   };
 }
 
@@ -57,13 +58,14 @@ export function loadGame() {
     // Anything nested needs merging by hand, and needs checking: a corrupt
     // or hand-edited save must not be able to crash the shop.
     merged.unlocked = { ...defaults.unlocked, ...(parsed.unlocked || {}) };
-    for (const row of ['hat', 'shirt', 'car']) {
+    for (const row of ['hat', 'shirt', 'car', 'vehicle']) {
       const list = merged.unlocked[row];
       merged.unlocked[row] = Array.isArray(list)
         ? list.filter((n) => Number.isInteger(n) && n >= 0)
         : [];
     }
     if (!Number.isFinite(merged.coins) || merged.coins < 0) merged.coins = 0;
+    if (!Number.isInteger(merged.vehicle) || merged.vehicle < 0) merged.vehicle = 0;
     merged.muted = merged.muted === true;
 
     return merged;

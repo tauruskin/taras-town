@@ -38,16 +38,78 @@ export const CONFIG = {
                          // car nosed into a corner can always turn out of it
     BOUNCE: 0.32,        // speed kept after bumping something (soft, not bouncy)
 
-    HITBOX: 40,          // square used for collision — deliberately smaller
-                         // than the car looks, so it fits wherever it seems
-                         // like it should and never wedges on a corner
+    // The square a vehicle uses to move around town, worked out from its
+    // width. Deliberately smaller than the vehicle looks, so it fits wherever
+    // it seems like it should and never wedges on a corner — but no longer
+    // one fixed number for everything, or a bus would be as nimble as a
+    // hatchback. Clamped at both ends so nothing is ever absurd.
+    HITBOX_FROM_WIDTH: 1.05,
+    HITBOX_MIN: 34,
+    HITBOX_MAX: 48,
     ENTER_RADIUS: 104,   // how close you must stand to get in. Measured from
                          // the car's centre, so it is stricter than it looks:
                          // this is roughly 'touching the side of the car'.
 
-    CAR: { LENGTH: 62, WIDTH: 34 },
-    VAN: { LENGTH: 74, WIDTH: 38 },
   },
+
+  // ---------------------------------------------------------------------
+  // The vehicles, in the order they appear in the shop.
+  //
+  // Each one DRIVES differently, not just looks different. A bus that only
+  // looked like a bus would make 400 coins buy a repaint; making it genuinely
+  // lumbering, and the sports car genuinely darty, is what makes saving up
+  // for one worth doing.
+  //
+  // Sizes are in pixels. A road is two 64px squares wide, so nothing here
+  // should get near 128 long or it could never turn a corner.
+  // ---------------------------------------------------------------------
+  VEHICLES: [
+    {
+      id: 'car', price: 0, shape: 'car',
+      LENGTH: 62, WIDTH: 34,
+      MAX_SPEED: 340, ACCEL: 430, TURN_RATE: 3.0,
+      wheel: 1.0,
+    },
+    {
+      id: 'van', price: 0, shape: 'van',
+      LENGTH: 74, WIDTH: 38,
+      MAX_SPEED: 300, ACCEL: 360, TURN_RATE: 2.6,
+      wheel: 1.0,
+    },
+    {
+      // Chunky and eager. A little quicker off the mark than the car and
+      // slightly tighter round a corner, so the first thing bought is
+      // noticeably better rather than merely different.
+      id: 'jeep', price: 100, shape: 'jeep',
+      LENGTH: 66, WIDTH: 40,
+      MAX_SPEED: 330, ACCEL: 470, TURN_RATE: 3.1,
+      wheel: 1.3,
+    },
+    {
+      // Fast and darty. Deliberately not SO fast that the town becomes hard
+      // to steer round — about a third quicker than the car, no more.
+      id: 'sports', price: 200, shape: 'sports',
+      LENGTH: 64, WIDTH: 32,
+      MAX_SPEED: 440, ACCEL: 620, TURN_RATE: 3.4,
+      wheel: 0.9,
+    },
+    {
+      // Enormous wheels, small cab, and slow. The wheels stick out well past
+      // the body, which is the whole point of it.
+      id: 'monster', price: 300, shape: 'monster',
+      LENGTH: 68, WIDTH: 44,
+      MAX_SPEED: 285, ACCEL: 390, TURN_RATE: 2.3,
+      wheel: 2.0,
+    },
+    {
+      // The slowest thing in town and much the longest. Turning it round on
+      // a two-lane road is meant to be a bit of a job.
+      id: 'bus', price: 400, shape: 'bus',
+      LENGTH: 98, WIDTH: 42,
+      MAX_SPEED: 250, ACCEL: 280, TURN_RATE: 1.9,
+      wheel: 1.05,
+    },
+  ],
 
   CAR_BODY_PALETTE: [
     '#FF6B6B', '#4EA8FF', '#FFD93D', '#6BCB77',

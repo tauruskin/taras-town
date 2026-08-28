@@ -234,6 +234,7 @@ function update(dt) {
       hat: save.hat,
       shirt: save.shirt,
       car: save.car,
+      vehicle: save.vehicle,
     });
     updateGhosts(dt);
   }
@@ -319,7 +320,9 @@ function render() {
   const h = canvas.clientHeight;
 
   if (menu.open) {
-    menu.draw(ctx, w, h, { hat: save.hat, shirt: save.shirt, car: save.car }, save, shake);
+    menu.draw(ctx, w, h,
+      { hat: save.hat, shirt: save.shirt, car: save.car, vehicle: save.vehicle },
+      save, shake);
     // The purse stays on screen in the shop. Deciding whether you can afford
     // something while your total is hidden is no decision at all.
     drawCoinCounter(w, h);
@@ -561,6 +564,8 @@ function updateGhosts(dt) {
     g.mode = p.mode;
     g.player.setOutfit(p.hat, p.shirt);
     g.car.repaint(p.car);
+    // Look only: a stand-in must never be nudged around the town.
+    g.car.setVehicleVisual(p.vehicle || 0);
   }
 
   // Anybody the network has forgotten loses their stand-in too.
@@ -613,8 +618,9 @@ function findCarToEnter() {
 function enterCar(car) {
   drivenCar = car;
   mode = DRIVING;
-  // Whatever he drives becomes his chosen colour.
+  // Whatever he gets into becomes his chosen vehicle, in his chosen colour.
   car.repaint(save.car);
+  car.setVehicle(save.vehicle, cars);
 }
 
 function exitCar() {
@@ -721,9 +727,10 @@ function handleMenuPresses() {
         continue;
       }
 
-      // Otherwise it has to be bought.
-      if (save.coins >= CONFIG.SHOP.PRICE) {
-        save.coins -= CONFIG.SHOP.PRICE;
+      // Otherwise it has to be bought, at its own price.
+      const price = Menu.priceOf(row.id, i);
+      if (save.coins >= price) {
+        save.coins -= price;
         save.unlocked[row.id].push(i);
         save[row.id] = i;              // and put it on straight away
         applyChoices();
@@ -744,11 +751,22 @@ function handleMenuPresses() {
 function applyChoices() {
   player.setOutfit(save.hat, save.shirt);
 
-  // Repaint the car he's sitting in, or the one he's standing beside, so a
-  // colour change is visible right there behind the menu rather than being
-  // a surprise later.
+  // Change the vehicle he's sitting in, or the one he's standing beside, so a
+  // choice is visible right there behind the menu rather than being a
+  // surprise later.
   const target = drivenCar || nearbyCar;
-  if (target) target.repaint(save.car);
+  if (!target) return;
+
+  target.repaint(save.car);
+
+  // Changing vehicle changes its size, so this can fail: there may be no room
+  // for a bus where a hatchback was parked. setVehicle says so rather than
+  // leaving it embedded in a wall, and then the choice is quietly refused.
+  if (!target.setVehicle(save.vehicle, cars)) {
+    save.vehicle = target.spec ? CONFIG.VEHICLES.indexOf(target.spec) : 0;
+    shake = { id: 'vehicle:' + save.vehicle, amount: 0.45 };
+    playDenied();
+  }
 }
 
 function drawJoystick() {

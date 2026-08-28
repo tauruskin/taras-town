@@ -43,6 +43,7 @@ the drawing surface.
 | `jobs` | All four job kinds offer, run and complete. Every destination is clear, reachable and not cramped. Races do not zig-zag or start with a long haul. |
 | `coins-and-shop` | Coins lie somewhere sensible and come back after being taken. Free colours are free, the rest are locked, and a corrupt save cannot break the shop. |
 | `net` | Room parsing, roster merging, forgetting players who go quiet — and that **only position and appearance are ever sent**. |
+| `vehicles` | Every vehicle's numbers are sane and its prices climb; each one drives 4000 frames without wedging or escaping; and swapping between them in 400 different places never leaves one inside a wall — including forced tight spots where the big ones genuinely do not fit. |
 | `pwa` | `manifest.json` is valid and internally consistent, every icon it references exists at the size it claims, and the service worker's precache list is neither missing a real file nor missing a real `js/*.js` file. |
 
 ### `browser/` — drives a real browser
@@ -64,6 +65,7 @@ game.
 | `multiplayer` | Two browsers, a real connection: they find each other and moving one moves the other's view of them. |
 | `multiplayer-phone-and-desktop` | The same, with one phone-shaped browser and one desktop-shaped one. |
 | `multiplayer-rejoin` | The host leaves; the other player takes over hosting on its own; the first rejoins. Nobody reloads anything. |
+| `vehicle-shop` | Buying a vehicle: the right price comes out of the purse, an unaffordable one stays locked, an owned one is free to re-select, it survives a reload — and the bus bought actually appears on the road. |
 | `pwa` | The one that matters: loads the game online so the service worker installs, cuts the network off entirely, then opens the game again as a fresh visit and confirms it still boots and plays. |
 
 ## Things worth knowing before changing these
@@ -94,6 +96,10 @@ game.
   it silently missed every time. Every other suite calls `.click()` on the
   element directly for exactly this reason; follow that pattern rather than
   guessing coordinates.
+- **The game saves on `pagehide`, so you cannot seed a save and then navigate
+  to the game** — leaving the page writes the running game's state straight
+  over your seed. `browser/vehicle-shop` seeds from `tools/icon.html`, a
+  same-origin page that runs no game code.
 - **A CDP screenshot's clip `scale` and an emulated device pixel ratio both
   resize the capture — setting both multiplies them together.** `tools/make-
   icons.mjs` did this once and silently produced icons a third of the size

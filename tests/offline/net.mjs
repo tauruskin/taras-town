@@ -156,10 +156,10 @@ host.peer = { id: 'hostid' };
 host.status = 'host';
 host.isHost = true;
 host.guests.set('g1', { open: true, send: (m) => sent.push(m) });
-host.others.set('g1', { x: 5, y: 6, angle: 0.1, mode: 'foot', hat: 1, shirt: 1, car: 1, seen: 0 });
+host.others.set('g1', { x: 5, y: 6, angle: 0.1, mode: 'foot', hat: 1, shirt: 1, car: 1, vehicle: 2, seen: 0 });
 
 for (let i = 0; i < 20; i++) {
-  host.update(0.05, { x: 10, y: 20, angle: 0.3, mode: 'drive', hat: 2, shirt: 3, car: 4 });
+  host.update(0.05, { x: 10, y: 20, angle: 0.3, mode: 'drive', hat: 2, shirt: 3, car: 4, vehicle: 5 });
 }
 check('the host does send updates', sent.length > 0, sent.length + ' messages');
 const rate = sent.length / 1.0;
@@ -168,7 +168,11 @@ check('at roughly the configured rate', Math.abs(rate - CONFIG.NET.SENDS_PER_SEC
 
 const fields = new Set();
 for (const m of sent) for (const p of m.p) for (const k of Object.keys(p)) fields.add(k);
-check('only position and appearance are sent', [...fields].sort().join(',') === 'angle,car,hat,id,mode,shirt,x,y',
+// Deliberately an exact list, not a "contains" check: this is the safety
+// guarantee that nothing resembling a name or a message can ever be added
+// without somebody noticing. Extend it consciously, never loosen it.
+check('only position and appearance are sent',
+      [...fields].sort().join(',') === 'angle,car,hat,id,mode,shirt,vehicle,x,y',
       [...fields].sort().join(','));
 
 // This is the one that matters for safety: nothing resembling free text.

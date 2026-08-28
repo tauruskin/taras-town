@@ -262,8 +262,8 @@ export class Net {
   // =====================================================================
 
   /**
-   * @param me  { x, y, angle, mode, hat, shirt, car } — where we are and what
-   *            we look like. Nothing else is ever sent.
+   * @param me  { x, y, angle, mode, hat, shirt, car, vehicle } — where we are
+   *            and what we look like. Nothing else is ever sent.
    */
   update(dt, me) {
     // Lost touch with everybody? Try again in a moment.
@@ -327,7 +327,10 @@ export class Net {
   _broadcastRoster() {
     const all = [{ id: this.peer.id, ...this._me }];
     for (const [id, p] of this.others) {
-      all.push({ id, x: p.x, y: p.y, angle: p.angle, mode: p.mode, hat: p.hat, shirt: p.shirt, car: p.car });
+      all.push({
+        id, x: p.x, y: p.y, angle: p.angle, mode: p.mode,
+        hat: p.hat, shirt: p.shirt, car: p.car, vehicle: p.vehicle,
+      });
     }
 
     const msg = { t: 'all', p: all };

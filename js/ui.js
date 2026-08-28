@@ -29,12 +29,17 @@ export class Menu {
   // menu survives the phone being rotated or the browser chrome sliding away.
   // =====================================================================
   layout(w, h) {
-    // Big dots, spread across the full width. A 6-year-old's aim is not
-    // precise, so target size matters more here than tidy spacing does.
-    const r = Math.min(34, h * 0.095);
+    // Four rows now, so the dots are smaller than they were with three. Still
+    // as big as will fit: a 6-year-old's aim is not precise, and target size
+    // matters more here than tidy spacing does.
+    const r = Math.min(26, h * 0.072);
     const firstX = w * 0.175;
-    const lastX = w - r - 24;
-    const gap = (lastX - firstX) / (CONFIG.HAT_PALETTE.length - 1);
+    const lastX = w - r - 20;
+
+    // Spacing comes from the LONGEST row, so every row lines up in a column
+    // even though the vehicle row has fewer items than the colour rows.
+    const widest = Math.max(...this.rows().map((row) => row.count));
+    const gap = (lastX - firstX) / (widest - 1);
 
     // The close button sits exactly where the open button was, so the corner
     // reads as one control that toggles rather than two that nearly overlap.
@@ -46,7 +51,7 @@ export class Menu {
       firstX,
       previewX: w * 0.075,
       // Pushed down far enough that the top row clears the close button.
-      rowY: [h * 0.33, h * 0.56, h * 0.79],
+      rowY: [h * 0.30, h * 0.465, h * 0.63, h * 0.795],
       close: { x: opener.x, y: opener.y, r: opener.r + 2 },
     };
   }
@@ -62,6 +67,13 @@ export class Menu {
       { id: 'hat', count: CONFIG.HAT_PALETTE.length },
       { id: 'shirt', count: CONFIG.SHIRT_PALETTE.length },
       { id: 'car', count: CONFIG.CAR_BODY_PALETTE.length },
+      // The vehicle row shows little pictures rather than colour dots,
+      // because a coloured circle cannot tell you a bus from a sports car.
+      //
+      // Its buttons are bigger than the colour dots on purpose: a colour only
+      // has to be one recognisable hue, but telling a jeep from a bus needs
+      // enough room to actually see the shape.
+      { id: 'vehicle', count: CONFIG.VEHICLES.length, pictures: true, scale: 1.35 },
     ];
   }
 
@@ -76,7 +88,7 @@ export class Menu {
           id: `${row.id}:${i}`,
           x: L.firstX + i * L.gap,
           y: L.rowY[ri],
-          r: L.r,
+          r: L.r * (row.scale || 1),
         });
       }
     });
@@ -87,9 +99,25 @@ export class Menu {
   // Drawing
   // =====================================================================
 
-  /** Is this colour free, or already bought? */
+  /**
+   * What this item costs. 0 means it was always free.
+   *
+   * Colours are all the same modest price, with the first few free so there
+   * is always something to change with an empty purse. Vehicles carry their
+   * own prices, which climb steeply — saving up for the bus is meant to be a
+   * proper undertaking.
+   */
+  static priceOf(rowId, i) {
+    if (rowId === 'vehicle') {
+      const v = CONFIG.VEHICLES[i];
+      return v ? v.price : 0;
+    }
+    return i < CONFIG.SHOP.FREE_PER_ROW ? 0 : CONFIG.SHOP.PRICE;
+  }
+
+  /** Is this item free, or already bought? */
   static isUnlocked(rowId, i, save) {
-    if (i < CONFIG.SHOP.FREE_PER_ROW) return true;
+    if (Menu.priceOf(rowId, i) === 0) return true;
     const list = save.unlocked && save.unlocked[rowId];
     return Array.isArray(list) && list.includes(i);
   }
@@ -116,6 +144,7 @@ export class Menu {
       ctx.translate(L.previewX, y);
       if (row.id === 'hat') drawHatPreview(ctx, choice.hat);
       else if (row.id === 'shirt') drawShirtPreview(ctx, choice.shirt);
+      else if (row.id === 'vehicle') drawVehiclePicture(ctx, choice.vehicle, 58, choice.car);
       else drawCarPreview(ctx, choice.car);
       ctx.restore();
 
@@ -125,27 +154,45 @@ export class Menu {
         let x = L.firstX + i * L.gap;
         const picked = choice[row.id] === i;
         const unlocked = Menu.isUnlocked(row.id, i, save);
-        const rr = picked ? L.r * 1.12 : L.r;
+        const base = L.r * (row.scale || 1);
+        const rr = picked ? base * 1.12 : base;
 
         // A locked dot that has just been pressed without enough coins wobbles.
         if (shake && shake.id === id) x += Math.sin(shake.amount * 34) * 9;
 
         ctx.save();
-        // Locked colours are shown, not hidden: seeing what there is to work
+        // Locked items are shown, not hidden: seeing what there is to work
         // towards is the whole point of having anything to buy.
-        if (!unlocked) ctx.globalAlpha = 0.42;
+        if (!unlocked) ctx.globalAlpha = row.pictures ? 0.62 : 0.42;
 
-        ctx.fillStyle = swatchColour(row.id, i);
-        ctx.beginPath();
-        ctx.arc(x, y, rr, 0, Math.PI * 2);
-        ctx.fill();
+        if (row.pictures) {
+          // A dark disc to sit the picture on, so a pale vehicle still reads
+          // against the dimmed town behind the menu.
+          ctx.fillStyle = 'rgba(20,24,34,0.55)';
+          ctx.beginPath();
+          ctx.arc(x, y, rr, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.save();
+          ctx.translate(x, y);
+          drawVehiclePicture(ctx, i, rr * 2.05, choice.car);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = swatchColour(row.id, i);
+          ctx.beginPath();
+          ctx.arc(x, y, rr, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         ctx.strokeStyle = picked ? '#FFFFFF' : 'rgba(255,255,255,0.45)';
         ctx.lineWidth = picked ? 5 : 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, rr, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
 
-        if (!unlocked) drawPrice(ctx, x, y, L.r, save.coins >= CONFIG.SHOP.PRICE);
+        const price = Menu.priceOf(row.id, i);
+        if (!unlocked) drawPrice(ctx, x, y, base, price, save.coins >= price);
       }
     });
 
@@ -208,28 +255,111 @@ export class Menu {
  * turns gold, so "I can have that one now" is visible at a glance without
  * having to compare two numbers.
  */
-function drawPrice(ctx, x, y, r, affordable) {
-  const cy = y + r * 0.62;
+function drawPrice(ctx, x, y, r, price, affordable) {
+  const label = String(price);
+  // Wide enough for the number it actually holds: "400" needs more room than
+  // "10", and a tag that clips its own price is worse than no tag.
+  const wide = 34 + label.length * 9;
+  const cy = y + r * 0.78;
 
   ctx.save();
-  ctx.fillStyle = affordable ? '#FFD23F' : 'rgba(20,24,34,0.82)';
-  roundRect(ctx, x - 26, cy - 12, 52, 24, 12);
+  ctx.fillStyle = affordable ? '#FFD23F' : 'rgba(20,24,34,0.86)';
+  roundRect(ctx, x - wide / 2, cy - 11, wide, 22, 11);
   ctx.fill();
   ctx.strokeStyle = affordable ? '#FFFFFF' : 'rgba(255,255,255,0.35)';
   ctx.lineWidth = 2;
   ctx.stroke();
 
   // Small coin.
+  const coinX = x - wide / 2 + 12;
   ctx.fillStyle = affordable ? '#B87A0C' : '#E0A81F';
-  ctx.beginPath(); ctx.arc(x - 13, cy, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(coinX, cy, 6.5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = affordable ? '#FFF0A8' : '#FFD23F';
-  ctx.beginPath(); ctx.arc(x - 13, cy, 4.6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(coinX, cy, 4.2, 0, Math.PI * 2); ctx.fill();
 
   ctx.fillStyle = affordable ? '#3A2A00' : '#FFFFFF';
-  ctx.font = 'bold 16px system-ui, sans-serif';
+  ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(String(CONFIG.SHOP.PRICE), x - 3, cy + 1);
+  ctx.fillText(label, coinX + 9, cy + 1);
+  ctx.restore();
+}
+
+/**
+ * A small picture of a vehicle, seen from above, drawn around (0, 0).
+ *
+ * Deliberately a simplified silhouette rather than a scaled-down copy of the
+ * real drawing code: at this size the windows and lights of the full version
+ * turn into mud, and what matters is only that a bus is instantly not a
+ * sports car.
+ */
+export function drawVehiclePicture(ctx, index, size, colourIndex = 0) {
+  const v = CONFIG.VEHICLES[index] || CONFIG.VEHICLES[0];
+  const body = CONFIG.CAR_BODY_PALETTE[colourIndex % CONFIG.CAR_BODY_PALETTE.length];
+  const roof = CONFIG.CAR_ROOF_PALETTE[colourIndex % CONFIG.CAR_ROOF_PALETTE.length];
+
+  // Every vehicle is scaled by the SAME factor, set by the longest one, so
+  // their relative sizes survive: the bus genuinely looks longer than the car.
+  //
+  // Scaling each one individually to fill its circle — the obvious thing to
+  // do — squeezed the bus down to the same length as the hatchback and threw
+  // away the single clearest difference between them.
+  const longest = Math.max(...CONFIG.VEHICLES.map((x) => x.LENGTH));
+  const scale = (size * 0.92) / longest;
+  const L = v.LENGTH * scale;
+  const W = v.WIDTH * scale;
+
+  ctx.save();
+  ctx.rotate(-Math.PI / 2);        // nose towards the top of the screen
+
+  // Wheels first, so they sit under the body — except the monster truck's,
+  // which are big enough to show either side, which is how you know it.
+  // Wheels sized relative to the vehicle, not in fixed pixels, so the monster
+  // truck's still visibly stick out past its body at this size.
+  // Lighter than the real thing: these sit on a dark disc, where the almost
+  // black of the in-game wheels simply disappears — taking the monster
+  // truck's one defining feature with it.
+  const k = v.wheel;
+  ctx.fillStyle = '#79808F';
+  const wx = L * 0.28, wy = W / 2;
+  const wl = L * 0.24 * k, wt = W * 0.20 * k;
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      roundRect(ctx, sx * wx - wl / 2, sy * wy - wt / 2, wl, wt, Math.min(wl, wt) * 0.4);
+      ctx.fill();
+    }
+  }
+
+  ctx.fillStyle = body;
+  if (v.shape === 'sports') {
+    ctx.beginPath();
+    ctx.moveTo(L / 2, 0);
+    ctx.lineTo(L * 0.22, -W / 2);
+    ctx.lineTo(-L * 0.46, -W / 2);
+    ctx.quadraticCurveTo(-L / 2, 0, -L * 0.46, W / 2);
+    ctx.lineTo(L * 0.22, W / 2);
+    ctx.closePath();
+    ctx.fill();
+  } else if (v.shape === 'monster') {
+    roundRect(ctx, -L * 0.26, -W * 0.40, L * 0.62, W * 0.80, 2.5);
+    ctx.fill();
+  } else {
+    roundRect(ctx, -L / 2, -W / 2, L, W, v.shape === 'jeep' ? 1.5 : 3);
+    ctx.fill();
+  }
+
+  // One roof panel, which is enough to stop each shape reading as a plain
+  // coloured block.
+  ctx.fillStyle = roof;
+  if (v.shape === 'bus') {
+    roundRect(ctx, -L * 0.42, -W / 2 + 1.5, L * 0.84, 2, 1); ctx.fill();
+    roundRect(ctx, -L * 0.42, W / 2 - 3.5, L * 0.84, 2, 1); ctx.fill();
+  } else if (v.shape === 'monster') {
+    roundRect(ctx, -L * 0.20, -W * 0.36, L * 0.32, W * 0.72, 2); ctx.fill();
+  } else {
+    roundRect(ctx, -L * 0.24, -W / 2 + 2, L * 0.34, W - 4, 2); ctx.fill();
+  }
+
   ctx.restore();
 }
 
