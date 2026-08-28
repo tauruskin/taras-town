@@ -221,28 +221,78 @@ export class Car {
   }
 
   /**
-   * Somewhere clear to step out onto: beside the car first, then behind,
-   * then in front. Falls back to the car's own position, which is never ideal
-   * but is always better than refusing to let the player out.
+   * Somewhere clear to step out onto, or null if there is nowhere at all.
    *
-   * @param otherCars cars that would be in the way
+   * Three things here are easy to get wrong, and all three of them were:
+   *
+   *   - THE VEHICLE ITSELF COUNTS. While driving it is not in the way; the
+   *     instant the player is out, it is solid to them like any other. A spot
+   *     that overlaps it is therefore a trap, not an exit, so it is included
+   *     in the obstacles below.
+   *
+   *   - HOW FAR OUT TO STEP DEPENDS ON THE DIRECTION. Stepping out sideways
+   *     only has to clear the vehicle's width; stepping out behind has to
+   *     clear its length. Using the width for both put anyone leaving a bus
+   *     inside the bus.
+   *
+   *   - FOUR PLACES IS NOT ENOUGH. Parked snugly between two things, all four
+   *     of left/right/behind/front can be blocked, and the old code then gave
+   *     up and dropped the player at the vehicle's own centre — the worst
+   *     possible answer, and exactly the "stuck inside things" this fixes.
+   *
+   * @param others everything else solid and movable — vehicles AND people
+   * @returns { x, y }, or null when there is genuinely nowhere to stand
    */
-  exitSpot(otherCars) {
+  exitSpot(others) {
     const half = CONFIG.PLAYER.HITBOX / 2;
-    const reach = this.width / 2 + 24;
-    const blockers = otherCars.map((c) => c.boundsBox());
     const w = this.world;
 
-    // Left, right, behind, in front — as offsets from the car's heading.
-    for (const turn of [Math.PI / 2, -Math.PI / 2, Math.PI, 0]) {
-      const a = this.angle + turn;
-      const x = this.x + Math.cos(a) * reach;
-      const y = this.y + Math.sin(a) * reach;
+    const blockers = [...others.filter((o) => o !== this), this]
+      .map((o) => o.boundsBox());
 
-      if (x < half || y < half || x > w.width - half || y > w.height - half) continue;
-      if (!w._overlaps(x, y, half, half, blockers)) return { x, y };
+    const fits = (x, y) =>
+      x > half && y > half && x < w.width - half && y < w.height - half &&
+      !w._overlaps(x, y, half, half, blockers);
+
+    // How far this vehicle's body reaches in a given direction. Generous on
+    // the diagonals, which is the safe way to be wrong.
+    const bodyReach = (angle) => {
+      const local = angle - this.angle;
+      return Math.abs(Math.cos(local)) * (this.length / 2)
+           + Math.abs(Math.sin(local)) * (this.width / 2);
+    };
+
+    // Beside first, then behind, then in front — those are the natural places
+    // to step out — and only then anywhere else that works.
+    const preferred = [Math.PI / 2, -Math.PI / 2, Math.PI, 0];
+    const rest = [];
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      if (!preferred.some((p) => Math.abs(Math.atan2(Math.sin(a - p), Math.cos(a - p))) < 0.05)) {
+        rest.push(a);
+      }
     }
-    return { x: this.x, y: this.y };
+
+    for (const extra of [0, 14, 30, 48]) {
+      for (const turn of [...preferred, ...rest]) {
+        const a = this.angle + turn;
+        const d = bodyReach(a) + half + 10 + extra;
+        const x = this.x + Math.cos(a) * d;
+        const y = this.y + Math.sin(a) * d;
+        if (fits(x, y)) return { x, y };
+      }
+    }
+
+    // Nothing in a ring around the vehicle. Widen the search properly before
+    // giving up: findFreeSpot spirals outwards and will find gaps a ring of
+    // fixed distances steps straight over.
+    const found = w.findFreeSpot(this.x, this.y, half, blockers, 240);
+    if (found) return found;
+
+    // Genuinely nowhere. Saying so lets the game keep the player in the
+    // vehicle, which is recoverable — they can simply drive somewhere else.
+    // Putting them down anyway would not be.
+    return null;
   }
 
   // =====================================================================

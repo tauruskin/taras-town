@@ -20,7 +20,7 @@ import { Player } from './player.js';
 import { Car, createCars } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
-import { Menu, drawMissionIcon, drawSoundButton } from './ui.js';
+import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton } from './ui.js';
 import { createNpcs } from './npc.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
@@ -158,6 +158,38 @@ function startGame(chosenRoom) {
     // Joining happens in the background. If it fails, or takes a while, the
     // game is already running and nobody has waited for anything.
     if (net) net.join();
+  }
+}
+
+/**
+ * Back to the opening screen, so he can leave a game he is playing with
+ * somebody else and carry on by himself.
+ *
+ * This reloads the page rather than unpicking everything by hand, and that is
+ * a deliberate choice. Going back to the start means undoing a live connection,
+ * every other player's ghost, whichever job was half-finished, and the fact
+ * that the game loop is already running — a long list of things to get exactly
+ * right, and a stale one left behind would show up as a friend who is still
+ * visible but no longer there. A reload cannot leave any of that behind.
+ *
+ * Nothing is lost by it: coins, unlocks and what he is wearing are saved just
+ * before, and the town is generated from a fixed seed, so it comes back
+ * identical. The room is dropped from the address on the way out, otherwise
+ * the opening screen would send him straight back into the game he just left.
+ */
+function backToMainMenu() {
+  menu.open = false;
+  persist();
+  if (net) net.leave();
+
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    // `replace` rather than `href`: no history entry, so the phone's back
+    // button cannot walk him straight back into the room he has just left.
+    window.location.replace(url.toString());
+  } catch (_) {
+    window.location.reload();
   }
 }
 
@@ -353,6 +385,7 @@ function render() {
     // something while your total is hidden is no decision at all.
     drawCoinCounter(w, h);
     drawSound(w, h);
+    drawHome(w, h);
     effects.draw(ctx);
     return;
   }
@@ -370,6 +403,12 @@ function render() {
 function drawSound(w, h) {
   const b = soundButtonPos();
   drawSoundButton(ctx, b.x, b.y, b.r, !save.muted, input.isHeld('sound'));
+}
+
+/** The way out of the game, shown only while the menu is open. */
+function drawHome(w, h) {
+  const b = Menu.homePos(w, h);
+  drawHomeButton(ctx, b.x, b.y, b.r, input.isHeld('menu-home'));
 }
 
 /**
@@ -673,9 +712,17 @@ function enterCar(car) {
 
 function exitCar() {
   const car = drivenCar;
-  car.speed = 0;                 // never leave a car rolling away by itself
-
   const spot = findExitSpot(car);
+
+  // Wedged somewhere with no room to stand. Staying in is recoverable — drive
+  // somewhere with more space and try again — where being put down inside a
+  // wall is not. Say so with the same unhappy note the shop uses.
+  if (!spot) {
+    playDenied();
+    return;
+  }
+
+  car.speed = 0;                 // never leave a car rolling away by itself
   player.x = spot.x;
   player.y = spot.y;
   player.angle = Math.atan2(spot.y - car.y, spot.x - car.x);
@@ -695,9 +742,21 @@ function toggleSound() {
   persist();
 }
 
-/** Somewhere clear beside `car` for the player to step out onto. */
+/**
+ * Somewhere clear beside `car` for the player to step out onto, or null if
+ * there is nowhere at all.
+ *
+ * Neighbours count just as much as vehicles do. Leaving them out of this once
+ * put the player down standing inside somebody, which is every bit as stuck as
+ * standing inside a wall — so everything solid goes in, minus the vehicle's
+ * own passenger, who is not in the road.
+ */
 function findExitSpot(car) {
-  return car.exitSpot(cars.filter((c) => c !== car));
+  const solid = [
+    ...cars.filter((c) => c !== car),
+    ...npcs.filter((n) => !missions.isRidingAlong(n)),
+  ];
+  return car.exitSpot(solid);
 }
 
 // ---------------------------------------------------------------------------
@@ -735,6 +794,7 @@ function refreshButtons() {
   // While the menu is open it owns the whole screen — except the sound
   // button, which stays where it is.
   if (menu.open) {
+    // menu.buttons already includes the home button, so nothing extra here.
     input.setButtons([...menu.buttons(w, h), soundButton]);
     return;
   }
@@ -757,6 +817,11 @@ function refreshButtons() {
  * step, so the change is its own feedback.
  */
 function handleMenuPresses() {
+  if (input.consumePress('menu-home')) {
+    backToMainMenu();
+    return;
+  }
+
   if (input.consumePress('menu-close')) {
     menu.open = false;
     persist();
@@ -958,10 +1023,13 @@ function drawHighlight(car) {
 // Saving
 // ---------------------------------------------------------------------------
 function persist() {
-  // While driving, remember the spot beside the car rather than the car
-  // itself: cars go back to their parking spaces when the game reloads, and
-  // we don't want to drop the player inside one.
-  const p = mode === DRIVING ? findExitSpot(drivenCar) : { x: player.x, y: player.y };
+  // While driving, remember the spot beside the vehicle rather than the
+  // vehicle itself: vehicles go back to their parking spaces when the game
+  // reloads, and we don't want to drop the player inside one. If there is
+  // nowhere beside it, keep the last place the player actually stood rather
+  // than inventing somewhere.
+  const beside = mode === DRIVING ? findExitSpot(drivenCar) : null;
+  const p = beside || (mode === DRIVING ? (save.lastPos || world.spawn) : { x: player.x, y: player.y });
   save.lastPos = { x: Math.round(p.x), y: Math.round(p.y) };
   saveGame(save);
 }
