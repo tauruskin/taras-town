@@ -46,6 +46,19 @@ const shoot = async (name) => {
 
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
+// Starting a game that already names a room now asks what to call you first.
+// Clicking Play shows the name box straight away, so the same step can fill it
+// in and carry on.
+const startAs = (who) => `(() => {
+  document.getElementById('start-button').click();
+  const panel = document.getElementById('panel-name');
+  const box = document.getElementById('name-input');
+  if (panel && box && !panel.classList.contains('hidden')) {
+    box.value = ${JSON.stringify(who)};
+    document.getElementById('name-done-button').click();
+  }
+})()`;
+
 
 const tap = async (x, y) => {
   await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
@@ -70,7 +83,7 @@ await send('Storage.clearDataForOrigin', {
 });
 await send('Page.navigate', { url: URL + '?room=' + ROOM });
 await sleep(2400);
-await ev(`document.getElementById('start-button').click()`);
+await ev(startAs('Taras'));
 await sleep(1400);
 
 check('started in a shared game', (await ev('location.search')).includes('room=' + ROOM), await ev('location.search'));
@@ -95,38 +108,42 @@ const saved = async () => {
   try { return JSON.parse(raw); } catch (_) { return null; }
 };
 
-// --- 1. it cannot be hit while he is just playing -------------------------
-//
-// The whole reason it lives inside the menu. If this check ever fails, a
-// stray finger can end a game with his friend in one tap.
-await tap(HOME.x, HOME.y);
-await sleep(600);
-check('tapping that spot while playing does NOT leave the game', (await onStartScreen()) === false);
-check('and he is still in the room', (await ev('location.search')).includes('room=' + ROOM), await ev('location.search'));
-await shoot('1-playing');
-
-// --- 2. it is there once the menu is open ---------------------------------
-await tap(OPENER.x, OPENER.y);
-await sleep(500);
-
-// Read the button off the canvas rather than trusting that it was drawn: a
-// white disc with a dark house in the middle of it.
-const homeLooks = JSON.parse(await ev(`(() => {
+// How the button looks, read off the canvas rather than trusted: a white disc
+// with a dark house in the middle of it.
+const homeLooks = () => ev(`(() => {
   const c = document.getElementById('game'), g = c.getContext('2d');
   const dpr = c.width / parseFloat(c.style.width);
   const px = (dx, dy) => {
     const d = g.getImageData(Math.round((${HOME.x} + dx) * dpr), Math.round((${HOME.y} + dy) * dpr), 1, 1).data;
     return { r: d[0], g: d[1], b: d[2] };
   };
-  const edge = px(-19, 0);       // white disc, clear of the house
-  const roof = px(0, -6);        // dark roof
-  return JSON.stringify({ edge, roof });
-})()`));
+  return JSON.stringify({ edge: px(-19, 0), roof: px(0, -6) });
+})()`);
 const isWhite = (c) => c.r > 235 && c.g > 235 && c.b > 235;
 const isDark = (c) => c.r < 90 && c.g < 90 && c.b < 90;
-check('a white round button is drawn there', isWhite(homeLooks.edge), JSON.stringify(homeLooks.edge));
-check('with a dark house on it', isDark(homeLooks.roof), JSON.stringify(homeLooks.roof));
+
+// --- 1. it is right there on the playing screen ---------------------------
+//
+// It began life inside the menu, where it took two taps and so could not be
+// hit by accident. It was moved out here on purpose, because hunting through
+// a menu to stop playing was worse: leaving is now one tap, and the price is
+// that one stray finger in the top corner ends a shared game.
+let look = JSON.parse(await homeLooks());
+check('a white round button is drawn while playing', isWhite(look.edge), JSON.stringify(look.edge));
+check('with a dark house on it', isDark(look.roof), JSON.stringify(look.roof));
+await shoot('1-playing');
+
+// --- 2. and in the menu as well -------------------------------------------
+await tap(OPENER.x, OPENER.y);
+await sleep(500);
+look = JSON.parse(await homeLooks());
+check('it is in the menu too', isWhite(look.edge) && isDark(look.roof), JSON.stringify(look));
 await shoot('2-menu-open');
+
+// Close the menu again, so what follows is a tap on the playing screen.
+await tap(OPENER.x, OPENER.y);
+await sleep(500);
+check('the menu closes again', (await onStartScreen()) === false);
 
 const before = await saved();
 

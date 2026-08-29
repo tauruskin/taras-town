@@ -515,6 +515,40 @@ export function drawHomeButton(ctx, x, y, r, held) {
   ctx.restore();
 }
 
+/**
+ * A player's name, on a small sign floating over their head.
+ *
+ * Drawn in SCREEN coordinates, not world ones, so it stays the same crisp
+ * size whatever the world happens to be scaled to — a name that grew and
+ * shrank with the zoom would be unreadable at exactly the moments it matters.
+ *
+ * The dark pill is what makes it legible: this town is bright green grass and
+ * bright grey road, and white text alone disappears against half of it.
+ */
+export function drawNameplate(ctx, x, y, name) {
+  const label = String(name == null ? '' : name).slice(0, 10);
+  if (!label) return;
+
+  ctx.save();
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const high = 21;
+  const wide = ctx.measureText(label).width + 18;
+
+  ctx.fillStyle = 'rgba(20,24,34,0.62)';
+  roundRect(ctx, x - wide / 2, y - high / 2, wide, high, high / 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(label, x, y + 0.5);
+  ctx.restore();
+}
+
 /** The colour a given swatch shows. */
 export function swatchColour(rowId, i) {
   if (rowId === 'hat') return CONFIG.HAT_PALETTE[i].crown;

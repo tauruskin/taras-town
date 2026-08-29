@@ -93,6 +93,34 @@
           </svg>
         </button>
       </div>
+      <button class="back" data-back="panel-name" aria-label="Go back">&#8617;</button>
+    </div>
+
+    <!--
+      2b. What shall we call you?
+
+      The one place in the game with a real keyboard. It uses the phone's own
+      keyboard rather than a home-made A-Z pad, because a home-made one would
+      have to pick an alphabet, and this family's names are not all spelled in
+      the same one as the buttons.
+    -->
+    <div class="panel hidden" id="panel-name">
+      <!-- A little figure, so the box is understood as "this is you" without
+           a word of explanation. -->
+      <svg class="who" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="15" r="8"/>
+        <rect x="12" y="26" width="24" height="18" rx="9"/>
+      </svg>
+
+      <input id="name-input" type="text" maxlength="10" autocomplete="off"
+             autocapitalize="words" autocorrect="off" spellcheck="false"
+             enterkeyhint="go" aria-label="Your name">
+
+      <button id="name-done-button" class="big red" aria-label="Done">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M17 11 L37 24 L17 37 Z"/>
+        </svg>
+      </button>
       <button class="back" data-back="panel-welcome" aria-label="Go back">&#8617;</button>
     </div>
 

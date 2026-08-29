@@ -70,6 +70,33 @@ async function openPage(label, port) {
       await sleep(320);
       return true;
     },
+    /**
+     * Type a name into the box and press on.
+     *
+     * The value is set directly rather than typed key by key: what is being
+     * checked here is the joining flow, and the phone's own keyboard is not
+     * this game's code to test.
+     */
+    name: async (who) => {
+      await ev(`(() => {
+        const box = document.getElementById('name-input');
+        if (box) box.value = ${JSON.stringify(who)};
+      })()`);
+      const el = await ev(`(() => {
+        const b = document.getElementById('name-done-button');
+        if (!b) return null;
+        const r = b.getBoundingClientRect();
+        return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      })()`);
+      if (!el) return false;
+      const { x, y } = JSON.parse(el);
+      await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+      await sleep(60);
+      await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await sleep(320);
+      return true;
+    },
+
     /** Tap a numbered key on the pad by the digit printed on it. */
     tapDigit: async (digit) => {
       const box = await ev(`(() => {
@@ -128,9 +155,11 @@ check('the opening screen offers playing alone', await a.visible('start-button')
 check('and offers playing together', await a.visible('together-button'));
 await a.shoot('1-welcome');
 
-// --- 2. A makes a game and is shown a code -------------------------------
+// --- 2. A says what to call them, then makes a game ----------------------
 await a.tapId('together-button');
-check('choosing together moves to that panel alone', (await a.onlyPanel()) === 'panel-together', await a.onlyPanel());
+check('choosing together asks for a name first', (await a.onlyPanel()) === 'panel-name', await a.onlyPanel());
+await a.name('Taras');
+check('and then moves to make-or-join alone', (await a.onlyPanel()) === 'panel-together', await a.onlyPanel());
 check('choosing together offers making a game', await a.visible('make-button'));
 check('and offers joining one', await a.visible('join-button'));
 await a.shoot('2-make-or-join');
@@ -154,6 +183,7 @@ await a.shoot('4-host-playing');
 // --- 3. B types that code on the number pad ------------------------------
 await b.send('Page.navigate', { url: URL }); await sleep(2400);
 await b.tapId('together-button');
+await b.name('Sasha');
 await b.tapId('join-button');
 check('the number pad is the only thing showing', (await b.onlyPanel()) === 'panel-keypad', await b.onlyPanel());
 check('and it has all ten digits and a delete key',

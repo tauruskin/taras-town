@@ -20,7 +20,7 @@ import { Player } from './player.js';
 import { Car, createCars } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
-import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton } from './ui.js';
+import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawNameplate } from './ui.js';
 import { createNpcs } from './npc.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
@@ -28,7 +28,7 @@ import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
-import { StartScreen } from './startscreen.js';
+import { StartScreen, sanitizeName } from './startscreen.js';
 import { registerServiceWorker } from './pwa.js';
 
 // ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 150));
 // demand before going full screen (and, later, before playing any sound).
 // The opening screen decides who we are playing with, then hands over.
 const fromUrl = roomFromUrl();
-const startScreenUi = new StartScreen(startGame);
+const startScreenUi = new StartScreen(startGame, save.name);
 if (fromUrl) {
   // A link that already names a room has made the choice for us; asking
   // again would be pointless, and this keeps shared links working exactly
@@ -113,8 +113,12 @@ if (fromUrl) {
   startScreenUi.straightToPlay();
 }
 
-function startGame(chosenRoom) {
+function startGame(chosenRoom, chosenName) {
   const room = fromUrl || chosenRoom || null;
+
+  // Remember what he asked to be called, so he is not asked again next time.
+  if (typeof chosenName === 'string') save.name = chosenName;
+
   if (room) {
     roomCode = room;
     net = new Net(room);
@@ -301,6 +305,7 @@ function update(dt) {
       shirt: save.shirt,
       car: save.car,
       vehicle: save.vehicle,
+      name: save.name || '',
     });
     updateGhosts(dt);
   }
@@ -384,6 +389,11 @@ function render() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+
+  // Names go on after the world and before the controls: over the trees, so a
+  // friend behind a canopy can still be identified, but under the joystick and
+  // the buttons, which must never be obscured by somebody else's long name.
+  if (net) drawNameplates(view);
 
   if (menu.open) {
     menu.draw(ctx, w, h,
@@ -658,6 +668,9 @@ function updateGhosts(dt) {
     g.angle += d * t;
 
     g.mode = p.mode;
+    // Cleaned again on the way in. Nothing arriving over the wire is trusted,
+    // and this is the one piece of it that gets drawn as words.
+    g.name = sanitizeName(p.name);
     g.player.setOutfit(p.hat, p.shirt);
     g.car.repaint(p.car);
     // Look only: a stand-in must never be nudged around the town.
@@ -687,6 +700,36 @@ function drawGhosts(ctx, view) {
       g.player.draw(ctx);
     }
   }
+}
+
+/**
+ * The little signs over everybody's heads, including our own.
+ *
+ * Only ever in a game with other people in it. Playing alone there is nobody
+ * to tell apart, and a sign following him about his own empty town would be
+ * clutter with nothing to say.
+ *
+ * Positions are converted from world to screen by hand rather than by drawing
+ * under the world transform, which is what keeps the text one fixed readable
+ * size instead of scaling with the zoom.
+ */
+function drawNameplates(view) {
+  const plate = (wx, wy, lift, name) => {
+    if (!name) return;
+    // Off the side of the screen: skip it before measuring any text.
+    if (wx < view.x - 160 || wx > view.x + view.w + 160) return;
+    if (wy < view.y - 160 || wy > view.y + view.h + 160) return;
+    drawNameplate(ctx, (wx - view.x) * scale, (wy - view.y) * scale - lift * scale, name);
+  };
+
+  // Everybody else first, so that where two players stand on the same spot our
+  // own name ends up on top and he can always find himself.
+  for (const g of ghosts.values()) {
+    plate(g.x, g.y, g.mode === DRIVING ? g.car.length / 2 + 18 : 38, g.name);
+  }
+
+  const me = mode === DRIVING ? drivenCar : player;
+  plate(me.x, me.y, mode === DRIVING ? drivenCar.length / 2 + 18 : 38, save.name);
 }
 
 /** Everything solid that moves about: the cars, and the neighbours. */

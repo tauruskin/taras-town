@@ -28,9 +28,17 @@
  * four players it is easily fast enough and there is only one path for a
  * message to take, which makes it far easier to reason about than a mesh.
  *
- * DELIBERATELY NOT HERE: any chat, any typed name, any way to send words or
- * pictures between players. All that ever crosses the wire is where somebody
- * is and what colour their hat is. That is the whole point.
+ * ONE PIECE OF TYPED TEXT CROSSES THE WIRE: the name a player chose for
+ * himself, so that children playing together can tell each other apart. It is
+ * capped at ten characters, stripped of control characters at both ends, and
+ * drawn on a small sign over that player's head. It was once the case that
+ * nothing typed was sent at all, and it is worth being clear about what that
+ * change does and does not open up.
+ *
+ * STILL DELIBERATELY NOT HERE: any chat, any second message, any way to send
+ * words or pictures after that name. There is no channel down which a
+ * conversation could happen. Beyond the name, all that ever crosses the wire
+ * is where somebody is and what colour their hat is.
  *
  * If anything at all goes wrong — no room in the address, the library will
  * not load, the introduction service is down, nobody else joins — the game
@@ -90,7 +98,7 @@ export class Net {
     this.toHost = null;      // guests: the one connection, to the host
     this.guests = new Map(); // host: peerId -> connection
 
-    /** Everyone else, by id: { x, y, angle, mode, hat, shirt, car, seen } */
+    /** Everyone else, by id: { x, y, angle, mode, hat, shirt, car, name, seen } */
     this.others = new Map();
 
     this._sendTimer = 0;
@@ -262,8 +270,9 @@ export class Net {
   // =====================================================================
 
   /**
-   * @param me  { x, y, angle, mode, hat, shirt, car, vehicle } — where we are
-   *            and what we look like. Nothing else is ever sent.
+   * @param me  { x, y, angle, mode, hat, shirt, car, vehicle, name } — where
+   *            we are, what we look like, and what to call us. Nothing else is
+   *            ever sent.
    */
   update(dt, me) {
     // Lost touch with everybody? Try again in a moment.
@@ -330,6 +339,7 @@ export class Net {
       all.push({
         id, x: p.x, y: p.y, angle: p.angle, mode: p.mode,
         hat: p.hat, shirt: p.shirt, car: p.car, vehicle: p.vehicle,
+        name: p.name,
       });
     }
 

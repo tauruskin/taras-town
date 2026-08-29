@@ -88,6 +88,19 @@ async function openPage(label, port) {
 
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
+// Starting a game that already names a room now asks what to call you first.
+// Clicking Play shows the name box straight away, so the same step can fill it
+// in and carry on.
+const startAs = (who) => `(() => {
+  document.getElementById('start-button').click();
+  const panel = document.getElementById('panel-name');
+  const box = document.getElementById('name-input');
+  if (panel && box && !panel.classList.contains('hidden')) {
+    box.value = ${JSON.stringify(who)};
+    document.getElementById('name-done-button').click();
+  }
+})()`;
+
 
 const near = (s, r, g, b, t = 26) => {
   const [R, G, B] = s.split(',').map(Number);
@@ -111,11 +124,11 @@ for (const p of [a, b]) {
 
 // A first, so it becomes the host; B a moment later, so it becomes a guest.
 await a.send('Page.navigate', { url }); await sleep(2600);
-await a.ev("document.getElementById('start-button').click()");
+await a.ev(startAs('Taras'));
 await sleep(1500);
 
 await b.send('Page.navigate', { url }); await sleep(2600);
-await b.ev("document.getElementById('start-button').click()");
+await b.ev(startAs('Sasha'));
 await sleep(1500);
 
 /**

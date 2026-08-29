@@ -11,6 +11,10 @@ globalThis.document = { createElement: () => ({}), head: { appendChild() {} } };
 
 const { Net, roomFromUrl } = await import('../../js/net.js');
 const { CONFIG } = await import('../../js/config.js');
+// The name rules live with the screen that collects names; the wire has to
+// honour the same ones, so they are checked here against the real thing
+// rather than against a copy that could drift.
+const { sanitizeName, MAX_NAME } = await import('../../js/startscreen.js');
 
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
@@ -156,10 +160,10 @@ host.peer = { id: 'hostid' };
 host.status = 'host';
 host.isHost = true;
 host.guests.set('g1', { open: true, send: (m) => sent.push(m) });
-host.others.set('g1', { x: 5, y: 6, angle: 0.1, mode: 'foot', hat: 1, shirt: 1, car: 1, vehicle: 2, seen: 0 });
+host.others.set('g1', { x: 5, y: 6, angle: 0.1, mode: 'foot', hat: 1, shirt: 1, car: 1, vehicle: 2, name: 'Sasha', seen: 0 });
 
 for (let i = 0; i < 20; i++) {
-  host.update(0.05, { x: 10, y: 20, angle: 0.3, mode: 'drive', hat: 2, shirt: 3, car: 4, vehicle: 5 });
+  host.update(0.05, { x: 10, y: 20, angle: 0.3, mode: 'drive', hat: 2, shirt: 3, car: 4, vehicle: 5, name: 'Taras' });
 }
 check('the host does send updates', sent.length > 0, sent.length + ' messages');
 const rate = sent.length / 1.0;
@@ -169,16 +173,50 @@ check('at roughly the configured rate', Math.abs(rate - CONFIG.NET.SENDS_PER_SEC
 const fields = new Set();
 for (const m of sent) for (const p of m.p) for (const k of Object.keys(p)) fields.add(k);
 // Deliberately an exact list, not a "contains" check: this is the safety
-// guarantee that nothing resembling a name or a message can ever be added
-// without somebody noticing. Extend it consciously, never loosen it.
-check('only position and appearance are sent',
-      [...fields].sort().join(',') === 'angle,car,hat,id,mode,shirt,vehicle,x,y',
+// guarantee that nothing resembling a message can ever be added without
+// somebody noticing. Extend it consciously, never loosen it.
+//
+// `name` was added deliberately, so children playing together can tell each
+// other apart. It is the ONE piece of typed text that crosses the wire, and
+// the three checks below are what keep it the only one.
+check('only position, appearance and a name are sent',
+      [...fields].sort().join(',') === 'angle,car,hat,id,mode,name,shirt,vehicle,x,y',
       [...fields].sort().join(','));
 
-// This is the one that matters for safety: nothing resembling free text.
-const asText = JSON.stringify(sent);
-const noText = !/name|chat|message|text|said/i.test(asText);
-check('nothing that could carry words is sent', noText);
+// A name is words that a PERSON chose. If a second such field ever appears,
+// this fails, which is the point.
+//
+// `mode` is a string too, but not typed text: it is one of two fixed words the
+// game picks itself, so it is checked for being exactly that rather than
+// waved through.
+const textFields = new Set();
+const modes = new Set();
+for (const m of sent) {
+  for (const p of m.p) {
+    for (const [k, v] of Object.entries(p)) {
+      if (typeof v === 'string' && k !== 'id') textFields.add(k);
+    }
+    modes.add(p.mode);
+  }
+}
+check('a name is the only text a person chose', [...textFields].sort().join(',') === 'mode,name',
+      [...textFields].sort().join(',') || '(none)');
+check('and mode is a word the game chose, not a person',
+      [...modes].every((m) => m === 'foot' || m === 'drive'), [...modes].join(','));
+
+// And it cannot be long. A name is a label over somebody's head, not a place
+// to put a sentence — nor a paragraph aimed at another child.
+check('names are capped short', sanitizeName('x'.repeat(400)).length <= MAX_NAME,
+      sanitizeName('x'.repeat(400)).length + ' characters');
+const NUL = String.fromCharCode(0);
+const NL = String.fromCharCode(10);
+check('and stripped of anything but a plain line of text',
+      sanitizeName('  a' + NUL + 'b' + NL + 'c   d  ') === 'a b c d',
+      JSON.stringify(sanitizeName('  a' + NUL + 'b' + NL + 'c   d  ')));
+
+// Still no channel for a conversation: one message type carrying one roster.
+const kinds = new Set(sent.map((m) => m.t));
+check('there is still only one kind of message', [...kinds].join(',') === 'all', [...kinds].join(','));
 
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL NET CHECKS PASSED');
 process.exit(fail ? 1 : 0);

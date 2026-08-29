@@ -270,3 +270,40 @@ html, body {
 @media (orientation: portrait) {
   #rotate-screen { display: flex; }
 }
+
+/* --------------------------------------------------------------------------
+   Typing your name
+
+   The only writing anybody does in this game. It uses the phone's own
+   keyboard, so the box has to be big, high-contrast, and comfortably above
+   16px — anything smaller and iOS zooms the page in when it is tapped, which
+   in a landscape-locked game leaves the player somewhere they cannot get back
+   from.
+   -------------------------------------------------------------------------- */
+#start-screen .who {
+  width: clamp(38px, 10vh, 58px);
+  height: clamp(38px, 10vh, 58px);
+  fill: rgba(255, 255, 255, 0.85);
+  margin-bottom: clamp(6px, 2vh, 14px);
+}
+
+#start-screen #name-input {
+  width: clamp(190px, 44vw, 340px);
+  height: clamp(50px, 14vh, 78px);
+  margin-bottom: clamp(12px, 3.5vh, 26px);
+  padding: 0 16px;
+  border: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2B4B60;
+  font-family: inherit;
+  font-size: clamp(24px, 7vh, 40px);
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.14);
+  outline: none;
+}
+
+#start-screen #name-input:focus {
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.14), 0 0 0 4px rgba(255, 255, 255, 0.55);
+}
