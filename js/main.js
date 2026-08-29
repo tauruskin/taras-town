@@ -29,6 +29,7 @@ import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } 
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
 import { StartScreen, sanitizeName } from './startscreen.js';
+import { Minimap } from './minimap.js';
 import { registerServiceWorker } from './pwa.js';
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,7 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 150));
 // demand before going full screen (and, later, before playing any sound).
 // The opening screen decides who we are playing with, then hands over.
 const fromUrl = roomFromUrl();
+const minimap = new Minimap(world);
 const startScreenUi = new StartScreen(startGame, save.name);
 if (fromUrl) {
   // A link that already names a room has made the choice for us; asking
@@ -274,6 +276,7 @@ function update(dt) {
     drivenCar.update(dt, input.vector, cars.filter((c) => c !== drivenCar));
   } else {
     player.update(dt, input.vector, blockers());
+    separateIfInsideSomebody(dt);
   }
 
   // --- jobs -------------------------------------------------------------
@@ -415,6 +418,7 @@ function render() {
   drawHome(w, h);
   drawWaypointArrow(w, h);
   drawCoinCounter(w, h);
+  minimap.draw(ctx, w, h, mode === DRIVING ? drivenCar : player, mode === DRIVING);
   drawPlayerCount(w, h);
   effects.draw(ctx);
 }
@@ -637,10 +641,32 @@ function completeJob(job) {
 // ---------------------------------------------------------------------------
 // The other players
 //
-// They are drawn and nothing more: they do not collide, cannot be bumped into,
-// and have no effect on the town. Two children should never be able to shove
-// each other into a wall, and a dropped connection should never be able to
-// leave the town in a strange state.
+// They used to be drawn and nothing more, on the grounds that two children
+// should never be able to shove each other into a wall and a dropped
+// connection should never leave the town in a strange state. Both of those
+// are still true and still guarded; what changed is that you can now BUMP
+// into somebody, because without that you cannot find a person hiding under a
+// bush — you walk straight through them and never know they were there.
+//
+// How it works, and why it cannot trap anybody:
+//
+//   - Only players ON FOOT are solid. A vehicle is big and fast, and being
+//     shoved along a wall by somebody else's bus is exactly the sort of thing
+//     the old note was worried about.
+//   - Walking into somebody STOPS you. That is the whole feature: you feel
+//     the person you could not see, which is how you find someone hiding.
+//   - Nobody is shoved about. The only movement anybody applies is to
+//     THEMSELVES, and only when two players have actually ended up inside one
+//     another — which happens through no fault of either of them, since both
+//     start on the same spot and positions arrive over a network ten times a
+//     second. Without that, two overlapping players are each blocked by the
+//     other and both are stuck for good.
+//   - That separation deliberately ignores other players, or the pair would
+//     go on blocking each other while trying to get apart. It still goes
+//     through the ordinary movement code, so walls stop it and no position is
+//     ever forced.
+//   - A player who goes quiet stops being solid, because their stand-in is
+//     dropped altogether after a few seconds of silence.
 // ---------------------------------------------------------------------------
 
 function updateGhosts(dt) {
@@ -738,14 +764,79 @@ function drawNameplates(view) {
   plate(me.x, me.y, mode === DRIVING ? drivenCar.length / 2 + 18 : 38, save.name);
 }
 
-/** Everything solid that moves about: the cars, and the neighbours. */
+/** Everything solid that moves about: cars, neighbours, and other players. */
 function blockers() {
+  return [
+    ...townBlockers(),
+    ...otherPlayerBoxes(),
+  ];
+}
+
+/** The same, minus the other players. Used when pushing apart from them. */
+function townBlockers() {
   return [
     ...cars.map((c) => c.boundsBox()),
     // A neighbour riding along isn't standing there any more, so they must
     // not be left behind as an invisible wall.
     ...npcs.filter((n) => !missions.isRidingAlong(n)).map((n) => n.boundsBox()),
   ];
+}
+
+/**
+ * Other players, as things you can walk into.
+ *
+ * On foot only. Somebody driving stays walk-through: a vehicle is big enough
+ * and fast enough to shove a child along a wall, which is the one thing this
+ * must never do.
+ */
+function otherPlayerBoxes() {
+  const half = CONFIG.PLAYER.HITBOX / 2;
+  const out = [];
+  for (const g of ghosts.values()) {
+    if (g.mode === DRIVING) continue;
+    out.push({ x: g.x - half, y: g.y - half, w: half * 2, h: half * 2 });
+  }
+  return out;
+}
+
+/**
+ * Never leave two players stuck inside one another.
+ *
+ * Bumping is handled by the collision itself — you simply stop. This is only
+ * the get-out for the case where two people are already overlapping: both
+ * players start on the same square, and positions arrive over a network, so it
+ * happens without anybody doing anything wrong. Two overlapping players are
+ * each blocked by the other, so without this they would be stuck together
+ * permanently.
+ *
+ * Gentle on purpose. It is a way out of a knot, not a shove.
+ */
+function separateIfInsideSomebody(dt) {
+  if (!net || mode !== ON_FOOT) return;
+
+  const half = CONFIG.PLAYER.HITBOX / 2;
+  const touching = half * 2;
+
+  for (const g of ghosts.values()) {
+    if (g.mode === DRIVING) continue;
+
+    const dx = player.x - g.x;
+    const dy = player.y - g.y;
+    const gap = Math.hypot(dx, dy);
+    if (gap >= touching) continue;
+
+    // Exactly on top of one another: pick a direction rather than dividing by
+    // zero. Whichever way we go, the other player is going the opposite way.
+    const nx = gap > 0.001 ? dx / gap : Math.cos(clock * 3);
+    const ny = gap > 0.001 ? dy / gap : Math.sin(clock * 3);
+
+    // Enough to drift apart over a moment, not enough to fling anybody.
+    const step = Math.min(touching - gap, CONFIG.PLAYER.SPEED * dt * 0.8);
+    const moved = world.moveBox(player.x, player.y, half, half,
+                                nx * step, ny * step, townBlockers());
+    player.x = moved.x;
+    player.y = moved.y;
+  }
 }
 
 /** The closest car within reach, or null. */

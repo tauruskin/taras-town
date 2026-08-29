@@ -101,8 +101,20 @@ const expect = (label, actual, wanted) => {
   console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${label}: ${actual}${ok ? '' : ` (expected ${wanted})`}`);
 };
 
-// --- 1. at spawn, no car within reach -------------------------------------
-expect('at spawn, no car in reach', state(await buttonColour()), 'no button');
+// --- 1. the button agrees with what is actually nearby ---------------------
+//
+// This used to assert there was no car in reach at the start. That was true
+// when the town had ten cars in it; it now has sixty-odd, and whether one is
+// parked near the start is a property of the map rather than something worth
+// asserting. So the expectation is worked out from the map instead.
+const { town: _town0 } = await import('./_helpers.mjs');
+const { createCars: _createCars0 } = await import('../../js/car.js');
+const { CONFIG: _CONFIG0 } = await import('../../js/config.js');
+const _w0 = await _town0();
+const _nearest0 = Math.min(..._createCars0(_w0).map((c) =>
+  Math.hypot(c.x - _w0.spawn.x, c.y - _w0.spawn.y)));
+const _expectAtSpawn = _nearest0 <= _CONFIG0.CAR.ENTER_RADIUS ? 'CAN-ENTER' : 'no button';
+expect('the button matches what is parked near the start', state(await buttonColour()), _expectAtSpawn);
 await shoot('1-spawn');
 
 // --- 2. go to the car ------------------------------------------------------

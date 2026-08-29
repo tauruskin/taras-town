@@ -177,13 +177,34 @@ export class World {
     this.mainPark = best;
   }
 
-  /** Somewhere sensible to start: pavement, in the open, near the middle. */
+  /**
+   * Somewhere sensible to start: near the middle, on dry land, in the open.
+   *
+   * "In the open" means not under a bush or a tree. It sounds like a detail
+   * and is not: two children starting a game together both appear here, and
+   * if the spot happens to be under cover they cannot see each other at all.
+   * The first thing either of them would see is an empty town.
+   */
   _findSpawn() {
     const tile = this.tile;
     const half = CONFIG.PLAYER.HITBOX / 2;
     const want = { x: (this.roadEndCol / 2) * tile, y: (this.rows / 2) * tile };
-    const spot = this.findFreeSpot(want.x, want.y, half, null, 900);
-    return spot || want;
+
+    // Spiral outwards from the middle until somewhere works.
+    for (let radius = 0; radius < 1400; radius += 40) {
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const x = want.x + Math.cos(a) * radius;
+        const y = want.y + Math.sin(a) * radius;
+        if (x < 80 || y < 80 || x > this.width - 80 || y > this.height - 80) continue;
+        if (this._overlaps(x, y, half, half, null)) continue;
+        if (this.isWaterAt(x, y)) continue;
+        if (this.hiddenAt(x, y)) continue;
+        return { x, y };
+      }
+    }
+
+    return this.findFreeSpot(want.x, want.y, half, null, 900) || want;
   }
 
   // =====================================================================

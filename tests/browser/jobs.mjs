@@ -126,6 +126,9 @@ const _world = new _World();
 const _npcs = _createNpcs(_world);
 const _child = _npcs.find((n) => n.mission === 'toy') || _npcs[0];
 const NPC = { x: _child.x, y: _child.y };
+const { CONFIG: _CFG } = await import('../../js/config.js');
+const CONFIG_MISSION_OFFER = _CFG.MISSION.OFFER_RADIUS;
+const CONFIG_ENTER_RADIUS = _CFG.CAR.ENTER_RADIUS;
 // Where the teddy will be. The test pins Math.random to 0.5 before taking the
 // job, and the picker with no previous choice does `(0.5 * list.length) | 0`,
 // so the same sum here gives the same spot — worked out from the real list of
@@ -141,7 +144,16 @@ check('single player downloads no networking code at all', netScripts === 0, net
 
 check('coin counter is drawn', hex(await pixel(54, 44)) === '#FFD23F', hex(await pixel(54, 44)));
 check('starts with no coins', (await coins()) === 0);
-check('no action offered at spawn', (await btnState()) === 'none');
+// Whether anything is within reach of the start is a property of the map, not
+// a rule worth asserting: the town now has sixty cars and a dozen neighbours.
+// So work out what SHOULD be on offer and check the button agrees.
+const _carNear = Math.min(...(await import('../../js/car.js')).createCars(_world).map((c) =>
+  Math.hypot(c.x - _world.spawn.x, c.y - _world.spawn.y)));
+const _npcNear = Math.min(..._npcs.map((n) => Math.hypot(n.x - _world.spawn.x, n.y - _world.spawn.y)));
+const _expected = _npcNear <= CONFIG_MISSION_OFFER ? 'JOB'
+                : _carNear <= CONFIG_ENTER_RADIUS ? 'ENTER-CAR' : 'none';
+check('the button at the start matches what is nearby', (await btnState()) === _expected,
+      (await btnState()) + ', expected ' + _expected);
 
 // --- walk up to the neighbour ---------------------------------------------
 //

@@ -563,7 +563,7 @@ export function createCars(world) {
   // Spots on the road, well spread out, and not jammed against scenery.
   const spots = world.sweepSpots(
     (kind) => kind === T.ROAD,
-    420,          // a good long walk between one car and the next
+    290,          // close enough that there is usually one in sight
     0.42,
     half,
     2,
@@ -577,7 +577,7 @@ export function createCars(world) {
     Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
 
   const cars = [];
-  const wanted = Math.min(spots.length, 34);
+  const wanted = Math.min(spots.length, 62);
 
   for (let i = 0; i < wanted; i++) {
     const spot = spots[i];

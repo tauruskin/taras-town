@@ -134,6 +134,9 @@ export class Npc {
  * that is actually clear, so a tree growing next to someone can never leave
  * them stuck inside it.
  */
+/** How many more neighbours to scatter over the rest of the town. */
+const EXTRA_NEIGHBOURS = 8;
+
 const PEOPLE = [
   // The pizza cook, on the pavement outside the parade of shops.
   { tx: 23.0, ty: 8.5, mission: 'pizza', hat: 1, shirt: 2, angle: Math.PI / 2 },
@@ -158,6 +161,20 @@ const PEOPLE = [
  * spots to wherever the game starts, spread far enough apart to be four
  * separate errands rather than a queue.
  */
+/**
+ * Put the neighbours out on the pavement.
+ *
+ * Two things are wanted at once, and they pull in opposite directions. A
+ * child who has just pressed Play should meet somebody with a job almost at
+ * once, so a few stand near where the game starts. But four people on a town
+ * this size means most of it has nobody in it at all, so the rest are spread
+ * right across the map with a long way between them.
+ *
+ * The four personalities in PEOPLE are dealt round the extra spots, so every
+ * kind of job can be found in more than one place — and `lastPick` in
+ * missions.js is per job TYPE, not per person, so several people offering the
+ * same kind of job still send you somewhere different each time.
+ */
 export function createNpcs(world) {
   const half = CONFIG.PLAYER.HITBOX / 2;
 
@@ -168,21 +185,32 @@ export function createNpcs(world) {
     half,
     2,
   );
-  spots.sort((a, b) =>
+
+  const byDistance = spots.slice().sort((a, b) =>
     Math.hypot(a.x - world.spawn.x, a.y - world.spawn.y) -
     Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
 
   const chosen = [];
-  for (const s of spots) {
+  const farEnough = (s, gap) => !chosen.some((c) => Math.hypot(c.x - s.x, c.y - s.y) < gap);
+
+  // First, one of each job within a short walk of the start.
+  for (const s of byDistance) {
     if (chosen.length >= PEOPLE.length) break;
-    // Far enough apart that they read as four people around the town, not a
-    // huddle, but all still within a short walk of the start.
-    if (chosen.some((c) => Math.hypot(c.x - s.x, c.y - s.y) < 320)) continue;
-    chosen.push(s);
+    if (farEnough(s, 320)) chosen.push(s);
   }
 
-  return PEOPLE.map((p, i) => {
-    const spot = chosen[i] || world.findFreeSpot(world.spawn.x, world.spawn.y, half) || world.spawn;
-    return new Npc(spot.x, spot.y, p);
+  // Then more, spread right out across the rest of the town. Kept few and far
+  // apart on purpose: a neighbour on every corner would make the place feel
+  // crowded and the jobs feel cheap.
+  for (const s of spots) {
+    if (chosen.length >= PEOPLE.length + EXTRA_NEIGHBOURS) break;
+    if (farEnough(s, 1100)) chosen.push(s);
+  }
+
+  return chosen.map((spot, i) => {
+    // The personalities are dealt round, so the extras are not all the same
+    // person standing in different places.
+    const who = PEOPLE[i % PEOPLE.length];
+    return new Npc(spot.x, spot.y, who);
   });
 }
