@@ -23,6 +23,7 @@ export const CONFIG = {
   // ---------------------------------------------------------------------
   PLAYER: {
     SPEED: 175,        // pixels per second at full joystick push
+    SWIM_SPEED: 0.62,  // how much of that speed he manages in the water
     HITBOX: 22,        // width/height of the square used for collision
     DRAW_SCALE: 1.25,  // makes the character easier for small eyes to follow
     TURN_SPEED: 14,    // how quickly the character swivels to face where they walk

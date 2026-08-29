@@ -1,0 +1,115 @@
+// Swimming: getting in, getting about, and getting out again.
+//
+// The thing that would ruin this feature is not swimming being wrong, it is
+// swimming being a TRAP — somewhere a child can get to and then not get back
+// from. So the checks that matter most here are the last ones: from anywhere
+// in the water, there is always a way back to dry land.
+import { World, T } from '../../js/world.js';
+import { Player } from '../../js/player.js';
+import { Car } from '../../js/car.js';
+import { CONFIG } from '../../js/config.js';
+
+const world = new World();
+const half = CONFIG.PLAYER.HITBOX / 2;
+
+let fail = 0;
+const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
+
+/** Every water tile on the map, as world coordinates. */
+const waterSpots = [];
+for (let r = 1; r < world.rows - 1; r++) {
+  for (let c = 1; c < world.cols - 1; c++) {
+    if (world.grid[r][c] === T.WATER) {
+      waterSpots.push({ x: c * world.tile + world.tile / 2, y: r * world.tile + world.tile / 2 });
+    }
+  }
+}
+
+// --- 1. there is water, and a decent amount of it -------------------------
+console.log('');
+console.log('1. there is somewhere to swim');
+check('the map has plenty of water', waterSpots.length > 300, waterSpots.length + ' tiles');
+check('and an inland lake as well as the river',
+      waterSpots.some((s) => s.x < (world.riverCol - 6) * world.tile),
+      world.lake ? 'lake at column ' + Math.round(world.lake.c) : 'no lake');
+
+// --- 2. you can get in, and you look different when you do ---------------
+console.log('');
+console.log('2. wading in');
+
+// Start on the bank and walk towards the water.
+const bank = { x: (world.sandCol - 1) * world.tile + 32, y: 2000 };
+const p = new Player(world, bank.x, bank.y);
+check('starts on dry land, not swimming', p.swimming === false);
+
+let becameSwimmer = false;
+for (let i = 0; i < 200 && !becameSwimmer; i++) {
+  p.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
+  if (p.swimming) becameSwimmer = true;
+}
+check('walking into the river starts him swimming', becameSwimmer);
+check('and the game agrees he is in water', world.isWaterAt(p.x, p.y));
+
+// --- 3. swimming is slower than running ----------------------------------
+const runner = new Player(world, world.spawn.x, world.spawn.y);
+const before = { x: runner.x, y: runner.y };
+for (let i = 0; i < 30; i++) runner.update(1 / 60, { x: 0, y: -1, mag: 1 }, []);
+const ranDistance = Math.hypot(runner.x - before.x, runner.y - before.y);
+
+const swimStart = { x: p.x, y: p.y };
+for (let i = 0; i < 30; i++) p.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
+const swamDistance = Math.hypot(p.x - swimStart.x, p.y - swimStart.y);
+check('swimming is slower than running', swamDistance < ranDistance * 0.95,
+      Math.round(swamDistance) + 'px swum vs ' + Math.round(ranDistance) + 'px run in half a second');
+
+// --- 4. and you can always get out again ---------------------------------
+//
+// The one that really matters. Every water tile is tried: swim in the four
+// compass directions and see whether dry land is ever reached. A pocket of
+// water with no way out is a child stuck in a river.
+console.log('');
+console.log('3. getting out again');
+
+let trapped = 0;
+for (const spot of waterSpots) {
+  let escaped = false;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const swimmer = new Player(world, spot.x, spot.y);
+    // Long enough to cross the widest water on the map. The river is ten
+    // tiles across and swimming is deliberately slow, so a short attempt
+    // reports the middle of the river as a trap when it is merely far out.
+    for (let i = 0; i < 800 && !escaped; i++) {
+      swimmer.update(1 / 60, { x: dx, y: dy, mag: 1 }, []);
+      if (!world.isWaterAt(swimmer.x, swimmer.y)) escaped = true;
+    }
+    if (escaped) break;
+  }
+  if (!escaped) trapped++;
+}
+check('from anywhere in the water there is a way back to land', trapped === 0,
+      trapped + ' of ' + waterSpots.length + ' spots had no way out');
+
+// --- 5. vehicles stay out of it ------------------------------------------
+//
+// A bus in the river would be both stuck and sad.
+console.log('');
+console.log('4. vehicles stay on the road');
+
+let drovein = 0;
+for (const id of CONFIG.VEHICLES.map((v) => v.id)) {
+  const car = new Car(world, bank.x - 40, 2000, 0, { body: '#fff', roof: '#fff', type: id });
+  for (let i = 0; i < 240; i++) car.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
+  if (world.isWaterAt(car.x, car.y)) drovein++;
+}
+check('no vehicle can be driven into the water', drovein === 0,
+      drovein + ' of ' + CONFIG.VEHICLES.length + ' ended up in the river');
+
+// And the control: the same drive DOES cross that line when water is walkable,
+// so the check above is measuring the block and not a car that never moved.
+const roller = new Player(world, bank.x - 40, 2000);
+for (let i = 0; i < 240; i++) roller.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
+check('though a person driving nothing swims straight across it',
+      world.isWaterAt(roller.x, roller.y), 'ended at ' + Math.round(roller.x));
+
+console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL SWIMMING CHECKS PASSED');
+process.exit(fail ? 1 : 0);

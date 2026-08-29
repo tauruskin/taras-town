@@ -108,7 +108,7 @@ const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' :
 
 // The friend, and the park spots they might ask to be taken to, from the real
 // town rather than from coordinates that were only ever true of the old one.
-const { town: _town, npcWithMission: _npcWith } = await import('./_helpers.mjs');
+const { town: _town, npcWithMission: _npcWith, makeRouter: _makeRouter } = await import('./_helpers.mjs');
 const { Missions: _Missions } = await import('../../js/missions.js');
 const _world = await _town();
 const _friend = await _npcWith(_world, 'ride');
@@ -145,9 +145,14 @@ await shoot('2-passenger-riding');
 // Coins lie around town now, so an absolute total says nothing. Watch for the
 // JUMP instead: walking picks them up one at a time, a drop-off pays five.
 let biggestJump = 0;
+const _route = _makeRouter(_world);
 for (const aim of _parkSpots) {
   const before = await coins();
-  await walkTo(aim.x, aim.y, 60);
+  // Follow a route worked out from the map. Steering straight at the park can
+  // walk into the side of a building, or now into the lake, and simply stop.
+  const legs = _route(await pos(), aim) || [aim];
+  for (const leg of legs) await walkTo(leg.x, leg.y, 46, 26);
+  await walkTo(aim.x, aim.y, 60, 24);
   biggestJump = Math.max(biggestJump, (await coins()) - before);
   if (biggestJump >= 5) break;
 }

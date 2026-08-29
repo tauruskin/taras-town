@@ -205,5 +205,58 @@ for (const n of npcs) { n.drawGlow(ctx, 2.5); n.draw(ctx, 2.5); n.drawBadge(ctx,
 console.log('');
 console.log('5. drawing: ' + calls + ' canvas calls, no NaN');
 
+
+// --- neighbours are solid -------------------------------------------------
+//
+// You cannot walk through a person. This used to be checked in the browser by
+// steering into somebody and reading the distance, which depended on choosing
+// a clear approach on a map that keeps changing. Here it is just physics, so
+// every neighbour can be pushed at from every side.
+console.log('');
+console.log('neighbours are solid');
+
+const { Player: SolidPlayer } = await import('../../js/player.js');
+let walkedThrough = 0;
+let tried = 0;
+
+for (const npc of npcs) {
+  const box = npc.boundsBox();
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const from = { x: npc.x - dx * 90, y: npc.y - dy * 90 };
+    if (world._overlaps(from.x, from.y, 11, 11, [box])) continue;
+
+    tried++;
+    const p = new SolidPlayer(world, from.x, from.y);
+    for (let i = 0; i < 90; i++) p.update(1 / 60, { x: dx, y: dy, mag: 1 }, [box]);
+
+    // Through them means out the far side: past the middle, still going.
+    const past = (p.x - npc.x) * dx + (p.y - npc.y) * dy;
+    if (past > 0) walkedThrough++;
+  }
+}
+check('nobody can be walked through', walkedThrough === 0,
+      walkedThrough + ' of ' + tried + ' approaches went straight through');
+
+// The control, without which the check above is worthless: a player who never
+// moves at all would also "never walk through anybody". Run the identical
+// simulation with the neighbour NOT treated as solid, and it must pass through
+// every time — that is what proves the walking, and the measurement, work.
+let passedThroughWhenAllowed = 0;
+let controlTried = 0;
+for (const npc of npcs) {
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const from = { x: npc.x - dx * 90, y: npc.y - dy * 90 };
+    if (world._overlaps(from.x, from.y, 11, 11, [npc.boundsBox()])) continue;
+
+    controlTried++;
+    const p = new SolidPlayer(world, from.x, from.y);
+    for (let i = 0; i < 90; i++) p.update(1 / 60, { x: dx, y: dy, mag: 1 }, []);
+    if ((p.x - npc.x) * dx + (p.y - npc.y) * dy > 0) passedThroughWhenAllowed++;
+  }
+}
+check('and the same walk DOES go through when they are not solid',
+      passedThroughWhenAllowed > controlTried * 0.6,
+      passedThroughWhenAllowed + ' of ' + controlTried);
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL JOB CHECKS PASSED');
 process.exit(fail ? 1 : 0);

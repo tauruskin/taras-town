@@ -174,7 +174,8 @@ export class Car {
     const dy = Math.sin(this.angle) * dist;
 
     const blockers = otherCars.map((c) => c.boundsBox());
-    const next = this.world.moveBox(this.x, this.y, this.half, this.half, dx, dy, blockers);
+    // The last argument keeps the wheels out of the river.
+    const next = this.world.moveBox(this.x, this.y, this.half, this.half, dx, dy, blockers, true);
 
     this.x = next.x;
     this.y = next.y;

@@ -41,7 +41,14 @@ const ROAD_EVERY_ROWS = 10;
 const ROAD_EVERY_COLS = 13;
 
 // How much of the right-hand edge is river, plus its sandy bank.
-const RIVER_TILES = 4;
+//
+// Wide enough to be somewhere you go rather than an edge you walk along: it
+// can be swum in, it has islands out in the middle of it, and the things
+// floating on it are cover in their own right.
+const RIVER_TILES = 10;
+
+/** How many islands are dropped into the river. */
+const ISLANDS = 3;
 
 // Roughly one block in four is left as parkland rather than built on. Parks
 // are where most of the trees are, and trees are where you hide.
@@ -114,6 +121,7 @@ export class World {
     this._collectSolids();
     this._indexSolids();
     this._buildHidingPlaces();
+    this._buildWaterHidingPlaces();
 
     // A safe spot on the pavement near the middle of town.
     this.spawn = this._findSpawn();
@@ -195,12 +203,69 @@ export class World {
       this.grid[r][this.sandCol] = T.SAND;
     }
 
+    // 2a. Islands out in the river, with sand all round them. Somewhere to
+    //     swim TO, which is what turns a wide river into a place rather than
+    //     a border — and a fine spot to be hiding when nobody thinks to swim.
+    for (let i = 0; i < ISLANDS; i++) {
+      const cy = Math.floor((i + 0.5) * (rows / ISLANDS) + hash(i * 31, 7) * 6 - 3);
+      const cx = this.riverCol + 2 + Math.floor(hash(i, 91) * (RIVER_TILES - 5));
+      const rx = 2 + Math.floor(hash(i + 5, 11) * 2);
+      const ry = 2 + Math.floor(hash(i + 9, 23) * 2);
+
+      for (let r = cy - ry; r <= cy + ry; r++) {
+        for (let c = cx - rx; c <= cx + rx; c++) {
+          if (r < 1 || c < 1 || r >= rows - 1 || c >= cols - 1) continue;
+          const d = ((r - cy) / ry) ** 2 + ((c - cx) / rx) ** 2;
+          if (d > 1) continue;
+          this.grid[r][c] = d > 0.45 ? T.SAND : T.GRASS;
+        }
+      }
+    }
+
     // 3. Every block that came out as parkland.
     for (const b of this.blocks) {
       if (!b.park) continue;
       for (let r = b.r0; r <= b.r1; r++) {
         for (let c = b.c0; c <= b.c1; c++) this.grid[r][c] = T.PARK;
       }
+    }
+
+    // 3b. A lake inland, so swimming is not a trek to one edge of the map.
+    //     It goes in a park, where there is room and nothing to knock down.
+    //
+    //     AFTER the parks are painted, not before. Carving it first and then
+    //     filling the park in over the top left no lake at all — and nothing
+    //     about the map looked wrong, it was simply a park like the others.
+    // The roomiest park that is not the town park, so the lake has space and
+    // the fountain keeps its own green. Remembered, so the market does not
+    // later try to set out its stalls in the water.
+    const lakeBlock = this.blocks
+      .filter((b) => b.park && !b.main && b.r1 - b.r0 >= 4 && b.c1 - b.c0 >= 6 &&
+                     b.c1 < this.riverCol - 10)
+      // Of the ones big enough, the nearest the middle of town: a lake tucked
+      // against the river would just look like a bend in it.
+      .sort((a, b) =>
+        Math.hypot((a.c0 + a.c1) / 2 - this.roadEndCol / 2, (a.r0 + a.r1) / 2 - this.rows / 2) -
+        Math.hypot((b.c0 + b.c1) / 2 - this.roadEndCol / 2, (b.r0 + b.r1) / 2 - this.rows / 2))[0];
+    if (lakeBlock) lakeBlock.lake = true;
+    if (lakeBlock) {
+      const lr = (lakeBlock.r0 + lakeBlock.r1) / 2;
+      const lc = (lakeBlock.c0 + lakeBlock.c1) / 2;
+      // Use nearly the whole block. Kept small, the ellipse has too few rows
+      // to round off and comes out as a rectangle with notched corners — it
+      // reads as a swimming pool rather than a pond.
+      const rx = Math.max(3, Math.floor((lakeBlock.c1 - lakeBlock.c0) / 2));
+      const ry = Math.max(2, Math.floor((lakeBlock.r1 - lakeBlock.r0) / 2));
+
+      for (let r = Math.floor(lr - ry); r <= Math.ceil(lr + ry); r++) {
+        for (let c = Math.floor(lc - rx); c <= Math.ceil(lc + rx); c++) {
+          if (r < 1 || c < 1 || r >= rows - 1 || c >= cols - 1) continue;
+          const d = ((r - lr) / ry) ** 2 + ((c - lc) / rx) ** 2;
+          if (d > 1) continue;
+          this.grid[r][c] = d > 0.55 ? T.SAND : T.WATER;
+        }
+      }
+      this.lake = { r: lr, c: lc, rx, ry };
     }
 
     // 4. Roads.
@@ -348,6 +413,16 @@ export class World {
     const standable = (x, y) => !this._overlaps(x, y, half, half, null);
 
     /**
+     * On dry land.
+     *
+     * Water stopped being solid when swimming arrived, which means `standable`
+     * is perfectly happy in the middle of the river. Everything below that
+     * belongs on land has to say so, or there would be bus shelters out in the
+     * lake.
+     */
+    const onLand = (x, y) => !this.isWaterAt(x, y);
+
+    /**
      * The same spot, or the nearest one somebody could stand in.
      *
      * Used for the few pieces there is only one of — the bandstand, the market
@@ -369,7 +444,7 @@ export class World {
 
         const x = c * tile + tile * (0.2 + hash(c + 61, r + 29) * 0.6);
         const y = r * tile + tile * (0.2 + hash(c + 97, r + 43) * 0.6);
-        if (!standable(x, y)) continue;
+        if (!standable(x, y) || !onLand(x, y)) continue;
 
         const size = 22 + hash(c + 5, r + 11) * 12;
         this.canopies.push({ kind: 'bush', x, y, rx: size, ry: size * 0.82,
@@ -385,7 +460,7 @@ export class World {
 
         const x = c * tile + tile / 2;
         const y = r * tile + tile / 2;
-        if (!standable(x, y)) continue;
+        if (!standable(x, y) || !onLand(x, y)) continue;
         if (this._tooCloseToCanopy(x, y, 150)) continue;
 
         this.canopies.push({ kind: 'shelter', x, y, rx: 44, ry: 30,
@@ -397,7 +472,7 @@ export class World {
     //
     // Put in one park so there is a proper little market to run around in,
     // rather than stalls sprinkled at random across the whole town.
-    const marketBlocks = this.blocks.filter((b) => b.park && !b.main);
+    const marketBlocks = this.blocks.filter((b) => b.park && !b.main && !b.lake);
     const market = marketBlocks.length
       ? marketBlocks[Math.floor(hash(7, 13) * marketBlocks.length)]
       : null;
@@ -406,6 +481,7 @@ export class World {
         for (let c = market.c0 + 1; c <= market.c1 - 1; c += 2) {
           const x = c * tile + tile / 2;
           const y = r * tile + tile / 2;
+          if (!onLand(x, y)) continue;
           const spot = nudged(x, y, 70);
           if (!spot) continue;
           this.canopies.push({ kind: 'stall', x: spot.x, y: spot.y, rx: 46, ry: 34,
@@ -434,7 +510,7 @@ export class World {
           if (hash(c + 1201, r + 1303) > 0.05) continue;
           const x = c * tile + tile / 2;
           const y = r * tile + tile / 2;
-          if (!standable(x, y)) continue;
+          if (!standable(x, y) || !onLand(x, y)) continue;
           if (this._tooCloseToCanopy(x, y, 90)) continue;
           this.canopies.push({ kind: 'parasol', x, y, rx: 38, ry: 34,
                                seed: (c * 11 + r * 3) % 100 });
@@ -443,10 +519,76 @@ export class World {
     }
   }
 
+  /**
+   * Things to hide under in the water.
+   *
+   * Same rule as on land: none of it is solid, all of it is drawn over the
+   * top of whoever is underneath. Lily pads and reeds are the cover; the
+   * jetties and moored boats are there so the river reads as somewhere people
+   * go, and they happen to make excellent hiding places too.
+   */
+  _buildWaterHidingPlaces() {
+    const tile = this.tile;
+
+    const isWaterTile = (r, c) =>
+      r >= 0 && c >= 0 && r < this.rows && c < this.cols && this.grid[r][c] === T.WATER;
+    const nextToLand = (r, c) =>
+      !isWaterTile(r - 1, c) || !isWaterTile(r + 1, c) ||
+      !isWaterTile(r, c - 1) || !isWaterTile(r, c + 1);
+
+    for (let r = 1; r < this.rows - 1; r++) {
+      for (let c = 1; c < this.cols - 1; c++) {
+        if (!isWaterTile(r, c)) continue;
+
+        const x = c * tile + tile * (0.25 + hash(c + 211, r + 307) * 0.5);
+        const y = r * tile + tile * (0.25 + hash(c + 401, r + 503) * 0.5);
+        const edge = nextToLand(r, c);
+
+        // Reeds grow in the shallows, so they line the banks and the islands.
+        if (edge && hash(c + 71, r + 137) < 0.5) {
+          this.canopies.push({ kind: 'reeds', x, y, rx: 26, ry: 24,
+                               seed: (c * 7 + r * 3) % 100 });
+          continue;
+        }
+
+        // Lily pads float further out, in the open water.
+        if (!edge && hash(c + 811, r + 907) < 0.34) {
+          const size = 26 + hash(c + 3, r + 17) * 12;
+          this.canopies.push({ kind: 'lily', x, y, rx: size, ry: size * 0.86,
+                               seed: (c * 13 + r * 5) % 100 });
+        }
+      }
+    }
+
+    // Jetties, sticking out from the bank into the river, with a boat tied up
+    // at the end of some of them.
+    // Spaced by remembering the last one, NOT by asking how close the nearest
+    // piece of scenery is: by this point the river is full of lily pads, and
+    // that question always answers "too close", which is why the first version
+    // of this built no jetties at all.
+    let lastJetty = -99;
+
+    for (let r = 3; r < this.rows - 3; r++) {
+      const c = this.riverCol;
+      if (!isWaterTile(r, c)) continue;
+      if (hash(r + 1601, 17) > 0.16) continue;
+      if (r - lastJetty < 7) continue;
+      lastJetty = r;
+
+      const x = c * tile + tile * 1.2;
+      const y = r * tile + tile / 2;
+      this.canopies.push({ kind: 'jetty', x, y, rx: 74, ry: 20, seed: r % 100 });
+
+      if (hash(r + 55, 91) < 0.6) {
+        this.canopies.push({ kind: 'boat', x: x + 96, y, rx: 34, ry: 20, seed: r % 100 });
+      }
+    }
+  }
+
   /** Keep the bigger pieces of scenery from piling up on one another. */
   _tooCloseToCanopy(x, y, dist) {
     for (const c of this.canopies) {
-      if (c.kind === 'bush') continue;          // bushes may crowd in freely
+      if (c.kind === 'bush' || c.kind === 'lily' || c.kind === 'reeds') continue;          // bushes may crowd in freely
       if (Math.abs(c.x - x) < dist && Math.abs(c.y - y) < dist) return true;
     }
     return false;
@@ -498,13 +640,12 @@ export class World {
       this.solids.push({ x: t.x - s / 2, y: t.y - s / 2 + 6, w: s, h: s });
     }
 
-    // The river. One big rectangle covering the water tiles.
-    this.solids.push({
-      x: this.riverCol * this.tile,
-      y: 0,
-      w: (this.cols - this.riverCol) * this.tile,
-      h: this.height,
-    });
+    // NOTE: water is deliberately NOT in this list any more.
+    //
+    // It used to be one big rectangle down the right-hand edge, which made the
+    // river a wall. It is now somewhere to swim, so it stops being solid for
+    // anybody on foot — and stays solid for anything with wheels, which is
+    // handled separately in moveBox rather than here. See `blocksVehicle`.
   }
 
   /**
@@ -538,6 +679,35 @@ export class World {
   }
 
   // =====================================================================
+  // Water
+  // =====================================================================
+
+  /** Is this spot in the water? */
+  isWaterAt(x, y) {
+    const c = Math.floor(x / this.tile);
+    const r = Math.floor(y / this.tile);
+    if (r < 0 || c < 0 || r >= this.rows || c >= this.cols) return false;
+    return this.grid[r][c] === T.WATER;
+  }
+
+  /**
+   * Would a vehicle be in the water here?
+   *
+   * Water stops being solid when the game learns to swim, but only for people.
+   * A bus in the river would be both stuck and sad, so anything with wheels
+   * still treats it as a wall — checked at the corners as well as the middle,
+   * or a long vehicle could straddle the bank with its nose in the river.
+   */
+  blocksVehicle(cx, cy, halfW, halfH) {
+    for (const dx of [-halfW, 0, halfW]) {
+      for (const dy of [-halfH, 0, halfH]) {
+        if (this.isWaterAt(cx + dx, cy + dy)) return true;
+      }
+    }
+    return false;
+  }
+
+  // =====================================================================
   // Collision
   // =====================================================================
 
@@ -551,14 +721,19 @@ export class World {
    *               fixed `solids` list.
    * @returns { x, y, blocked } — the new centre, and whether anything was hit.
    */
-  moveBox(x, y, halfW, halfH, dx, dy, extra) {
+  moveBox(x, y, halfW, halfH, dx, dy, extra, noWater = false) {
     let blocked = false;
+    // `noWater` is what keeps vehicles out of the river. People may swim, so
+    // for them water is simply not an obstacle at all.
+    const stopped = (px, py) =>
+      this._overlaps(px, py, halfW, halfH, extra) ||
+      (noWater && this.blocksVehicle(px, py, halfW, halfH));
 
     let nx = x + dx;
-    if (this._overlaps(nx, y, halfW, halfH, extra)) { nx = x; blocked = true; }
+    if (stopped(nx, y)) { nx = x; blocked = true; }
 
     let ny = y + dy;
-    if (this._overlaps(nx, ny, halfW, halfH, extra)) { ny = y; blocked = true; }
+    if (stopped(nx, ny)) { ny = y; blocked = true; }
 
     // Never leave the map.
     const cx = Math.min(Math.max(nx, halfW), this.width - halfW);
@@ -879,10 +1054,12 @@ export class World {
    */
   drawCanopies(ctx, view) {
     for (const c of this.canopies) {
-      if (c.kind !== 'bush') continue;
+      if (c.kind !== 'bush' && c.kind !== 'lily' && c.kind !== 'reeds') continue;
       if (c.x < view.x - 90 || c.x > view.x + view.w + 90) continue;
       if (c.y < view.y - 90 || c.y > view.y + view.h + 90) continue;
-      this._drawBush(ctx, c);
+      if (c.kind === 'bush') this._drawBush(ctx, c);
+      else if (c.kind === 'lily') this._drawLily(ctx, c);
+      else this._drawReeds(ctx, c);
     }
 
     for (const t of this.trees) {
@@ -892,13 +1069,17 @@ export class World {
     }
 
     for (const c of this.canopies) {
-      if (c.kind === 'bush') continue;
+      if (c.kind === 'bush' || c.kind === 'lily' || c.kind === 'reeds') continue;
       if (c.x < view.x - 120 || c.x > view.x + view.w + 120) continue;
       if (c.y < view.y - 120 || c.y > view.y + view.h + 120) continue;
       if (c.kind === 'shelter') this._drawShelter(ctx, c);
       else if (c.kind === 'stall') this._drawStall(ctx, c);
       else if (c.kind === 'bandstand') this._drawBandstand(ctx, c);
       else if (c.kind === 'parasol') this._drawParasol(ctx, c);
+      else if (c.kind === 'lily') this._drawLily(ctx, c);
+      else if (c.kind === 'reeds') this._drawReeds(ctx, c);
+      else if (c.kind === 'jetty') this._drawJetty(ctx, c);
+      else if (c.kind === 'boat') this._drawBoat(ctx, c);
     }
   }
 
@@ -1201,6 +1382,135 @@ export class World {
     ctx.beginPath();
     ctx.arc(c.x, c.y, 7, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  /**
+   * A lily pad: a round leaf with a notch cut out of it, and sometimes a
+   * flower. Big enough to swim under and disappear.
+   */
+  _drawLily(ctx, c) {
+    const r = c.rx * 0.9;
+
+    // A darker patch of water underneath, which is what makes it read as
+    // floating ON the river rather than being part of it.
+    ctx.fillStyle = 'rgba(12,60,90,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(c.x + 3, c.y + 4, r, r * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#4FA65B';
+    ctx.beginPath();
+    // The notch is the whole trick: a plain circle reads as a coin.
+    const notch = (c.seed / 100) * Math.PI * 2;
+    ctx.ellipse(c.x, c.y, r, r * 0.82, 0, notch + 0.45, notch + Math.PI * 2 - 0.45);
+    ctx.lineTo(c.x, c.y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.beginPath();
+    ctx.ellipse(c.x - r * 0.22, c.y - r * 0.26, r * 0.4, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (c.seed % 4 === 0) {
+      ctx.fillStyle = '#FF9EC4';
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.ellipse(c.x + Math.cos(a) * 5, c.y + Math.sin(a) * 5, 5, 3.4, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#FFD93D';
+      ctx.beginPath(); ctx.arc(c.x, c.y, 3.4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  /** Reeds in the shallows: a clump of tall blades. */
+  _drawReeds(ctx, c) {
+    const blades = 7 + (c.seed % 4);
+
+    for (let i = 0; i < blades; i++) {
+      const t = (i / blades) * Math.PI * 2 + c.seed;
+      const bx = c.x + Math.cos(t) * c.rx * 0.55;
+      const by = c.y + Math.sin(t) * c.ry * 0.5;
+      const lean = ((i % 3) - 1) * 3;
+
+      ctx.strokeStyle = i % 3 === 0 ? '#4E8C4A' : '#63A45A';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bx, by + 8);
+      ctx.quadraticCurveTo(bx + lean, by - 6, bx + lean * 2, by - 16);
+      ctx.stroke();
+
+      // A brown seed head on some of them.
+      if (i % 4 === 0) {
+        ctx.fillStyle = '#8A5A2B';
+        roundRect(ctx, bx + lean * 2 - 2, by - 22, 4, 8, 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  /** A wooden jetty running out from the bank. */
+  _drawJetty(ctx, c) {
+    ctx.fillStyle = 'rgba(12,60,90,0.28)';
+    roundRect(ctx, c.x - c.rx + 5, c.y - c.ry + 7, c.rx * 2, c.ry * 2, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#B98A52';
+    roundRect(ctx, c.x - c.rx, c.y - c.ry, c.rx * 2, c.ry * 2, 4);
+    ctx.fill();
+
+    // Planks, which is what makes it wood rather than a brown rectangle.
+    ctx.strokeStyle = 'rgba(90,58,26,0.45)';
+    ctx.lineWidth = 2;
+    for (let i = 1; i < 8; i++) {
+      const x = c.x - c.rx + (i / 8) * c.rx * 2;
+      ctx.beginPath();
+      ctx.moveTo(x, c.y - c.ry + 3);
+      ctx.lineTo(x, c.y + c.ry - 3);
+      ctx.stroke();
+    }
+
+    // Posts at the far end.
+    ctx.fillStyle = '#8A6238';
+    ctx.beginPath(); ctx.arc(c.x + c.rx - 5, c.y - c.ry + 4, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(c.x + c.rx - 5, c.y + c.ry - 4, 4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** A little rowing boat, tied up. */
+  _drawBoat(ctx, c) {
+    ctx.fillStyle = 'rgba(12,60,90,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(c.x + 4, c.y + 6, c.rx, c.ry * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const hull = ['#E5484D', '#4EA8FF', '#FFB03A'][c.seed % 3];
+    ctx.fillStyle = hull;
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.rx, c.ry * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // The inside of the boat, and a bench across it.
+    ctx.fillStyle = '#F6E2C0';
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.rx * 0.72, c.ry * 0.44, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#B98A52';
+    roundRect(ctx, c.x - 5, c.y - c.ry * 0.44, 10, c.ry * 0.88, 2);
+    ctx.fill();
+
+    // Oars.
+    ctx.strokeStyle = '#B98A52';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(c.x - 2, c.y + side * 4);
+      ctx.lineTo(c.x + 16, c.y + side * (c.ry + 6));
+      ctx.stroke();
+    }
   }
 
   /** A big garden parasol. */
