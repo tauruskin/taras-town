@@ -15,6 +15,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function openPage(label, port) {
   const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
+  const targetId = target.id;
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r));
 
@@ -130,7 +131,13 @@ async function openPage(label, port) {
         .filter((p) => p.getBoundingClientRect().width > 0 && !p.classList.contains('hidden'));
       return shown.length === 1 ? shown[0].id : shown.length + ' panels: ' + shown.map((p) => p.id).join();
     })()`),
-    close: () => { try { ws.close(); } catch (_) {} },
+    // Shut the TAB, not just the socket. A leftover tab is still there for
+    // the next suite to find, and a backgrounded tab has its animation frames
+    // throttled — which looks like the game having stopped.
+    close: async () => {
+      try { await fetch(`http://127.0.0.1:${port}/json/close/${targetId}`); } catch (_) {}
+      try { ws.close(); } catch (_) {}
+    },
   };
 }
 
@@ -228,5 +235,5 @@ const problems = [...a.problems, ...b.problems];
 console.log('');
 console.log('problems: ' + (problems.length ? problems.join('; ') : 'NONE'));
 console.log(fail || problems.length ? (fail + ' FAILURE(S)') : 'ALL CODE-JOIN CHECKS PASSED');
-a.close(); b.close();
+await a.close(); await b.close();
 process.exit(fail || problems.length ? 1 : 0);

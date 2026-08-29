@@ -38,6 +38,11 @@ const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' :
 
 await send('Runtime.enable');
 await send('Page.enable');
+// Make sure this page is the one in front. Animation frames are throttled in a
+// backgrounded tab, and the music is scheduled from the game loop — so a tab
+// left open by an earlier suite would make the music look as though it had
+// stopped when the browser had simply stopped drawing.
+await send('Page.bringToFront');
 await send('Network.enable');
 await send('Network.setCacheDisabled', { cacheDisabled: true });
 await send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 1, mobile: true });
@@ -60,6 +65,13 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
     // Count every note, and hold on to the game's own context so the test can
     // tell "the music stopped" apart from "this browser never gave us a
     // working audio clock" — which are very different answers.
+    // Count animation frames too: the music is scheduled from the game loop,
+    // so "did the loop run?" and "did the music play?" are different questions
+    // and the answer matters.
+    window.__frames = 0;
+    const spin = () => { window.__frames++; requestAnimationFrame(spin); };
+    requestAnimationFrame(spin);
+
     const real = AC.prototype.createOscillator;
     AC.prototype.createOscillator = function () {
       window.__notes++;
@@ -94,13 +106,28 @@ check('music starts playing by itself', after >= 4, after + ' notes so far');
 // only runs the clock with the audio flags `tests/run.mjs` passes, and after
 // many suites in one browser it can stop providing one at all.
 const clockA = await ev('window.__ctx ? window.__ctx.currentTime : -1');
-await sleep(3000);
+
+// Wait for NOTES, not for a fixed number of seconds.
+//
+// A bar is nearly four seconds long and is scheduled about a second and a half
+// before it is due, so across any short window the honest answer is often "no
+// new notes yet" — and the first version of this asked for four new notes
+// within three seconds, which the music cannot always deliver even when it is
+// working perfectly. Poll instead, and give it long enough for a bar to come
+// round.
+let later = after;
+for (let i = 0; i < 24 && later <= after + 3; i++) {
+  await sleep(500);
+  later = await ev('window.__notes');
+}
+
 const clockB = await ev('window.__ctx ? window.__ctx.currentTime : -1');
 const clockRuns = clockB > clockA + 0.5;
-
-const later = await ev('window.__notes');
 if (clockRuns) {
-  check('and keeps playing', later > after + 3, after + ' -> ' + later + ' notes');
+  const frames = await ev('window.__frames');
+  check('and keeps playing', later > after + 3,
+        after + ' -> ' + later + ' notes, ' + frames + ' frames drawn, clock ' +
+        clockA.toFixed(1) + ' -> ' + clockB.toFixed(1) + 's');
 } else {
   console.log('  --    no running audio clock in this browser (' +
               clockA.toFixed(2) + ' -> ' + clockB.toFixed(2) + 's); skipping the rest');

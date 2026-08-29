@@ -52,12 +52,10 @@ const ROOT = 130.81;          // C3, low enough to sit under everything
 const BEAT = 0.92;            // seconds — about 65 beats a minute
 const BEATS_PER_BAR = 4;
 
-/** How far ahead notes are scheduled, and how often we top that up. */
+/** How far ahead notes are scheduled. */
 const LOOKAHEAD = 1.6;
-const TICK_MS = 400;
 
 let master = null;
-let timer = null;
 let muted = false;
 let running = false;
 let nextBarAt = 0;
@@ -116,8 +114,16 @@ function scheduleBar(ctx, at) {
   bar++;
 }
 
-/** Top up the schedule. Called on a timer, not from the game loop. */
-function tick() {
+/**
+ * Top up the schedule. Called once a frame, from the game loop.
+ *
+ * This used to run on its own `setInterval`, which Chrome throttles hard in a
+ * page that is not focused — the music simply stopped a few seconds in and
+ * came back when the page was clicked. Hanging it off the frame the game is
+ * already drawing means the music runs exactly when the game does, which is
+ * also the only time anybody can hear it.
+ */
+export function updateMusic() {
   try {
     const ctx = audioContext();
     if (!ctx || !running) return;
@@ -164,8 +170,7 @@ export function startMusic() {
 
     running = true;
     nextBarAt = ctx.currentTime + 0.3;
-    tick();
-    timer = setInterval(tick, TICK_MS);
+    updateMusic();
   } catch (err) {
     running = false;
   }
@@ -175,7 +180,6 @@ export function startMusic() {
 export function stopMusic() {
   try {
     running = false;
-    if (timer) { clearInterval(timer); timer = null; }
 
     const ctx = audioContext();
     if (ctx && master) {

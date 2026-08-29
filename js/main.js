@@ -26,7 +26,7 @@ import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
-import { startMusic, stopMusic, setMusicMuted } from './music.js';
+import { startMusic, stopMusic, setMusicMuted, updateMusic } from './music.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
 import { StartScreen, sanitizeName } from './startscreen.js';
@@ -256,6 +256,7 @@ function frame(now) {
   clock += dt;
 
   update(dt);
+  updateMusic();
   render();
 
   requestAnimationFrame(frame);
