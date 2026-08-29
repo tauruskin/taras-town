@@ -186,11 +186,16 @@ async function getIntoTheCar() {
  * @returns true if it ended up genuinely stuck against something
  */
 async function ramUntilStuck() {
-  for (let attempt = 0; attempt < 8; attempt++) {
+  // Turn a little between shoves as well as driving forward. The town is a
+  // grid, so heading straight down a street can run for a very long way
+  // without meeting anything — which is not "the ram failed", it is "there
+  // was nothing there". Turning finds a wall.
+  for (let attempt = 0; attempt < 16; attempt++) {
     const before = await frame();
     await hold('w', 900);
     await sleep(150);
     if (changed(before, await frame()) < 0.06) return true;   // going nowhere
+    if (attempt % 3 === 2) await hold(attempt % 6 === 2 ? 'd' : 'a', 420);
   }
   return false;
 }

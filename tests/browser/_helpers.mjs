@@ -40,7 +40,26 @@ export function makeWalker({ send, ev, sleep, push: customPush, from = { x: 150,
    * ship in the game for this to work.
    */
   const pos = async () => {
-    await ev("window.dispatchEvent(new Event('pagehide'))");
+    // Ask the game to save, WITHOUT telling it the page is going away.
+    //
+    // The obvious way to do this is to fire `pagehide`, and that is what this
+    // used to do — but the game quite rightly treats `pagehide` as "we are
+    // leaving" and hangs up the multiplayer connection. Reading a position
+    // therefore ended the shared game, and every check that followed was
+    // quietly measuring two children in separate empty towns.
+    //
+    // `visibilitychange` only saves, so that is the one to use. The state has
+    // to be faked for the handler to believe it, and put back afterwards.
+    await ev(`(() => {
+      const d = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+      try {
+        Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+      } finally {
+        delete document.visibilityState;
+        if (d) Object.defineProperty(Document.prototype, 'visibilityState', d);
+      }
+    })()`);
     const raw = await ev("(() => { try { return localStorage.getItem('tarasTown.save.v1'); } catch (e) { return null; } })()");
     try { return JSON.parse(raw).lastPos; } catch (_) { return null; }
   };

@@ -45,10 +45,10 @@ const ROAD_EVERY_COLS = 13;
 // Wide enough to be somewhere you go rather than an edge you walk along: it
 // can be swum in, it has islands out in the middle of it, and the things
 // floating on it are cover in their own right.
-const RIVER_TILES = 15;
+const RIVER_TILES = 24;
 
 /** How many islands are dropped into the river. */
-const ISLANDS = 4;
+const ISLANDS = 6;
 
 // Roughly one block in four is left as parkland rather than built on. Parks
 // are where most of the trees are, and trees are where you hide.
@@ -1028,12 +1028,26 @@ export class World {
 
     const tile = this.tile;
 
+    // Only the visible stretch of each line is drawn, which is what keeps a
+    // map this size cheap — but a dash pattern starts counting from wherever
+    // the path begins, so a line starting at the edge of the view had its
+    // dashes shift every time the camera moved. On screen that read as the
+    // markings SLIDING along the road as the player walked, as though the
+    // road were on a conveyor belt.
+    //
+    // lineDashOffset puts the phase back where it belongs: setting it to the
+    // world coordinate the path starts at makes the dashes fall exactly where
+    // they would if every line were drawn from the very edge of the map.
+
     // Centre line down the middle of each horizontal road.
     for (const [rA, rB] of this.hRoads) {
       const y = (rB) * tile; // boundary between the two lanes
       if (y < view.y - 20 || y > view.y + view.h + 20) continue;
+
+      const from = Math.max(0, view.x - 40);
+      ctx.lineDashOffset = from;
       ctx.beginPath();
-      ctx.moveTo(Math.max(0, view.x - 40), y);
+      ctx.moveTo(from, y);
       ctx.lineTo(Math.min(this.roadEndCol * tile + tile, view.x + view.w + 40), y);
       ctx.stroke();
     }
@@ -1042,8 +1056,11 @@ export class World {
     for (const [cA, cB] of this.vRoads) {
       const x = (cB) * tile;
       if (x < view.x - 20 || x > view.x + view.w + 20) continue;
+
+      const from = Math.max(0, view.y - 40);
+      ctx.lineDashOffset = from;
       ctx.beginPath();
-      ctx.moveTo(x, Math.max(0, view.y - 40));
+      ctx.moveTo(x, from);
       ctx.lineTo(x, Math.min(this.height, view.y + view.h + 40));
       ctx.stroke();
     }

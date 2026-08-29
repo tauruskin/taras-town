@@ -675,18 +675,21 @@ function completeJob(job) {
 //   - Only players ON FOOT are solid. A vehicle is big and fast, and being
 //     shoved along a wall by somebody else's bus is exactly the sort of thing
 //     the old note was worried about.
-//   - Walking into somebody STOPS you. That is the whole feature: you feel
-//     the person you could not see, which is how you find someone hiding.
-//   - Nobody is shoved about. The only movement anybody applies is to
-//     THEMSELVES, and only when two players have actually ended up inside one
-//     another — which happens through no fault of either of them, since both
-//     start on the same spot and positions arrive over a network ten times a
-//     second. Without that, two overlapping players are each blocked by the
-//     other and both are stuck for good.
-//   - That separation deliberately ignores other players, or the pair would
-//     go on blocking each other while trying to get apart. It still goes
-//     through the ordinary movement code, so walls stop it and no position is
-//     ever forced.
+//   - ANOTHER PLAYER IS NEVER A WALL. This was tried the other way first —
+//     other players solid, so walking into one stopped you dead — and it did
+//     find people, but it also stuck them together. Two children pressing
+//     into each other are each blocked by the other; somebody backed into a
+//     corner by a friend has nowhere to go at all. It was the same trap the
+//     cars used to set.
+//   - Instead they PUSH APART. Walk into somebody and you keep moving, slowly,
+//     while both of you slide away from one another. You cannot be trapped by
+//     a person, because a person never stops you.
+//   - And it still does the job it was added for, better than stopping did: a
+//     player hiding under a bush is shoved out from under it, so instead of
+//     merely feeling a wall you SEE who it was.
+//   - Each player only ever moves THEMSELVES, on their own device, through the
+//     ordinary movement code — so walls still stop the push and no position is
+//     ever forced. Both devices do it, so the shove is mutual.
 //   - A player who goes quiet stops being solid, because their stand-in is
 //     dropped altogether after a few seconds of silence.
 // ---------------------------------------------------------------------------
@@ -745,6 +748,15 @@ function drawGhosts(ctx, view) {
       // about rather than as a statue.
       g.player.speed01 = 1;
       g.player.walkPhase = clock * 9;
+
+      // Swimming if they are in the water. A stand-in never runs update(),
+      // which is where that flag is normally set, so a friend out in the
+      // river was drawn striding across the surface. It costs nothing to work
+      // out here: the town is generated from a fixed seed, so this device
+      // already knows exactly where the water is on theirs.
+      g.player.swimming = world.isWaterAt(g.x, g.y);
+      g.player.swimPhase = clock * 2.4;
+
       g.player.draw(ctx);
     }
   }
@@ -786,15 +798,16 @@ function drawNameplates(view) {
   plate(me.x, me.y, mode === DRIVING ? drivenCar.length / 2 + 18 : 38, save.name);
 }
 
-/** Everything solid that moves about: cars, neighbours, and other players. */
+/**
+ * Everything solid that moves about: the cars and the neighbours.
+ *
+ * Other players are deliberately NOT in here. See the note above: they push
+ * apart instead of blocking, so that nobody can ever be pinned by a friend.
+ */
 function blockers() {
-  return [
-    ...townBlockers(),
-    ...otherPlayerBoxes(),
-  ];
+  return townBlockers();
 }
 
-/** The same, minus the other players. Used when pushing apart from them. */
 function townBlockers() {
   return [
     ...cars.map((c) => c.boundsBox()),
@@ -805,39 +818,31 @@ function townBlockers() {
 }
 
 /**
- * Other players, as things you can walk into.
+ * Push apart from anybody standing too close.
  *
- * On foot only. Somebody driving stays walk-through: a vehicle is big enough
- * and fast enough to shove a child along a wall, which is the one thing this
- * must never do.
+ * This is the whole of the bumping. Walk into a friend and you are not
+ * stopped — you are both eased away from each other, so somebody hidden under
+ * a bush is pushed out into the open where you can see them. Since nobody is
+ * ever blocked, nobody can ever be pinned against a wall by somebody else.
+ *
+ * On foot only. Somebody driving is left alone: a vehicle is big enough and
+ * fast enough to barge a child along a wall, which is the one thing this must
+ * never do.
  */
-function otherPlayerBoxes() {
-  const half = CONFIG.PLAYER.HITBOX / 2;
-  const out = [];
-  for (const g of ghosts.values()) {
-    if (g.mode === DRIVING) continue;
-    out.push({ x: g.x - half, y: g.y - half, w: half * 2, h: half * 2 });
-  }
-  return out;
-}
+let bumpQuietFor = 0;   // stops one long bump becoming a rattle of noises
 
-/**
- * Never leave two players stuck inside one another.
- *
- * Bumping is handled by the collision itself — you simply stop. This is only
- * the get-out for the case where two people are already overlapping: both
- * players start on the same square, and positions arrive over a network, so it
- * happens without anybody doing anything wrong. Two overlapping players are
- * each blocked by the other, so without this they would be stuck together
- * permanently.
- *
- * Gentle on purpose. It is a way out of a knot, not a shove.
- */
 function separateIfInsideSomebody(dt) {
+  bumpQuietFor -= dt;
   if (!net || mode !== ON_FOOT) return;
 
   const half = CONFIG.PLAYER.HITBOX / 2;
-  const touching = half * 2;
+  // How far apart two people end up after bumping.
+  //
+  // Generously more than actually touching, and that is the point. Easing
+  // apart to just-not-overlapping moves each of them about a pixel, which is
+  // no use at all: the whole reason this exists is so that walking into
+  // somebody hidden under a bush SHOVES THEM OUT WHERE YOU CAN SEE THEM.
+  const touching = half * 2 + 22;
 
   for (const g of ghosts.values()) {
     if (g.mode === DRIVING) continue;
@@ -847,17 +852,47 @@ function separateIfInsideSomebody(dt) {
     const gap = Math.hypot(dx, dy);
     if (gap >= touching) continue;
 
+    // Whoever is WALKING does the pushing; whoever is standing gets pushed.
+    //
+    // Without this the two cancel out. Both players back away from each other
+    // at once, they settle at arm's length, and the one who walked over can
+    // never actually reach the one hiding — which turns the whole thing into
+    // a soft wall and gives away nothing. Standing your ground while walking
+    // INTO somebody means their own device is the one that gives way, so a
+    // child crouched under a bush is shoved out into the open.
+    //
+    // If both walk into each other neither gives way and they pass through,
+    // which is harmless: nobody can be stuck, which is the rule that matters.
+    const intent = input.vector;
+    if (intent.mag > 0.2 && (intent.x * -dx + intent.y * -dy) > 0) {
+      if (bumpQuietFor <= 0) {
+        bumpQuietFor = 0.9;
+        if (!save.muted) playAccept();
+      }
+      continue;
+    }
+
     // Exactly on top of one another: pick a direction rather than dividing by
     // zero. Whichever way we go, the other player is going the opposite way.
     const nx = gap > 0.001 ? dx / gap : Math.cos(clock * 3);
     const ny = gap > 0.001 ? dy / gap : Math.sin(clock * 3);
 
-    // Enough to drift apart over a moment, not enough to fling anybody.
-    const step = Math.min(touching - gap, CONFIG.PLAYER.SPEED * dt * 0.8);
+    // Firm enough that walking into somebody visibly moves them — that is
+    // how you know you have found them — and gentle enough not to fling.
+    const step = Math.min(touching - gap, CONFIG.PLAYER.SPEED * dt * 1.6);
     const moved = world.moveBox(player.x, player.y, half, half,
                                 nx * step, ny * step, townBlockers());
     player.x = moved.x;
     player.y = moved.y;
+
+    // And say so out loud, once per bump. Being shoved is visible, but a
+    // small noise is what makes it unmistakable that the thing you just
+    // walked into was a person and not a wall — which matters most when they
+    // were under a bush and you never saw them at all.
+    if (bumpQuietFor <= 0) {
+      bumpQuietFor = 0.9;
+      if (!save.muted) playAccept();
+    }
   }
 }
 

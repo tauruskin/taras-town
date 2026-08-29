@@ -38,7 +38,25 @@ console.log('');
 console.log('2. wading in');
 
 // Start on the bank and walk towards the water.
-const bank = { x: (world.sandCol - 1) * world.tile + 32, y: 2000 };
+//
+// Found from the map rather than worked out from the river column: the river
+// has been widened twice now, and a hand-computed bank has been wrong both
+// times — silently, because a player who cannot move also never reaches the
+// water and the check passes.
+const bank = (() => {
+  for (let r = 4; r < world.rows - 4; r++) {
+    for (let c = 2; c < world.cols - 2; c++) {
+      if (world.grid[r][c] !== T.WATER) continue;
+      if (world.grid[r][c - 1] === T.WATER) continue;      // want the west edge
+      const x = (c - 1) * world.tile + world.tile / 2;
+      const y = r * world.tile + world.tile / 2;
+      if (world._overlaps(x, y, half, half, null)) continue;
+      if (world.isWaterAt(x, y)) continue;
+      return { x, y };
+    }
+  }
+  return { x: (world.sandCol - 1) * world.tile + 32, y: 2000 };
+})();
 const p = new Player(world, bank.x, bank.y);
 check('starts on dry land, not swimming', p.swimming === false);
 
@@ -51,10 +69,15 @@ check('walking into the river starts him swimming', becameSwimmer);
 check('and the game agrees he is in water', world.isWaterAt(p.x, p.y));
 
 // --- 3. swimming is slower than running ----------------------------------
-const runner = new Player(world, world.spawn.x, world.spawn.y);
-const before = { x: runner.x, y: runner.y };
-for (let i = 0; i < 30; i++) runner.update(1 / 60, { x: 0, y: -1, mag: 1 }, []);
-const ranDistance = Math.hypot(runner.x - before.x, runner.y - before.y);
+// The best of four directions, so "how fast does he run" is not really a
+// measurement of whatever happens to be standing north of the spawn.
+let ranDistance = 0;
+for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+  const runner = new Player(world, world.spawn.x, world.spawn.y);
+  for (let i = 0; i < 30; i++) runner.update(1 / 60, { x: dx, y: dy, mag: 1 }, []);
+  ranDistance = Math.max(ranDistance,
+    Math.hypot(runner.x - world.spawn.x, runner.y - world.spawn.y));
+}
 
 const swimStart = { x: p.x, y: p.y };
 for (let i = 0; i < 30; i++) p.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
@@ -101,7 +124,7 @@ console.log('4. vehicles stay on the road');
 const wheeled = CONFIG.VEHICLES.filter((v) => !v.water);
 let drovein = 0;
 for (const v of wheeled) {
-  const car = new Car(world, bank.x - 40, 2000, 0, { body: '#fff', roof: '#fff', type: v.id });
+  const car = new Car(world, bank.x, bank.y, 0, { body: '#fff', roof: '#fff', type: v.id });
   for (let i = 0; i < 240; i++) car.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
   if (world.isWaterAt(car.x, car.y)) drovein++;
 }
@@ -136,7 +159,7 @@ check('and no boat can be driven up onto the land', ranAground === 0,
 
 // And the control: the same drive DOES cross that line when water is walkable,
 // so the check above is measuring the block and not a car that never moved.
-const roller = new Player(world, bank.x - 40, 2000);
+const roller = new Player(world, bank.x, bank.y);
 for (let i = 0; i < 240; i++) roller.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
 check('though a person driving nothing swims straight across it',
       world.isWaterAt(roller.x, roller.y), 'ended at ' + Math.round(roller.x));
