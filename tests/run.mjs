@@ -72,7 +72,8 @@ function collect(dir) {
   const full = join(HERE, dir);
   if (!existsSync(full)) return [];
   return readdirSync(full)
-    .filter((f) => f.endsWith('.mjs'))
+    // Files beginning with an underscore are shared helpers, not suites.
+    .filter((f) => f.endsWith('.mjs') && !f.startsWith('_'))
     .map((f) => ({ kind: dir, name: f.replace(/\.mjs$/, ''), file: join(full, f) }))
     .filter((s) => filters.length === 0 ||
                    filters.some((f) => f === s.kind || s.name.includes(f)));

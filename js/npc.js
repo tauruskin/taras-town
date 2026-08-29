@@ -10,7 +10,7 @@
  */
 
 import { CONFIG } from './config.js';
-import { roundRect } from './world.js';
+import { roundRect, T } from './world.js';
 import { drawMissionIcon, drawBadge as drawBadgeShape } from './ui.js';
 
 export class Npc {
@@ -148,13 +148,41 @@ const PEOPLE = [
   { tx: 33.0, ty: 8.5, mission: 'race', hat: 5, shirt: 0, angle: Math.PI / 2 },
 ];
 
+/**
+ * Put the neighbours out on the pavement.
+ *
+ * Their positions used to be typed in as tile coordinates. On a town four
+ * times the size that left all four of them huddled in one corner, so a
+ * player starting in the middle could wander a long way without meeting
+ * anybody with a job to offer. They are now placed on the nearest decent
+ * spots to wherever the game starts, spread far enough apart to be four
+ * separate errands rather than a queue.
+ */
 export function createNpcs(world) {
-  const tile = CONFIG.TILE;
   const half = CONFIG.PLAYER.HITBOX / 2;
 
-  return PEOPLE.map((p) => {
-    const wish = { x: p.tx * tile, y: p.ty * tile };
-    const spot = world.findFreeSpot(wish.x, wish.y, half) || wish;
+  const spots = world.sweepSpots(
+    (kind) => kind === T.SIDEWALK || kind === T.PARK,
+    150,
+    0.5,
+    half,
+    2,
+  );
+  spots.sort((a, b) =>
+    Math.hypot(a.x - world.spawn.x, a.y - world.spawn.y) -
+    Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
+
+  const chosen = [];
+  for (const s of spots) {
+    if (chosen.length >= PEOPLE.length) break;
+    // Far enough apart that they read as four people around the town, not a
+    // huddle, but all still within a short walk of the start.
+    if (chosen.some((c) => Math.hypot(c.x - s.x, c.y - s.y) < 320)) continue;
+    chosen.push(s);
+  }
+
+  return PEOPLE.map((p, i) => {
+    const spot = chosen[i] || world.findFreeSpot(world.spawn.x, world.spawn.y, half) || world.spawn;
     return new Npc(spot.x, spot.y, p);
   });
 }

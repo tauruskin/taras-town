@@ -719,6 +719,12 @@ function drawNameplates(view) {
     // Off the side of the screen: skip it before measuring any text.
     if (wx < view.x - 160 || wx > view.x + view.w + 160) return;
     if (wy < view.y - 160 || wy > view.y + view.h + 160) return;
+
+    // Hidden under a tree, a bush or an awning? Then no name either.
+    // A label hanging over the bush he is crouched in would give away the
+    // hiding place the bush is there to provide, and hide-and-seek is the
+    // whole reason there are so many of them.
+    if (world.hiddenAt(wx, wy)) return;
     drawNameplate(ctx, (wx - view.x) * scale, (wy - view.y) * scale - lift * scale, name);
   };
 

@@ -76,7 +76,7 @@ const tapButton = async () => {
  * Walk to a point, veering aside when progress stalls so a building in the
  * way doesn't end the attempt.
  */
-async function walkTo(tx, ty, tol, tries = 40) {
+async function walkTo(tx, ty, tol, tries = 60) {
   let last = null, stalls = 0, sign = 1;
   for (let i = 0; i < tries; i++) {
     const p = await pos();
@@ -86,10 +86,13 @@ async function walkTo(tx, ty, tol, tries = 40) {
     let a = Math.atan2(ty - p.y, tx - p.x);
     if (last && Math.hypot(p.x - last.x, p.y - last.y) < 6) {
       stalls++;
-      if (stalls > 4) return { arrived: false, pos: p, stuck: true };
-      a += sign * 1.15;          // veer around whatever is in the way
-      sign = -sign;
-      await push(Math.cos(a), Math.sin(a), 620);
+      if (stalls > 16) return { arrived: false, pos: p, stuck: true };
+      // Commit to one way round for several goes before trying the other.
+      // Flipping sides every single time just rocks back and forth in the
+      // mouth of a dead end, which is exactly where this used to give up.
+      if (stalls % 4 === 0) sign = -sign;
+      a += sign * (Math.PI / 2);
+      await push(Math.cos(a), Math.sin(a), 520 + stalls * 80);
       last = p;
       continue;
     }
@@ -103,15 +106,33 @@ async function walkTo(tx, ty, tol, tries = 40) {
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
 
-const FRIEND = { x: 544, y: 1184 };   // on the pavement, due west of spawn
+// The friend, and the park spots they might ask to be taken to, from the real
+// town rather than from coordinates that were only ever true of the old one.
+const { town: _town, npcWithMission: _npcWith } = await import('./_helpers.mjs');
+const { Missions: _Missions } = await import('../../js/missions.js');
+const _world = await _town();
+const _friend = await _npcWith(_world, 'ride');
+const FRIEND = { x: _friend.x, y: _friend.y };
+// With Math.random pinned to 0.5 and nothing chosen before, the picker does
+// `(0.5 * list.length) | 0`. The same sum here names the same park spot.
+const _rideSpots = new _Missions(_world).spots.ride;
+const _parkSpots = [_rideSpots[(0.5 * _rideSpots.length) | 0]];
 
 // --- walk to the friend ----------------------------------------------------
-const there = await walkTo(FRIEND.x + 60, FRIEND.y, 55);
+// Straight at them, not to a spot beside them. A neighbour offers a job
+// within 92px, and "60px to the right, give or take 55" can land outside that.
+const there = await walkTo(FRIEND.x, FRIEND.y, 60);
 check('walked to the friend', there.arrived, there.pos.x + ',' + there.pos.y);
+await sleep(400);
 check('the friend offers a lift', (await btnState()) === 'JOB', await btnState());
 await shoot('1-at-friend');
 
+// Pin the choice, so the test knows where the friend actually wants to go.
+// Walking to a handful of likely park spots and hoping one of them is the
+// right one is a coin toss on a town with forty-seven of them.
+await ev('window.__realRandom = Math.random; Math.random = () => 0.5;');
 await tapButton();
+await ev('Math.random = window.__realRandom;');
 check('lift accepted', (await btnState()) === 'none', await btnState());
 
 // Walk a little so the passenger is clearly visible riding along.
@@ -124,7 +145,7 @@ await shoot('2-passenger-riding');
 // Coins lie around town now, so an absolute total says nothing. Watch for the
 // JUMP instead: walking picks them up one at a time, a drop-off pays five.
 let biggestJump = 0;
-for (const aim of [{ x: 1376, y: 1248 }, { x: 1760, y: 1248 }, { x: 1888, y: 1376 }, { x: 1760, y: 1504 }]) {
+for (const aim of _parkSpots) {
   const before = await coins();
   await walkTo(aim.x, aim.y, 60);
   biggestJump = Math.max(biggestJump, (await coins()) - before);

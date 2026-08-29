@@ -13,7 +13,7 @@
  */
 
 import { CONFIG } from './config.js';
-import { roundRect } from './world.js';
+import { roundRect, T, hash } from './world.js';
 
 /** Shortest way round from one angle to another, in the range -PI..PI. */
 function angleDelta(target, from) {
@@ -547,35 +547,61 @@ export class Car {
  *
  * They all sit on road squares beside a kerb, the way a parked car would.
  */
-const PARKED = [
-  // Right by where the player starts, so the very first car is easy to find.
-  { tx: 19.5, ty: 20.0, dir: 1, type: 'car', c: 0 },
-
-  { tx: 10.5, ty: 7.5,  dir: 0, type: 'car', c: 1 },
-  { tx: 25.0, ty: 6.5,  dir: 2, type: 'van', c: 2 },
-  { tx: 37.0, ty: 7.5,  dir: 0, type: 'car', c: 3 },
-
-  { tx: 5.5,  ty: 12.0, dir: 3, type: 'car', c: 4 },
-  { tx: 30.0, ty: 17.5, dir: 2, type: 'car', c: 5 },
-  { tx: 40.5, ty: 22.0, dir: 1, type: 'van', c: 6 },
-
-  { tx: 24.0, ty: 26.5, dir: 0, type: 'car', c: 7 },
-  { tx: 12.0, ty: 27.5, dir: 2, type: 'car', c: 0 },
-  { tx: 31.5, ty: 31.0, dir: 3, type: 'car', c: 2 },
-];
-
-/** Build every parked car in town. */
+/**
+ * Park cars all over town.
+ *
+ * These used to be a hand-typed list of ten, in tile coordinates. That was
+ * fine for a map you could see most of at once; on a town four times the size
+ * every one of them sat in the top-left corner and the rest of the streets
+ * were empty. They are now found from the map itself, so however big the town
+ * gets there are always cars a reasonable walk away.
+ */
 export function createCars(world) {
-  const tile = CONFIG.TILE;
-  return PARKED.map((p) => new Car(
-    world,
-    p.tx * tile,
-    p.ty * tile,
-    p.dir * (Math.PI / 2),
-    {
-      body: CONFIG.CAR_BODY_PALETTE[p.c],
-      roof: CONFIG.CAR_ROOF_PALETTE[p.c],
-      type: p.type,
-    },
-  ));
+  const half = CONFIG.CAR.HITBOX_MAX / 2;
+
+  // Spots on the road, well spread out, and not jammed against scenery.
+  const spots = world.sweepSpots(
+    (kind) => kind === T.ROAD,
+    420,          // a good long walk between one car and the next
+    0.42,
+    half,
+    2,
+  );
+
+  // The nearest one to where the player starts goes first and is always an
+  // ordinary car: the very first vehicle he ever finds should be easy to
+  // reach and should drive the way he expects.
+  spots.sort((a, b) =>
+    Math.hypot(a.x - world.spawn.x, a.y - world.spawn.y) -
+    Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
+
+  const cars = [];
+  const wanted = Math.min(spots.length, 34);
+
+  for (let i = 0; i < wanted; i++) {
+    const spot = spots[i];
+
+    // Point the car along the road it is standing on, rather than across it.
+    const c = Math.floor(spot.x / world.tile);
+    const r = Math.floor(spot.y / world.tile);
+    const across = world.grid[r] && world.grid[r][c - 1] === T.ROAD &&
+                   world.grid[r][c + 1] === T.ROAD;
+    const angle = across ? 0 : Math.PI / 2;
+
+    // A spread of vehicles, but the first is always the plain one.
+    const pick = i === 0 ? 0 : Math.floor(hash(c * 13 + 7, r * 5 + 3) * CONFIG.VEHICLES.length);
+    const colour = Math.floor(hash(c + 91, r + 17) * CONFIG.CAR_BODY_PALETTE.length);
+
+    const car = new Car(world, spot.x, spot.y, angle, {
+      body: CONFIG.CAR_BODY_PALETTE[colour],
+      roof: CONFIG.CAR_ROOF_PALETTE[colour],
+      type: CONFIG.VEHICLES[pick].id,
+    });
+
+    // Never leave one standing inside another.
+    if (world._overlaps(car.x, car.y, car.half, car.half, cars.map((k) => k.boundsBox()))) continue;
+    cars.push(car);
+  }
+
+  return cars;
 }

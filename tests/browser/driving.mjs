@@ -4,6 +4,7 @@
 // State is asserted by sampling the live canvas with getImageData rather than
 // by exposing test hooks from the game, so nothing test-only ships.
 import { writeFileSync } from 'node:fs';
+import { makeWalker, town, nearestCar } from './_helpers.mjs';
 
 const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
@@ -104,13 +105,15 @@ const expect = (label, actual, wanted) => {
 expect('at spawn, no car in reach', state(await buttonColour()), 'no button');
 await shoot('1-spawn');
 
-// --- 2. walk down-left towards the parked car -----------------------------
-await touch('touchStart', 120, 250);
-await touch("touchMove", 120 - 42, 250 + 62);   // heading for the car
-await sleep(560);
-await touch('touchEnd', 0, 0);
-await sleep(250);
-
+// --- 2. go to the car ------------------------------------------------------
+//
+// Where the nearest car is depends on the town the game generated, so it is
+// asked of the generator rather than typed in as a direction to walk.
+const world = await town();
+const car = await nearestCar(world);
+const { walkTo } = makeWalker({ send, ev: evaluate, sleep });
+const reached = await walkTo(car.x, car.y, 70);
+expect('walked to the nearest parked car', reached.arrived, true);
 expect('after walking to the car, button appears', state(await buttonColour()), 'CAN-ENTER');
 await shoot('2-beside-car');
 

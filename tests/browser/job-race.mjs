@@ -76,7 +76,7 @@ const tapButton = async () => {
  * Walk to a point, veering aside when progress stalls so a building in the
  * way doesn't end the attempt.
  */
-async function walkTo(tx, ty, tol, tries = 40) {
+async function walkTo(tx, ty, tol, tries = 60) {
   let last = null, stalls = 0, sign = 1;
   for (let i = 0; i < tries; i++) {
     const p = await pos();
@@ -86,10 +86,13 @@ async function walkTo(tx, ty, tol, tries = 40) {
     let a = Math.atan2(ty - p.y, tx - p.x);
     if (last && Math.hypot(p.x - last.x, p.y - last.y) < 6) {
       stalls++;
-      if (stalls > 4) return { arrived: false, pos: p, stuck: true };
-      a += sign * 1.15;          // veer around whatever is in the way
-      sign = -sign;
-      await push(Math.cos(a), Math.sin(a), 620);
+      if (stalls > 16) return { arrived: false, pos: p, stuck: true };
+      // Commit to one way round for several goes before trying the other.
+      // Flipping sides every single time just rocks back and forth in the
+      // mouth of a dead end, which is exactly where this used to give up.
+      if (stalls % 4 === 0) sign = -sign;
+      a += sign * (Math.PI / 2);
+      await push(Math.cos(a), Math.sin(a), 520 + stalls * 80);
       last = p;
       continue;
     }
@@ -103,18 +106,29 @@ async function walkTo(tx, ty, tol, tries = 40) {
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
 
-const RACER = { x: 2112, y: 544 };
-// With Math.random pinned to 0.5 the course is fixed. Computed offline.
-const COURSE = [
-  { x: 2016, y: 96 },
-  { x: 2656, y: 96 },
-  { x: 2016, y: 736 },
-  { x: 2016, y: 1376 },
-];
+// The organiser, and the course they will set, both asked of the real game.
+//
+// These were coordinates "computed offline", which is another way of saying
+// they were true of one particular town. The course builder is deterministic
+// once Math.random is pinned, and the test pins it before accepting — so
+// running the same builder here with the same pin gives the same course.
+const { town: _town, npcWithMission: _npcWith, makeRouter: _makeRouter } = await import('./_helpers.mjs');
+const { Missions: _Missions } = await import('../../js/missions.js');
+const _world = await _town();
+const _racer = await _npcWith(_world, 'race');
+const RACER = { x: _racer.x, y: _racer.y };
+
+const _realRandom = Math.random;
+Math.random = () => 0.5;
+const COURSE = new _Missions(_world)._buildCourse(_racer);
+Math.random = _realRandom;
 
 // --- walk across town to the race organiser -------------------------------
-const arrived = await walkTo(RACER.x, RACER.y - 70, 60);
+// Straight at them: a job is offered within 92px, and standing 70px above
+// with a tolerance of 60 can leave the player 130px away and out of range.
+const arrived = await walkTo(RACER.x, RACER.y, 60);
 check('walked to the race organiser', arrived.arrived, arrived.pos.x + ',' + arrived.pos.y);
+await sleep(400);
 check('the organiser offers a job', (await btnState()) === 'JOB', await btnState());
 await shoot('1-at-organiser');
 
@@ -129,11 +143,20 @@ await shoot('2-race-started');
 // get picked up just by walking. What matters is the SIZE OF THE JUMP when a
 // checkpoint is crossed — ordinary walking only ever adds one at a time.
 
+const _route = _makeRouter(_world);
+
 // --- go round the course ---------------------------------------------------
 for (let i = 0; i < COURSE.length; i++) {
   const c = COURSE[i];
   const before = await coins();
-  const r = await walkTo(c.x, c.y, 70);
+  // Follow a route worked out from the map rather than steering straight at
+  // the checkpoint: a race crosses the whole town, and somewhere along the way
+  // there is always a building to go round.
+  const here = await pos();
+  const legs = _route(here, c) || [c];
+  let r = { arrived: false, pos: here };
+  for (const leg of legs) r = await walkTo(leg.x, leg.y, 46, 26);
+  r = await walkTo(c.x, c.y, 80, 24);
   check('reached checkpoint ' + (i + 1), r.arrived, r.pos.x + ',' + r.pos.y);
   await sleep(300);
   const jump = (await coins()) - before;

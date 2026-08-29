@@ -10,6 +10,15 @@ const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
 const TAG = process.argv[3] || 'job';
 
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+
+// Where things are is worked out HERE, in node, from exactly the same town
+// generation the browser is about to run. It used to be a list of typed-in
+// coordinates "worked out offline", which quietly stopped being true the
+// moment the town was generated at four times the size. The town is the same
+// on both sides because it is built from a fixed seed, so asking the real
+// code where the coins are beats writing the answer down.
+const { World: _World } = await import('../../js/world.js');
+
 const ws = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl);
 await new Promise(r => ws.addEventListener('open', r));
 let id = 0; const pending = new Map(); const problems = [];
@@ -74,17 +83,36 @@ const tapButton = async () => {
   await sleep(400);
 };
 
-/** Walk until we are within tol of (tx, ty), or give up. */
-async function walkTo(tx, ty, tol, tries = 22) {
+/**
+ * Walk until we are within tol of (tx, ty), or give up.
+ *
+ * Walking into something used to end the attempt. That was survivable on the
+ * old hand-drawn map, where the few targets sat in open ground a short stroll
+ * away; the generated town is four times the size and full of corners, and
+ * giving up at the first wall meant the test never arrived and then passed or
+ * failed on whatever happened to be nearby. It now slides along whatever it
+ * hits and keeps going, alternating sides so it can work its way round.
+ */
+async function walkTo(tx, ty, tol, tries = 44, onStep = null) {
   let last = null;
+  let bumps = 0;
   for (let i = 0; i < tries; i++) {
     const p = await pos();
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
     if (d <= tol) return { arrived: true, pos: p };
-    // Stop if we are no longer making progress (pressed against something).
-    if (last && Math.hypot(p.x - last.x, p.y - last.y) < 2) return { arrived: false, pos: p, stuck: true };
+
+    if (last && Math.hypot(p.x - last.x, p.y - last.y) < 2) {
+      bumps++;
+      const turn = (bumps % 2 ? 1 : -1) * (Math.PI / 2);
+      const a = Math.atan2(dy, dx) + turn;
+      await push(Math.cos(a), Math.sin(a), 460);
+      if (onStep) await onStep();
+      last = null;
+      continue;
+    }
     last = p;
     await push(dx / d, dy / d, Math.min(600, Math.max(140, (d / 175) * 1000)));
+    if (onStep) await onStep();
   }
   return { arrived: false, pos: await pos() };
 }
@@ -92,8 +120,19 @@ async function walkTo(tx, ty, tol, tries = 22) {
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
 
-const NPC = { x: 1472, y: 1344 };     // the child in the park
-const TEDDY = { x: 1376, y: 1248 };   // hiding place 5, which Math.random=0.5 picks
+// The child who has lost a teddy, wherever the town put her.
+const { createNpcs: _createNpcs } = await import('../../js/npc.js');
+const _world = new _World();
+const _npcs = _createNpcs(_world);
+const _child = _npcs.find((n) => n.mission === 'toy') || _npcs[0];
+const NPC = { x: _child.x, y: _child.y };
+// Where the teddy will be. The test pins Math.random to 0.5 before taking the
+// job, and the picker with no previous choice does `(0.5 * list.length) | 0`,
+// so the same sum here gives the same spot — worked out from the real list of
+// hiding places rather than written down as a coordinate.
+const { Missions: _Missions } = await import('../../js/missions.js');
+const _toySpots = new _Missions(_world).spots.toy;
+const TEDDY = _toySpots[(0.5 * _toySpots.length) | 0];
 
 // Playing on your own must stay exactly that: with no ?room= in the address,
 // none of the networking code should even be fetched.
@@ -104,19 +143,38 @@ check('coin counter is drawn', hex(await pixel(54, 44)) === '#FFD23F', hex(await
 check('starts with no coins', (await coins()) === 0);
 check('no action offered at spawn', (await btnState()) === 'none');
 
-// --- approach the neighbour from directly above ---------------------------
-const above = await walkTo(NPC.x, NPC.y - 140, 26);
-check('walked to just above the neighbour', above.arrived, above.pos.x + ',' + above.pos.y);
+// --- approach the neighbour from whichever side is actually clear ----------
+//
+// This used to come at them from directly above, which worked on the old
+// hand-drawn map and put the player inside a wall on a generated one. The
+// open side is asked of the real town instead of assumed.
+const APPROACH = (() => {
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const x = NPC.x + Math.cos(a) * 140;
+    const y = NPC.y + Math.sin(a) * 140;
+    if (x < 40 || y < 40 || x > _world.width - 40 || y > _world.height - 40) continue;
+    if (!_world._overlaps(x, y, 11, 11, null)) return { x, y, a };
+  }
+  return { x: NPC.x, y: NPC.y - 140, a: -Math.PI / 2 };
+})();
 
-// Now push straight down into them until we stop moving.
+const above = await walkTo(APPROACH.x, APPROACH.y, 26);
+check('walked to a clear spot beside the neighbour', above.arrived, above.pos.x + ',' + above.pos.y);
+
+// Now push straight at them until we stop moving.
+const toNpc = { x: Math.cos(APPROACH.a + Math.PI), y: Math.sin(APPROACH.a + Math.PI) };
 let prev = above.pos;
 for (let i = 0; i < 8; i++) {
-  await push(0, 1, 420);
+  await push(toNpc.x, toNpc.y, 420);
   const now = await pos();
   if (Math.hypot(now.x - prev.x, now.y - prev.y) < 2) break;
   prev = now;
 }
-const gap = Math.hypot(prev.x - NPC.x, prev.y - NPC.y);
+// Against the NEAREST neighbour, not the one we set out for: on a big town
+// the walk can quite reasonably end up beside a different one, and measuring
+// against the wrong person would report a failure that is not there.
+const gap = Math.min(..._npcs.map((n) => Math.hypot(prev.x - n.x, prev.y - n.y)));
 // Player half-box 11 + neighbour half-box 16 = 27. Anything near that means we
 // are pressed against them; much more means we drifted past without touching.
 check('cannot walk onto a neighbour', gap >= 22 && gap <= 46, 'stopped ' + gap.toFixed(0) + 'px away');
@@ -132,10 +190,25 @@ check('job taken, so no job on offer any more', (await btnState()) === 'none', a
 await shoot('2-job-taken');
 
 // --- go and find the teddy -------------------------------------------------
-const found = await walkTo(TEDDY.x, TEDDY.y, 45);
-check('reached the teddy', found.arrived || (await coins()) === 5, found.pos.x + ',' + found.pos.y);
+// Watch the purse on the way, and look for the JUMP rather than the total.
+//
+// This used to check the total was exactly the reward, which only held because
+// the old walk was short enough to cross no coins. Across a town this size the
+// walk collects a dozen on the way, and a total tells you nothing. A coin adds
+// one at a time; only finishing the job adds five at once, so a single step
+// worth five or more is the payout and nothing else.
+let biggestJump = 0;
+let purse = await coins();
+const found = await walkTo(TEDDY.x, TEDDY.y, 45, 44, async () => {
+  const now = await coins();
+  biggestJump = Math.max(biggestJump, now - purse);
+  purse = now;
+});
 await sleep(300);
-check('arriving pays out', (await coins()) === 5, 'coins = ' + (await coins()));
+const afterJump = (await coins()) - purse;
+biggestJump = Math.max(biggestJump, afterJump);
+check('reached the teddy', found.arrived, found.pos.x + ',' + found.pos.y);
+check('arriving pays out', biggestJump >= 5, 'biggest single jump was ' + biggestJump);
 await shoot('3-celebration');
 
 // --- and the neighbour offers again ---------------------------------------
@@ -147,7 +220,11 @@ await ev('window.__realRandom = Math.random; Math.random = () => 0.99;');
 await tapButton();
 await ev('Math.random = window.__realRandom;');
 await sleep(400);
-check('second job accepted', (await btnState()) === 'none', await btnState());
+// The job is no longer on offer. It need not be "no button": having taken it,
+// a car parked nearby quite properly becomes the next thing to offer, and on a
+// town this size there usually is one.
+const afterSecond = await btnState();
+check('second job accepted', afterSecond !== 'JOB', afterSecond);
 await shoot('4-arrow-far-target');
 
 console.log('\nproblems: ' + (problems.length ? '\n  ' + problems.join('\n  ') : 'NONE'));

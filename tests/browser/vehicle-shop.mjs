@@ -184,7 +184,10 @@ const push = async (vx, vy, ms) => {
 // Position-driven, because headless Chrome runs below 60fps and the game
 // clamps its timestep, so holding the stick for a fixed time covers a
 // different distance here than on a phone.
-const CAR = { x: 1248, y: 1280 };
+const { town: _town, nearestCar: _nearestCar } = await import('./_helpers.mjs');
+const _world = await _town();
+const _car = await _nearestCar(_world);
+const CAR = { x: _car.x, y: _car.y };
 for (let i = 0; i < 14; i++) {
   const p = (await save()).lastPos;
   const dx = CAR.x - p.x, dy = CAR.y - p.y, d = Math.hypot(dx, dy);

@@ -11,8 +11,12 @@ export const CONFIG = {
   // World size
   // ---------------------------------------------------------------------
   TILE: 64,          // pixel size of one map square
-  MAP_COLS: 48,      // town width  in tiles (48 * 64 = 3072 px)
-  MAP_ROWS: 36,      // town height in tiles (36 * 64 = 2304 px)
+  // The town is generated from these two numbers, so making it bigger is a
+  // matter of changing them: the roads, the blocks between them, the houses
+  // that fill those blocks, the parks and every hiding place are all worked
+  // out from the size. Nothing is typed out square by square.
+  MAP_COLS: 96,      // town width  in tiles (96 * 64 = 6144 px)
+  MAP_ROWS: 72,      // town height in tiles (72 * 64 = 4608 px)
 
   // ---------------------------------------------------------------------
   // Player (on foot)

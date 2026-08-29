@@ -6,6 +6,15 @@ const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
 const TAG = process.argv[3] || 'shop';
 
+// Where things are is worked out HERE, in node, from exactly the same town
+// generation the browser is about to run. It used to be a list of typed-in
+// coordinates "worked out offline", which quietly stopped being true the
+// moment the town was generated at four times the size. The town is the same
+// on both sides because it is built from a fixed seed, so asking the real
+// code where the coins are beats writing the answer down.
+const { World: _World } = await import('../../js/world.js');
+
+
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
 const ws = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl);
 await new Promise(r => ws.addEventListener('open', r));
@@ -91,19 +100,24 @@ const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' :
 // Mirrors ui.js. Four rows now that vehicles are for sale, so the dots are
 // smaller and sit differently than they did with three.
 const R = Math.min(26, H * 0.072);
-const FIRST = W * 0.175;
-const GAP = ((W - R - 20) - FIRST) / 7;   // spacing comes from the widest row (8)
-const ROW_Y = [H * 0.30, H * 0.465, H * 0.63, H * 0.795];
-const swatch = (row, i) => ({ x: FIRST + i * GAP, y: ROW_Y[row] });
-const OPENER = { x: W - 52, y: 52 };
+// Ask the menu itself where its buttons are. Copying the layout maths into
+// the test meant the two could drift apart, and they did.
+const { Menu: _Menu } = await import('../../js/ui.js');
+const _buttons = new _Menu().buttons(W, H);
+const _rowIds = ['hat', 'shirt', 'car', 'vehicle'];
+const swatch = (row, i) => {
+  const b = _buttons.find((x) => x.id === _rowIds[row] + ':' + i);
+  return { x: b.x, y: b.y };
+};
+const OPENER = _Menu.openerPos(W, H);
 
-// Coins nearest the spawn point, worked out offline.
-const NEAR_COINS = [
-  { x: 1248, y: 1120 }, { x: 1376, y: 1376 }, { x: 1440, y: 992 },
-  { x: 1120, y: 1312 }, { x: 1568, y: 1184 }, { x: 1120, y: 928 },
-  { x: 992, y: 1120 }, { x: 1312, y: 800 }, { x: 1696, y: 992 },
-  { x: 1120, y: 1568 }, { x: 1376, y: 1632 }, { x: 1696, y: 1504 },
-];
+// The coins nearest the start, asked of the real town rather than typed in.
+const { Coins: _Coins } = await import('../../js/coins.js');
+const _world = new _World();
+const NEAR_COINS = _Coins ? new _Coins(_world).items
+  .map((c) => ({ x: c.x, y: c.y, d: Math.hypot(c.x - _world.spawn.x, c.y - _world.spawn.y) }))
+  .sort((a, b) => a.d - b.d)
+  .slice(0, 20) : [];
 
 check('starts with no coins', (await coins()) === 0, String(await coins()));
 

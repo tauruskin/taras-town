@@ -4,7 +4,7 @@
  * The map is a grid of tiles (grass / road / sidewalk / water / park).
  * The grid is generated from a short description of where the roads and the
  * river run, rather than being typed out square by square, so the layout is
- * easy to change: edit H_ROADS / V_ROADS / the building list below.
+ * easy to change: the whole town is generated from MAP_COLS and MAP_ROWS.
  *
  * Anything the player cannot walk through is an axis-aligned rectangle in
  * `this.solids`. Collision is a plain rectangle-overlap test — there are only
@@ -24,67 +24,53 @@ export const T = {
 };
 
 // --- Layout description -------------------------------------------------
-// Roads are two tiles wide so a car has a lane in each direction later on.
-const H_ROADS = [[6, 7], [16, 17], [26, 27]];   // rows
-const V_ROADS = [[5, 6], [18, 19], [31, 32], [40, 41]]; // columns
+//
+// The town is GENERATED from these few numbers rather than typed out block by
+// block, which is what lets it be made much bigger by changing MAP_COLS and
+// MAP_ROWS in config.js and nothing else.
+//
+// All of it is deterministic: the same numbers in give the same town out,
+// every time, on every phone. That is why nothing about the map is ever saved
+// or sent to another player — two phones running this code are already
+// looking at exactly the same town.
 
-const RIVER_START_COL = 44;   // river runs from here to the right edge
-const SAND_COL = 43;          // sandy bank beside it
-const ROAD_END_COL = 42;      // roads stop before the bank
+// Roads are two tiles wide so a car has a lane in each direction.
+const FIRST_ROAD_ROW = 6;
+const FIRST_ROAD_COL = 5;
+const ROAD_EVERY_ROWS = 10;
+const ROAD_EVERY_COLS = 13;
 
-// The park: a whole block with no buildings in it.
-const PARK = { c0: 21, c1: 29, r0: 19, r1: 24 };
+// How much of the right-hand edge is river, plus its sandy bank.
+const RIVER_TILES = 4;
 
-// Houses and shops, in tile coordinates. tw/th are width/height in tiles.
-const BUILDINGS = [
-  // Top band
-  { tx: 1,  ty: 1,  tw: 3, th: 3 },
-  { tx: 8,  ty: 1,  tw: 4, th: 4 },
-  { tx: 13, ty: 1,  tw: 4, th: 4 },
-  { tx: 21, ty: 1,  tw: 5, th: 4, shop: true },
-  { tx: 27, ty: 1,  tw: 4, th: 4, shop: true },
-  { tx: 34, ty: 1,  tw: 5, th: 4 },
+// Roughly one block in four is left as parkland rather than built on. Parks
+// are where most of the trees are, and trees are where you hide.
+const PARK_CHANCE = 0.28;
 
-  // Second band
-  { tx: 1,  ty: 10, tw: 3, th: 3 },
-  { tx: 8,  ty: 9,  tw: 4, th: 3 },
-  { tx: 13, ty: 9,  tw: 4, th: 3 },
-  { tx: 8,  ty: 12, tw: 4, th: 3 },
-  { tx: 13, ty: 12, tw: 4, th: 3 },
-  { tx: 21, ty: 9,  tw: 4, th: 3, shop: true },
-  { tx: 26, ty: 9,  tw: 4, th: 3, shop: true },
-  { tx: 21, ty: 12, tw: 4, th: 3 },
-  { tx: 26, ty: 12, tw: 4, th: 3 },
-  { tx: 34, ty: 9,  tw: 5, th: 3 },
-  { tx: 34, ty: 12, tw: 5, th: 3 },
-
-  // Third band (the park fills the middle block)
-  { tx: 1,  ty: 20, tw: 3, th: 3 },
-  { tx: 8,  ty: 19, tw: 4, th: 3 },
-  { tx: 13, ty: 19, tw: 4, th: 3 },
-  { tx: 8,  ty: 22, tw: 4, th: 3 },
-  { tx: 13, ty: 22, tw: 4, th: 3 },
-  { tx: 34, ty: 19, tw: 5, th: 3, shop: true },
-  { tx: 34, ty: 22, tw: 5, th: 3 },
-
-  // Bottom band
-  { tx: 1,  ty: 30, tw: 3, th: 3 },
-  { tx: 8,  ty: 29, tw: 4, th: 3 },
-  { tx: 13, ty: 29, tw: 4, th: 3 },
-  { tx: 8,  ty: 32, tw: 4, th: 3 },
-  { tx: 13, ty: 32, tw: 4, th: 3 },
-  { tx: 21, ty: 29, tw: 5, th: 4, shop: true },
-  { tx: 27, ty: 29, tw: 3, th: 3 },
-  { tx: 34, ty: 29, tw: 5, th: 3 },
-  { tx: 34, ty: 33, tw: 5, th: 2 },
-];
+/**
+ * The gaps between a list of road bands — in other words, the blocks.
+ *
+ * @param roads sorted [start, end] pairs
+ * @param lo    first index of the map
+ * @param hi    last index worth using
+ */
+function bandsBetween(roads, lo, hi) {
+  const out = [];
+  let cur = lo;
+  for (const [a, b] of roads) {
+    if (a - 1 >= cur) out.push([cur, a - 1]);
+    cur = b + 1;
+  }
+  if (hi >= cur) out.push([cur, hi]);
+  return out;
+}
 
 /**
  * A tiny deterministic "random" number from a pair of coordinates.
  * Same input always gives the same output, so the town looks identical every
  * time it loads without us storing any of it.
  */
-function hash(x, y) {
+export function hash(x, y) {
   // Math.imul keeps the multiplications as true 32-bit integers. Using plain
   // `*` here overflows into floating point and quietly throws away the low
   // bits, which made neighbouring squares produce near-identical numbers —
@@ -109,14 +95,87 @@ export class World {
     this.props = [];      // fountain, pond, benches
     this.solids = [];     // every rectangle the player cannot enter
 
+    // Everything you can stand UNDER and be covered by: tree canopies, market
+    // awnings, bus shelters, the bandstand. These are what make hide-and-seek
+    // work, because they are drawn over the top of whoever is beneath them.
+    this.canopies = [];
+
+    this._plan();
     this._buildGrid();
     this._buildBuildings();
     this._buildParkProps();
     this._buildTrees();
+
+    // Walls are gathered BEFORE the hiding places are put out, so that each
+    // one can check a player could actually stand in it. Cover you bounce off
+    // is scenery, not a hiding place, and nothing on screen tells you which is
+    // which. Hiding places add no walls of their own, so nothing is missed by
+    // doing it in this order.
     this._collectSolids();
+    this._indexSolids();
+    this._buildHidingPlaces();
 
     // A safe spot on the pavement near the middle of town.
-    this.spawn = { x: 20.5 * this.tile, y: 18.5 * this.tile };
+    this.spawn = this._findSpawn();
+  }
+
+  /**
+   * Where the roads run, and what sits in the blocks between them.
+   *
+   * Worked out from the map size rather than listed by hand, so a bigger map
+   * simply gets more streets and more blocks.
+   */
+  _plan() {
+    this.riverCol = this.cols - RIVER_TILES;
+    this.sandCol = this.riverCol - 1;
+    this.roadEndCol = this.sandCol - 1;
+
+    this.hRoads = [];
+    for (let r = FIRST_ROAD_ROW; r <= this.rows - 4; r += ROAD_EVERY_ROWS) {
+      this.hRoads.push([r, r + 1]);
+    }
+    this.vRoads = [];
+    for (let c = FIRST_ROAD_COL; c <= this.roadEndCol - 3; c += ROAD_EVERY_COLS) {
+      this.vRoads.push([c, c + 1]);
+    }
+
+    // The blocks are simply the gaps left over between the streets.
+    const rowBands = bandsBetween(this.hRoads, 0, this.rows - 1);
+    const colBands = bandsBetween(this.vRoads, 0, this.roadEndCol);
+
+    this.blocks = [];
+    for (const [r0, r1] of rowBands) {
+      for (const [c0, c1] of colBands) {
+        // Too thin to hold anything: leave it as grass between the roads.
+        if (r1 - r0 < 2 || c1 - c0 < 2) continue;
+        this.blocks.push({
+          r0, r1, c0, c1,
+          park: hash(c0 * 7 + 13, r0 * 5 + 3) < PARK_CHANCE,
+        });
+      }
+    }
+
+    // The block nearest the middle is always the town park, so there is one
+    // proper green space with a fountain in it wherever the map size lands.
+    const midR = this.rows / 2;
+    const midC = this.roadEndCol / 2;
+    let best = null;
+    let bestD = Infinity;
+    for (const b of this.blocks) {
+      const d = Math.hypot((b.r0 + b.r1) / 2 - midR, (b.c0 + b.c1) / 2 - midC);
+      if (d < bestD) { bestD = d; best = b; }
+    }
+    if (best) { best.park = true; best.main = true; }
+    this.mainPark = best;
+  }
+
+  /** Somewhere sensible to start: pavement, in the open, near the middle. */
+  _findSpawn() {
+    const tile = this.tile;
+    const half = CONFIG.PLAYER.HITBOX / 2;
+    const want = { x: (this.roadEndCol / 2) * tile, y: (this.rows / 2) * tile };
+    const spot = this.findFreeSpot(want.x, want.y, half, null, 900);
+    return spot || want;
   }
 
   // =====================================================================
@@ -132,22 +191,25 @@ export class World {
 
     // 2. The river down the right-hand edge, with a sandy bank.
     for (let r = 0; r < rows; r++) {
-      for (let c = RIVER_START_COL; c < cols; c++) this.grid[r][c] = T.WATER;
-      this.grid[r][SAND_COL] = T.SAND;
+      for (let c = this.riverCol; c < cols; c++) this.grid[r][c] = T.WATER;
+      this.grid[r][this.sandCol] = T.SAND;
     }
 
-    // 3. The park block.
-    for (let r = PARK.r0; r <= PARK.r1; r++) {
-      for (let c = PARK.c0; c <= PARK.c1; c++) this.grid[r][c] = T.PARK;
+    // 3. Every block that came out as parkland.
+    for (const b of this.blocks) {
+      if (!b.park) continue;
+      for (let r = b.r0; r <= b.r1; r++) {
+        for (let c = b.c0; c <= b.c1; c++) this.grid[r][c] = T.PARK;
+      }
     }
 
     // 4. Roads.
-    for (const [rA, rB] of H_ROADS) {
+    for (const [rA, rB] of this.hRoads) {
       for (let r = rA; r <= rB; r++) {
-        for (let c = 0; c <= ROAD_END_COL; c++) this.grid[r][c] = T.ROAD;
+        for (let c = 0; c <= this.roadEndCol; c++) this.grid[r][c] = T.ROAD;
       }
     }
-    for (const [cA, cB] of V_ROADS) {
+    for (const [cA, cB] of this.vRoads) {
       for (let c = cA; c <= cB; c++) {
         for (let r = 0; r < rows; r++) this.grid[r][c] = T.ROAD;
       }
@@ -171,43 +233,68 @@ export class World {
 
   _buildBuildings() {
     const tile = this.tile;
-    BUILDINGS.forEach((b, i) => {
-      // Roof and wall come from the same slot in their two lists, so the
-      // wall is always the deeper version of that building's roof colour.
-      const slot = (i * 3) % CONFIG.ROOF_PALETTE.length;
-      const roof = CONFIG.ROOF_PALETTE[slot];
-      const wall = CONFIG.WALL_PALETTE[slot];
-      this.buildings.push({
-        x: b.tx * tile,
-        y: b.ty * tile,
-        w: b.tw * tile,
-        h: b.th * tile,
-        wall,
-        roof,
-        shop: !!b.shop,
-        seed: i,
-      });
-    });
+    let i = 0;
+
+    for (const block of this.blocks) {
+      if (block.park) continue;
+
+      // Inset by one tile all round, which is the strip that becomes pavement.
+      const r0 = block.r0 + 1, r1 = block.r1 - 1;
+      const c0 = block.c0 + 1, c1 = block.c1 - 1;
+
+      // Rows of houses back to back, the way a real block is laid out.
+      for (let ty = r0; ty + 2 <= r1; ty += 3) {
+        for (let tx = c0; tx + 2 <= c1; ) {
+          const tw = 3 + Math.floor(hash(tx * 3 + 1, ty * 5 + 7) * 3);   // 3..5
+          if (tx + tw - 1 > c1) break;
+
+          // Leave the odd plot empty. The gaps are alleys and back gardens,
+          // and an alley is a fine place to hide.
+          if (hash(tx + 57, ty + 91) > 0.16) {
+            const slot = (i * 3) % CONFIG.ROOF_PALETTE.length;
+            this.buildings.push({
+              x: tx * tile,
+              y: ty * tile,
+              w: tw * tile,
+              h: 3 * tile,
+              wall: CONFIG.WALL_PALETTE[slot],
+              roof: CONFIG.ROOF_PALETTE[slot],
+              // Roughly one in five is a shop, which gets a sign over the door.
+              shop: hash(tx + 13, ty + 29) < 0.2,
+              seed: i,
+            });
+            i++;
+          }
+          tx += tw + 1;     // a one-tile gap between neighbours
+        }
+      }
+    }
   }
 
   _buildParkProps() {
     const tile = this.tile;
+    const park = this.mainPark;
+    if (!park) return;
+
+    // Middle of the town park, in tiles.
+    const cx = (park.c0 + park.c1 + 1) / 2;
+    const cy = (park.r0 + park.r1 + 1) / 2;
 
     // A fountain to run around.
     this.props.push({
       kind: 'fountain',
-      x: 25 * tile, y: 20 * tile, w: 2 * tile, h: 2 * tile,
+      x: (cx - 1) * tile, y: (cy - 1) * tile, w: 2 * tile, h: 2 * tile,
     });
 
-    // A duck pond.
+    // A duck pond, off to one side of it.
     this.props.push({
       kind: 'pond',
-      x: 21.6 * tile, y: 22.2 * tile, w: 3.2 * tile, h: 1.9 * tile,
+      x: (cx - 3.4) * tile, y: (cy + 1.2) * tile, w: 3.2 * tile, h: 1.9 * tile,
     });
 
-    // Benches beside the fountain. Low enough to be scenery, but solid.
-    this.props.push({ kind: 'bench', x: 23.3 * tile, y: 20.6 * tile, w: 46, h: 18 });
-    this.props.push({ kind: 'bench', x: 27.4 * tile, y: 20.6 * tile, w: 46, h: 18 });
+    // Benches either side of the fountain. Low enough to be scenery, but solid.
+    this.props.push({ kind: 'bench', x: (cx - 2.7) * tile, y: (cy - 0.4) * tile, w: 46, h: 18 });
+    this.props.push({ kind: 'bench', x: (cx + 1.4) * tile, y: (cy - 0.4) * tile, w: 46, h: 18 });
   }
 
   _buildTrees() {
@@ -218,8 +305,9 @@ export class World {
         const t = this.grid[r][c];
         if (t !== T.GRASS && t !== T.PARK) continue;
 
-        // Denser planting inside the park than in back gardens.
-        const chance = t === T.PARK ? 0.55 : 0.42;
+        // Denser planting inside a park than in back gardens. Parks are where
+        // hide-and-seek actually happens, so they are properly wooded.
+        const chance = t === T.PARK ? 0.62 : 0.45;
         const h = hash(c, r);
         if (h > chance) continue;
 
@@ -235,10 +323,151 @@ export class World {
           x: cx,
           y: cy,
           scale: 0.8 + hash(r + 401, c + 57) * 0.45,   // a bit of size variety
+          // Every third or so is a tall pointed one, for variety in the
+          // skyline and so the park does not look stamped out.
+          pine: hash(c + 77, r + 143) < 0.3,
           seed: (c * 31 + r) % 100,
         });
       }
     }
+  }
+
+  /**
+   * Everything else you can duck under.
+   *
+   * NONE of these are solid. You walk straight under a market awning or into
+   * a bush and the thing is simply drawn over the top of you — which is the
+   * whole point, and much more fun than bumping into a post. Tree trunks stay
+   * solid because a tree you can stand inside looks wrong.
+   */
+  _buildHidingPlaces() {
+    const tile = this.tile;
+    const half = CONFIG.PLAYER.HITBOX / 2;
+
+    /** Could somebody actually stand here? If not, cover here is useless. */
+    const standable = (x, y) => !this._overlaps(x, y, half, half, null);
+
+    /**
+     * The same spot, or the nearest one somebody could stand in.
+     *
+     * Used for the few pieces there is only one of — the bandstand, the market
+     * stalls — where dropping it because a bench happens to be in the way
+     * would quietly cost the town its landmark. The many small things (bushes,
+     * parasols) are simply skipped instead: there are hundreds of those.
+     */
+    const nudged = (x, y, reach = 90) =>
+      standable(x, y) ? { x, y } : this.findFreeSpot(x, y, half, null, reach);
+
+    // --- bushes, anywhere green ------------------------------------------
+    //
+    // The workhorse hiding place: small, everywhere, and completely covering.
+    for (let r = 1; r < this.rows - 1; r++) {
+      for (let c = 1; c < this.cols - 1; c++) {
+        const t = this.grid[r][c];
+        if (t !== T.GRASS && t !== T.PARK) continue;
+        if (hash(c + 313, r + 517) > 0.30) continue;
+
+        const x = c * tile + tile * (0.2 + hash(c + 61, r + 29) * 0.6);
+        const y = r * tile + tile * (0.2 + hash(c + 97, r + 43) * 0.6);
+        if (!standable(x, y)) continue;
+
+        const size = 22 + hash(c + 5, r + 11) * 12;
+        this.canopies.push({ kind: 'bush', x, y, rx: size, ry: size * 0.82,
+                             seed: (c * 17 + r * 7) % 100 });
+      }
+    }
+
+    // --- bus shelters, on the pavement beside a road ---------------------
+    for (let r = 2; r < this.rows - 2; r++) {
+      for (let c = 2; c < this.roadEndCol - 1; c++) {
+        if (this.grid[r][c] !== T.SIDEWALK) continue;
+        if (hash(c + 701, r + 809) > 0.035) continue;
+
+        const x = c * tile + tile / 2;
+        const y = r * tile + tile / 2;
+        if (!standable(x, y)) continue;
+        if (this._tooCloseToCanopy(x, y, 150)) continue;
+
+        this.canopies.push({ kind: 'shelter', x, y, rx: 44, ry: 30,
+                             seed: (c + r * 3) % 100 });
+      }
+    }
+
+    // --- market stalls, clustered into a square --------------------------
+    //
+    // Put in one park so there is a proper little market to run around in,
+    // rather than stalls sprinkled at random across the whole town.
+    const marketBlocks = this.blocks.filter((b) => b.park && !b.main);
+    const market = marketBlocks.length
+      ? marketBlocks[Math.floor(hash(7, 13) * marketBlocks.length)]
+      : null;
+    if (market) {
+      for (let r = market.r0 + 1; r <= market.r1 - 1; r += 2) {
+        for (let c = market.c0 + 1; c <= market.c1 - 1; c += 2) {
+          const x = c * tile + tile / 2;
+          const y = r * tile + tile / 2;
+          const spot = nudged(x, y, 70);
+          if (!spot) continue;
+          this.canopies.push({ kind: 'stall', x: spot.x, y: spot.y, rx: 46, ry: 34,
+                               seed: (c * 5 + r) % 100 });
+        }
+      }
+      this.market = market;
+    }
+
+    // --- a bandstand in the middle of the town park ----------------------
+    if (this.mainPark) {
+      const p = this.mainPark;
+      const x = ((p.c0 + p.c1 + 1) / 2 + 2.6) * tile;
+      const y = ((p.r0 + p.r1 + 1) / 2 + 1.6) * tile;
+      const spot = nudged(x, y, 200);
+      if (spot) {
+        this.canopies.push({ kind: 'bandstand', x: spot.x, y: spot.y, rx: 62, ry: 58, seed: 3 });
+      }
+    }
+
+    // --- parasols, dotted about the parks --------------------------------
+    for (const b of this.blocks) {
+      if (!b.park) continue;
+      for (let r = b.r0; r <= b.r1; r++) {
+        for (let c = b.c0; c <= b.c1; c++) {
+          if (hash(c + 1201, r + 1303) > 0.05) continue;
+          const x = c * tile + tile / 2;
+          const y = r * tile + tile / 2;
+          if (!standable(x, y)) continue;
+          if (this._tooCloseToCanopy(x, y, 90)) continue;
+          this.canopies.push({ kind: 'parasol', x, y, rx: 38, ry: 34,
+                               seed: (c * 11 + r * 3) % 100 });
+        }
+      }
+    }
+  }
+
+  /** Keep the bigger pieces of scenery from piling up on one another. */
+  _tooCloseToCanopy(x, y, dist) {
+    for (const c of this.canopies) {
+      if (c.kind === 'bush') continue;          // bushes may crowd in freely
+      if (Math.abs(c.x - x) < dist && Math.abs(c.y - y) < dist) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Is somebody standing here covered up?
+   *
+   * Used to decide whether to draw a player's name: a name floating over a
+   * bush would give away the hiding place the bush exists to provide.
+   */
+  hiddenAt(x, y) {
+    for (const t of this.trees) {
+      const r = 27 * t.scale;
+      const dx = x - t.x, dy = y - (t.y - 6);
+      if (dx * dx + dy * dy < r * r) return true;
+    }
+    for (const c of this.canopies) {
+      if (Math.abs(x - c.x) < c.rx && Math.abs(y - c.y) < c.ry) return true;
+    }
+    return false;
   }
 
   /** Helper used while planting: is this spot already taken? */
@@ -271,11 +500,41 @@ export class World {
 
     // The river. One big rectangle covering the water tiles.
     this.solids.push({
-      x: RIVER_START_COL * this.tile,
+      x: this.riverCol * this.tile,
       y: 0,
-      w: (this.cols - RIVER_START_COL) * this.tile,
+      w: (this.cols - this.riverCol) * this.tile,
       h: this.height,
     });
+  }
+
+  /**
+   * Sort the solids into a coarse grid of buckets.
+   *
+   * Collision used to walk the whole list every time. That was fine when the
+   * town had seventy-odd walls in it; the town is now four times the size and
+   * thick with trees, and checking every one of them against every moving
+   * thing, twice a frame, is work a phone should not be asked to do. Bucketing
+   * means each test only looks at the handful of walls actually nearby.
+   */
+  _indexSolids() {
+    const CELL = 128;
+    this._cell = CELL;
+    this._gw = Math.ceil(this.width / CELL);
+    this._gh = Math.ceil(this.height / CELL);
+    this._buckets = new Array(this._gw * this._gh);
+
+    for (const s of this.solids) {
+      const c0 = Math.max(0, Math.floor(s.x / CELL));
+      const c1 = Math.min(this._gw - 1, Math.floor((s.x + s.w) / CELL));
+      const r0 = Math.max(0, Math.floor(s.y / CELL));
+      const r1 = Math.min(this._gh - 1, Math.floor((s.y + s.h) / CELL));
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+          const i = r * this._gw + c;
+          (this._buckets[i] || (this._buckets[i] = [])).push(s);
+        }
+      }
+    }
   }
 
   // =====================================================================
@@ -395,8 +654,30 @@ export class World {
     const l = cx - halfW, r = cx + halfW;
     const t = cy - halfH, b = cy + halfH;
 
-    for (const s of this.solids) {
-      if (r > s.x && l < s.x + s.w && b > s.y && t < s.y + s.h) return true;
+    if (this._buckets) {
+      // Only the buckets this box actually touches. A wall spanning several
+      // buckets may be tested more than once, which is harmless and much
+      // cheaper than the bookkeeping to avoid it.
+      const CELL = this._cell;
+      const c0 = Math.max(0, Math.floor(l / CELL));
+      const c1 = Math.min(this._gw - 1, Math.floor(r / CELL));
+      const r0 = Math.max(0, Math.floor(t / CELL));
+      const r1 = Math.min(this._gh - 1, Math.floor(b / CELL));
+
+      for (let rr = r0; rr <= r1; rr++) {
+        for (let cc = c0; cc <= c1; cc++) {
+          const bucket = this._buckets[rr * this._gw + cc];
+          if (!bucket) continue;
+          for (const s of bucket) {
+            if (r > s.x && l < s.x + s.w && b > s.y && t < s.y + s.h) return true;
+          }
+        }
+      }
+    } else {
+      // Before the index is built — during generation itself.
+      for (const s of this.solids) {
+        if (r > s.x && l < s.x + s.w && b > s.y && t < s.y + s.h) return true;
+      }
     }
     if (extra) {
       for (const s of extra) {
@@ -528,17 +809,17 @@ export class World {
     const tile = this.tile;
 
     // Centre line down the middle of each horizontal road.
-    for (const [rA, rB] of H_ROADS) {
+    for (const [rA, rB] of this.hRoads) {
       const y = (rB) * tile; // boundary between the two lanes
       if (y < view.y - 20 || y > view.y + view.h + 20) continue;
       ctx.beginPath();
       ctx.moveTo(Math.max(0, view.x - 40), y);
-      ctx.lineTo(Math.min(ROAD_END_COL * tile + tile, view.x + view.w + 40), y);
+      ctx.lineTo(Math.min(this.roadEndCol * tile + tile, view.x + view.w + 40), y);
       ctx.stroke();
     }
 
     // ...and each vertical road.
-    for (const [cA, cB] of V_ROADS) {
+    for (const [cA, cB] of this.vRoads) {
       const x = (cB) * tile;
       if (x < view.x - 20 || x > view.x + view.w + 20) continue;
       ctx.beginPath();
@@ -551,7 +832,7 @@ export class World {
   }
 
   _drawWaterSparkle(ctx, view, time) {
-    const riverX = RIVER_START_COL * this.tile;
+    const riverX = this.riverCol * this.tile;
     if (view.x + view.w < riverX) return;   // river is off screen
 
     ctx.save();
@@ -589,11 +870,35 @@ export class World {
   }
 
   /** Tree canopies — drawn on TOP of the player so they feel three-dimensional. */
+  /**
+   * Everything drawn OVER the player: what covers you when you hide.
+   *
+   * Order matters a little. The low leafy things go down first and the built
+   * ones after, so a market awning sits over the bush beside it rather than
+   * disappearing behind it.
+   */
   drawCanopies(ctx, view) {
+    for (const c of this.canopies) {
+      if (c.kind !== 'bush') continue;
+      if (c.x < view.x - 90 || c.x > view.x + view.w + 90) continue;
+      if (c.y < view.y - 90 || c.y > view.y + view.h + 90) continue;
+      this._drawBush(ctx, c);
+    }
+
     for (const t of this.trees) {
       if (t.x < view.x - 60 || t.x > view.x + view.w + 60) continue;
       if (t.y < view.y - 60 || t.y > view.y + view.h + 60) continue;
-      this._drawTree(ctx, t);
+      if (t.pine) this._drawPine(ctx, t); else this._drawTree(ctx, t);
+    }
+
+    for (const c of this.canopies) {
+      if (c.kind === 'bush') continue;
+      if (c.x < view.x - 120 || c.x > view.x + view.w + 120) continue;
+      if (c.y < view.y - 120 || c.y > view.y + view.h + 120) continue;
+      if (c.kind === 'shelter') this._drawShelter(ctx, c);
+      else if (c.kind === 'stall') this._drawStall(ctx, c);
+      else if (c.kind === 'bandstand') this._drawBandstand(ctx, c);
+      else if (c.kind === 'parasol') this._drawParasol(ctx, c);
     }
   }
 
@@ -754,6 +1059,174 @@ export class World {
     ctx.fillStyle = CONFIG.COLORS.TREE_LEAF_HI;
     ctx.beginPath();
     ctx.arc(t.x - 5 * s, t.y - 20 * s, 10 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /**
+   * A tall pointed tree, seen from above: rings of green getting smaller.
+   *
+   * From directly overhead a pine is really just a target of circles, and that
+   * happens to read as "a different sort of tree" instantly, without needing
+   * any more detail than that.
+   */
+  _drawPine(ctx, t) {
+    const s = t.scale;
+
+    ctx.fillStyle = CONFIG.COLORS.SHADOW;
+    ctx.beginPath();
+    ctx.ellipse(t.x + 4, t.y + 18 * s, 20 * s, 11 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.COLORS.TREE_TRUNK;
+    roundRect(ctx, t.x - 4 * s, t.y - 2 * s, 8 * s, 20 * s, 3);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.COLORS.TREE_LEAF;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y - 6 * s, 22 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.COLORS.TREE_LEAF_HI;
+    ctx.beginPath();
+    ctx.arc(t.x - 1 * s, t.y - 9 * s, 14 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.COLORS.TREE_LEAF;
+    ctx.beginPath();
+    ctx.arc(t.x - 2 * s, t.y - 12 * s, 7 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** A leafy blob big enough to stand right inside. */
+  _drawBush(ctx, c) {
+    const r = c.rx;
+
+    ctx.fillStyle = CONFIG.COLORS.SHADOW;
+    ctx.beginPath();
+    ctx.ellipse(c.x + 3, c.y + r * 0.5, r * 0.85, r * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Three overlapping lumps, nudged by the seed, so no two bushes in a row
+    // look like copies of each other.
+    const w = (c.seed % 7) - 3;
+    ctx.fillStyle = CONFIG.COLORS.TREE_LEAF;
+    ctx.beginPath();
+    ctx.arc(c.x - r * 0.42, c.y + r * 0.1, r * 0.58, 0, Math.PI * 2);
+    ctx.arc(c.x + r * 0.40, c.y + r * 0.05 + w, r * 0.55, 0, Math.PI * 2);
+    ctx.arc(c.x + w * 0.5, c.y - r * 0.28, r * 0.62, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.COLORS.TREE_LEAF_HI;
+    ctx.beginPath();
+    ctx.arc(c.x - r * 0.2, c.y - r * 0.36, r * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** A bus shelter: a flat roof standing on two legs. */
+  _drawShelter(ctx, c) {
+    ctx.fillStyle = CONFIG.COLORS.SHADOW;
+    roundRect(ctx, c.x - c.rx + 6, c.y - c.ry + 14, c.rx * 2, c.ry * 2, 8);
+    ctx.fill();
+
+    // Legs first, so the roof reads as sitting on top of them.
+    ctx.fillStyle = '#7C8794';
+    roundRect(ctx, c.x - c.rx + 6, c.y + c.ry - 12, 7, 12, 3);
+    ctx.fill();
+    roundRect(ctx, c.x + c.rx - 13, c.y + c.ry - 12, 7, 12, 3);
+    ctx.fill();
+
+    ctx.fillStyle = '#5C9BE0';
+    roundRect(ctx, c.x - c.rx, c.y - c.ry, c.rx * 2, c.ry * 2 - 6, 8);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.30)';
+    roundRect(ctx, c.x - c.rx + 7, c.y - c.ry + 7, c.rx * 2 - 14, 10, 5);
+    ctx.fill();
+  }
+
+  /** A market stall under a striped awning. */
+  _drawStall(ctx, c) {
+    ctx.fillStyle = CONFIG.COLORS.SHADOW;
+    roundRect(ctx, c.x - c.rx + 6, c.y - c.ry + 14, c.rx * 2, c.ry * 2, 7);
+    ctx.fill();
+
+    ctx.fillStyle = '#B5843F';
+    roundRect(ctx, c.x - c.rx + 4, c.y + c.ry - 14, 6, 14, 3);
+    ctx.fill();
+    roundRect(ctx, c.x + c.rx - 10, c.y + c.ry - 14, 6, 14, 3);
+    ctx.fill();
+
+    // Stripes, in one of four colours picked from the seed, so the market is
+    // not all one shade.
+    const warm = ['#FF6B6B', '#FFB03A', '#4EA8FF', '#7ED957'][c.seed % 4];
+    ctx.save();
+    roundRect(ctx, c.x - c.rx, c.y - c.ry, c.rx * 2, c.ry * 2 - 8, 7);
+    ctx.clip();
+    ctx.fillStyle = '#FFF6E4';
+    ctx.fillRect(c.x - c.rx, c.y - c.ry, c.rx * 2, c.ry * 2);
+    ctx.fillStyle = warm;
+    for (let i = 0; i < 8; i++) {
+      ctx.fillRect(c.x - c.rx + i * 13, c.y - c.ry, 7, c.ry * 2);
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, c.x - c.rx, c.y - c.ry, c.rx * 2, c.ry * 2 - 8, 7);
+    ctx.stroke();
+  }
+
+  /** The bandstand in the town park: a round roof on posts. */
+  _drawBandstand(ctx, c) {
+    ctx.fillStyle = CONFIG.COLORS.SHADOW;
+    ctx.beginPath();
+    ctx.ellipse(c.x + 5, c.y + 16, c.rx, c.ry * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#C9A227';
+    for (const a of [0.4, 1.4, 2.4, 3.4, 4.4, 5.4]) {
+      roundRect(ctx, c.x + Math.cos(a) * (c.rx - 12) - 4,
+                c.y + Math.sin(a) * (c.ry - 12) - 4, 8, 16, 3);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#E5484D';
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.rx, c.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(c.x - c.rx * 0.22, c.y - c.ry * 0.28, c.rx * 0.42, c.ry * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFD93D';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** A big garden parasol. */
+  _drawParasol(ctx, c) {
+    ctx.fillStyle = CONFIG.COLORS.SHADOW;
+    ctx.beginPath();
+    ctx.ellipse(c.x + 4, c.y + 14, c.rx * 0.9, c.ry * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#9A7B4F';
+    roundRect(ctx, c.x - 3, c.y - 2, 6, 20, 3);
+    ctx.fill();
+
+    // Alternating wedges, which is what says "umbrella" when seen from above.
+    const tone = ['#FF6B6B', '#4EA8FF', '#7ED957', '#FFB03A'][c.seed % 4];
+    for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = i % 2 ? tone : '#FFF6E4';
+      ctx.beginPath();
+      ctx.moveTo(c.x, c.y);
+      ctx.arc(c.x, c.y, c.rx * 0.86, (i / 8) * Math.PI * 2, ((i + 1) / 8) * Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = '#FFF6E4';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 5, 0, Math.PI * 2);
     ctx.fill();
   }
 }

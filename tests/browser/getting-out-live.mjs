@@ -17,6 +17,7 @@
 // the whole world and repaints nearly every pixel, while being stuck leaves
 // everything but a couple of small moving figures exactly where it was.
 import { writeFileSync } from 'node:fs';
+import { makeWalker, town, nearestCar } from './_helpers.mjs';
 
 const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
@@ -160,13 +161,14 @@ const freely = await walkiness();
 check('walking in the open repaints most of the view', freely > 0.30, (freely * 100).toFixed(0) + '% of pixels');
 const STUCK_BELOW = freely * 0.35;
 
-/** Walk to the car parked down-left of the spawn and get in. */
+const world = await town();
+const theCar = await nearestCar(world);
+const { walkTo } = makeWalker({ send, ev, sleep });
+
+/** Walk to the nearest parked car and get in. */
 async function getIntoTheCar() {
-  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 120, y: 250, id: 1 }] });
-  await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 78, y: 312, id: 1 }] });
-  await sleep(600);
-  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await sleep(300);
+  const reached = await walkTo(theCar.x, theCar.y, 70);
+  if (!reached.arrived) return false;
   if ((await state()) !== 'CAN-ENTER') return false;
   await press();
   return (await state()) === 'DRIVING';

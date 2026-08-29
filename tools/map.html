@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Taras Town — the whole map</title>
+  <style>
+    body { margin: 0; background: #202430; color: #fff;
+           font: 14px system-ui, sans-serif; }
+    #wrap { padding: 10px; }
+    canvas { display: block; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+    #facts { padding: 8px 10px; opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <!--
+    A development tool, not part of the game.
+
+    The town is generated from a couple of numbers in config.js, which makes it
+    easy to change and hard to SEE: a phone screen shows about a fortieth of it.
+    This page draws the whole thing at once, so that a change to the layout can
+    be looked at rather than guessed at. Open it directly in a browser.
+  -->
+  <div id="wrap"><canvas id="map"></canvas></div>
+  <div id="facts">building the town…</div>
+
+  <script type="module">
+    import { World } from '../js/world.js';
+    import { createCars } from '../js/car.js';
+    import { createNpcs } from '../js/npc.js';
+    import { Coins } from '../js/coins.js';
+
+    const world = new World();
+    const cars = createCars(world);
+    const npcs = createNpcs(world);
+    const coins = new Coins(world);
+
+    // Fit the whole town into something a screen can show.
+    const SCALE = 0.22;
+    const canvas = document.getElementById('map');
+    canvas.width = Math.round(world.width * SCALE);
+    canvas.height = Math.round(world.height * SCALE);
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+
+    const view = { x: 0, y: 0, w: world.width, h: world.height };
+    world.drawGround(ctx, view, 0);
+    world.drawBuildings(ctx, view);
+    world.drawCanopies(ctx, view);
+
+    // Mark the moving things, so it is obvious whether they are spread out.
+    ctx.fillStyle = '#FF3B3B';
+    for (const c of cars) { ctx.beginPath(); ctx.arc(c.x, c.y, 16, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#FFFFFF';
+    for (const n of npcs) { ctx.beginPath(); ctx.arc(n.x, n.y, 22, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#00E5FF';
+    ctx.beginPath(); ctx.arc(world.spawn.x, world.spawn.y, 30, 0, Math.PI * 2); ctx.fill();
+
+    const kinds = {};
+    for (const c of world.canopies) kinds[c.kind] = (kinds[c.kind] || 0) + 1;
+
+    document.getElementById('facts').textContent =
+      `${world.width}x${world.height}px (${world.cols}x${world.rows} tiles) · ` +
+      `${world.buildings.length} buildings · ${world.blocks.filter((b) => b.park).length}` +
+      ` parks of ${world.blocks.length} blocks · ${world.trees.length} trees · ` +
+      `hiding places: ${JSON.stringify(kinds)} · ${cars.length} cars · ` +
+      `${coins.items.length} coins · ${world.solids.length} solids`;
+    document.title = 'map ready';
+  </script>
+</body>
+</html>
