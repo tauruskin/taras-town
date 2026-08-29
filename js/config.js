@@ -68,6 +68,12 @@ export const CONFIG = {
   // Sizes are in pixels. A road is two 64px squares wide, so nothing here
   // should get near 128 long or it could never turn a corner.
   // ---------------------------------------------------------------------
+  // Everything you can get into and drive.
+  //
+  // The last two float. A `water: true` vehicle is the exact opposite of the
+  // others: it is stopped by land instead of by water, it is moored in the
+  // river rather than parked on the road, and it is chosen separately — buying
+  // a speedboat must not turn the car on the driveway into a speedboat.
   VEHICLES: [
     {
       id: 'car', price: 0, shape: 'car',
@@ -113,6 +119,22 @@ export const CONFIG = {
       LENGTH: 98, WIDTH: 42,
       MAX_SPEED: 250, ACCEL: 280, TURN_RATE: 1.9,
       wheel: 1.05,
+    },
+    {
+      // The first boat. Light and quick, so the reward for saving up 500 is
+      // that the river suddenly feels small.
+      id: 'speedboat', price: 500, shape: 'speedboat', water: true,
+      LENGTH: 70, WIDTH: 30,
+      MAX_SPEED: 400, ACCEL: 380, TURN_RATE: 2.3,
+      wheel: 0,
+    },
+    {
+      // The big one. Slow and steady and enormous, which is its own kind of
+      // fun: it is the bus of the river.
+      id: 'ferry', price: 600, shape: 'ferry', water: true,
+      LENGTH: 104, WIDTH: 46,
+      MAX_SPEED: 300, ACCEL: 250, TURN_RATE: 1.7,
+      wheel: 0,
     },
   ],
 

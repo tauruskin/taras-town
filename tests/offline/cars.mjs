@@ -17,7 +17,13 @@ cars.forEach((car, i) => {
   const kind = world.grid[tr][tc];
   const kindName = Object.keys(T).find(k => T[k] === kind);
 
-  if (kind !== T.ROAD) fail(`car ${i} is parked on ${kindName}, not a road`);
+  // Boats are moored in the river, which is the whole point of them.
+  if (car.water) {
+    if (kind !== T.WATER) fail(`boat ${i} is moored on ${kindName}, not water`);
+    if (world.blocksBoat(car.x, car.y, car.half, car.half)) fail(`boat ${i} is aground`);
+  } else if (kind !== T.ROAD) {
+    fail(`car ${i} is parked on ${kindName}, not a road`);
+  }
 
   const others = cars.filter(c => c !== car).map(c => c.boundsBox());
   if (world._overlaps(car.x, car.y, car.half, car.half, others)) {

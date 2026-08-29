@@ -95,14 +95,44 @@ check('from anywhere in the water there is a way back to land', trapped === 0,
 console.log('');
 console.log('4. vehicles stay on the road');
 
+// Only the ones with wheels. Putting a boat on the bank and finding it never
+// reaches the water would prove nothing — it cannot move on land at all, so
+// the check would pass for entirely the wrong reason.
+const wheeled = CONFIG.VEHICLES.filter((v) => !v.water);
 let drovein = 0;
-for (const id of CONFIG.VEHICLES.map((v) => v.id)) {
-  const car = new Car(world, bank.x - 40, 2000, 0, { body: '#fff', roof: '#fff', type: id });
+for (const v of wheeled) {
+  const car = new Car(world, bank.x - 40, 2000, 0, { body: '#fff', roof: '#fff', type: v.id });
   for (let i = 0; i < 240; i++) car.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
   if (world.isWaterAt(car.x, car.y)) drovein++;
 }
 check('no vehicle can be driven into the water', drovein === 0,
-      drovein + ' of ' + CONFIG.VEHICLES.length + ' ended up in the river');
+      drovein + ' of ' + wheeled.length + ' ended up in the river');
+
+// And the mirror image, which is the boats' half of the same rule: start one
+// afloat and drive it at the bank, and it must stay on the water.
+let ranAground = 0;
+const boats = CONFIG.VEHICLES.filter((v) => v.water);
+for (const v of boats) {
+  const boat = new Car(world, 0, 0, 0, { body: '#fff', roof: '#fff', type: v.id });
+  // Somewhere with clear water AHEAD of it. Moored hard against the bank it
+  // is aground on the first frame, and "it barely moved" would be a fact
+  // about where the test parked it rather than about the boat.
+  const spot = world.sweepSpots((k) => k === T.WATER, 300, 0, boat.half + 8, 2)
+    .find((s) => !world.blocksBoat(s.x, s.y, boat.half, boat.half) &&
+                 !world.blocksBoat(s.x - 220, s.y, boat.half, boat.half));
+  if (!spot) { check(v.id + ': somewhere to float', false); continue; }
+
+  boat.x = spot.x; boat.y = spot.y;
+  const from = { x: boat.x, y: boat.y };
+  // Drive at the western bank, which every bit of water on this map has.
+  for (let i = 0; i < 400; i++) boat.update(1 / 60, { x: -1, y: 0, mag: 1 }, []);
+  if (world.blocksBoat(boat.x, boat.y, boat.half, boat.half)) ranAground++;
+  // It must actually have tried: a boat that never moved proves nothing.
+  check(v.id + ': moves under its own power', Math.hypot(boat.x - from.x, boat.y - from.y) > 40,
+        Math.round(Math.hypot(boat.x - from.x, boat.y - from.y)) + 'px');
+}
+check('and no boat can be driven up onto the land', ranAground === 0,
+      ranAground + ' of ' + boats.length + ' ended up aground');
 
 // And the control: the same drive DOES cross that line when water is walkable,
 // so the check above is measuring the block and not a car that never moved.

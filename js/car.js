@@ -56,6 +56,9 @@ export class Car {
     this.spec = spec;
     this.length = spec.LENGTH;
     this.width = spec.WIDTH;
+    // Floats. Decides which way round the terrain rule works, where the thing
+    // is moored, and whether the boat you bought is the one you get into.
+    this.water = !!spec.water;
     this.style = { ...this.style, type: spec.id };
   }
 
@@ -104,7 +107,9 @@ export class Car {
     this._applySpec(spec);
 
     const blockers = otherCars.filter((c) => c !== this).map((c) => c.boundsBox());
-    if (!this.world._overlaps(this.x, this.y, this.half, this.half, blockers)) return true;
+    const aground = this.water &&
+      this.world.blocksBoat(this.x, this.y, this.half, this.half);
+    if (!aground && !this.world._overlaps(this.x, this.y, this.half, this.half, blockers)) return true;
 
     // It does not fit here. Find the nearest spot it does.
     const spot = this.world.findFreeSpot(this.x, this.y, this.half, blockers, 200);
@@ -174,8 +179,9 @@ export class Car {
     const dy = Math.sin(this.angle) * dist;
 
     const blockers = otherCars.map((c) => c.boundsBox());
-    // The last argument keeps the wheels out of the river.
-    const next = this.world.moveBox(this.x, this.y, this.half, this.half, dx, dy, blockers, true);
+    // Wheels are stopped by water; a hull is stopped by land.
+    const next = this.world.moveBox(this.x, this.y, this.half, this.half, dx, dy,
+                                    blockers, this.water ? 'water' : 'land');
 
     this.x = next.x;
     this.y = next.y;
@@ -312,7 +318,7 @@ export class Car {
     roundRect(ctx, -L / 2 + 3, -W / 2 + 5, L, W, 10);
     ctx.fill();
 
-    this._drawWheels(ctx, L, W);
+    if (!this.water) this._drawWheels(ctx, L, W);
 
     switch (this.spec.shape) {
       case 'van':     this._drawVan(ctx, L, W); break;
@@ -320,10 +326,12 @@ export class Car {
       case 'sports':  this._drawSports(ctx, L, W); break;
       case 'monster': this._drawMonster(ctx, L, W); break;
       case 'bus':     this._drawBus(ctx, L, W); break;
+      case 'speedboat': this._drawSpeedboat(ctx, L, W); break;
+      case 'ferry':     this._drawFerry(ctx, L, W); break;
       default:        this._drawCar(ctx, L, W); break;
     }
 
-    this._drawLights(ctx, L, W);
+    if (!this.water) this._drawLights(ctx, L, W);
     ctx.restore();
   }
 
@@ -509,6 +517,81 @@ export class Car {
   }
 
   /** Long, flat, and lined with windows. */
+  /**
+   * A speedboat, seen from above: a pointed hull with an open cockpit and a
+   * white wake curling off the bow.
+   */
+  _drawSpeedboat(ctx, L, W) {
+    // Wake, drawn first so the hull sits in it.
+    ctx.fillStyle = 'rgba(255,255,255,0.42)';
+    ctx.beginPath();
+    ctx.ellipse(-L * 0.52, 0, L * 0.16, W * 0.62, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = this.style.body;
+    ctx.beginPath();
+    ctx.moveTo(L / 2, 0);                                  // the bow, a point
+    ctx.quadraticCurveTo(L * 0.18, -W / 2, -L * 0.30, -W / 2);
+    ctx.lineTo(-L / 2, -W * 0.34);
+    ctx.lineTo(-L / 2, W * 0.34);
+    ctx.lineTo(-L * 0.30, W / 2);
+    ctx.quadraticCurveTo(L * 0.18, W / 2, L / 2, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // The open cockpit.
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    roundRect(ctx, -L * 0.26, -W * 0.30, L * 0.40, W * 0.60, 4);
+    ctx.fill();
+
+    ctx.fillStyle = this.style.roof;
+    roundRect(ctx, -L * 0.34, -W * 0.34, L * 0.16, W * 0.68, 3);
+    ctx.fill();
+
+    // A little windscreen at the front of the cockpit.
+    ctx.fillStyle = '#CFE9FF';
+    roundRect(ctx, L * 0.12, -W * 0.26, L * 0.06, W * 0.52, 2);
+    ctx.fill();
+  }
+
+  /** The ferry: a long blunt hull with a cabin and a rail down each side. */
+  _drawFerry(ctx, L, W) {
+    ctx.fillStyle = 'rgba(255,255,255,0.34)';
+    ctx.beginPath();
+    ctx.ellipse(-L * 0.52, 0, L * 0.12, W * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = this.style.body;
+    ctx.beginPath();
+    ctx.moveTo(L * 0.5, 0);
+    ctx.quadraticCurveTo(L * 0.34, -W / 2, L * 0.05, -W / 2);
+    ctx.lineTo(-L / 2, -W * 0.42);
+    ctx.lineTo(-L / 2, W * 0.42);
+    ctx.lineTo(L * 0.05, W / 2);
+    ctx.quadraticCurveTo(L * 0.34, W / 2, L * 0.5, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Deck.
+    ctx.fillStyle = '#F4E3C3';
+    roundRect(ctx, -L * 0.42, -W * 0.34, L * 0.80, W * 0.68, 5);
+    ctx.fill();
+
+    // Cabin, towards the bow.
+    ctx.fillStyle = this.style.roof;
+    roundRect(ctx, L * 0.02, -W * 0.30, L * 0.26, W * 0.60, 4);
+    ctx.fill();
+    ctx.fillStyle = '#CFE9FF';
+    roundRect(ctx, L * 0.06, -W * 0.20, L * 0.08, W * 0.40, 2);
+    ctx.fill();
+
+    // Rails down both sides, which is what makes it read as a boat you stand
+    // on rather than a floating brick.
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    roundRect(ctx, -L * 0.42, -W * 0.36, L * 0.80, 2.5, 1); ctx.fill();
+    roundRect(ctx, -L * 0.42, W * 0.34, L * 0.80, 2.5, 1); ctx.fill();
+  }
+
   _drawBus(ctx, L, W) {
     const s = this.style;
 
@@ -557,6 +640,11 @@ export class Car {
  * were empty. They are now found from the map itself, so however big the town
  * gets there are always cars a reasonable walk away.
  */
+/** The positions in CONFIG.VEHICLES of everything that has wheels. */
+const LAND_VEHICLES = CONFIG.VEHICLES
+  .map((v, i) => (v.water ? -1 : i))
+  .filter((i) => i >= 0);
+
 export function createCars(world) {
   const half = CONFIG.CAR.HITBOX_MAX / 2;
 
@@ -577,10 +665,16 @@ export function createCars(world) {
     Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
 
   const cars = [];
-  const wanted = Math.min(spots.length, 62);
+  const wanted = 62;
 
-  for (let i = 0; i < wanted; i++) {
-    const spot = spots[i];
+  // Nothing parked right on top of where the game starts. A car half a step
+  // north of the spawn is a wall the moment you press up, and "I pressed the
+  // stick and he would not move" is a rotten first ten seconds.
+  const clearOfSpawn = spots.filter((s) =>
+    Math.hypot(s.x - world.spawn.x, s.y - world.spawn.y) > 130);
+
+  for (let i = 0; i < wanted && i < clearOfSpawn.length; i++) {
+    const spot = clearOfSpawn[i];
 
     // Point the car along the road it is standing on, rather than across it.
     const c = Math.floor(spot.x / world.tile);
@@ -589,8 +683,11 @@ export function createCars(world) {
                    world.grid[r][c + 1] === T.ROAD;
     const angle = across ? 0 : Math.PI / 2;
 
-    // A spread of vehicles, but the first is always the plain one.
-    const pick = i === 0 ? 0 : Math.floor(hash(c * 13 + 7, r * 5 + 3) * CONFIG.VEHICLES.length);
+    // A spread of vehicles, but the first is always the plain one — and only
+    // ones with wheels. Picking from the whole list started parking speedboats
+    // on the high street.
+    const pick = i === 0 ? 0
+      : LAND_VEHICLES[Math.floor(hash(c * 13 + 7, r * 5 + 3) * LAND_VEHICLES.length)];
     const colour = Math.floor(hash(c + 91, r + 17) * CONFIG.CAR_BODY_PALETTE.length);
 
     const car = new Car(world, spot.x, spot.y, angle, {
@@ -604,5 +701,53 @@ export function createCars(world) {
     cars.push(car);
   }
 
+  // And the boats, moored out on the water.
+  for (const boat of createBoats(world, cars)) cars.push(boat);
+
   return cars;
+}
+
+/**
+ * Moor the boats.
+ *
+ * They sit in the river and the lake whether or not anybody owns one yet,
+ * which is deliberate: seeing a speedboat tied up out there is the reason to
+ * start saving for it. Walking up to one does nothing until it is bought.
+ */
+export function createBoats(world, existing) {
+  // Room for the biggest hull, so a ferry is never moored somewhere only a
+  // speedboat would fit.
+  const biggest = CONFIG.VEHICLES.filter((v) => v.water)
+    .reduce((a, b) => (b.LENGTH > a.LENGTH ? b : a));
+  const need = Math.max(biggest.LENGTH, biggest.WIDTH) / 2 + 6;
+
+  const spots = world.sweepSpots((kind) => kind === T.WATER, 460, 0, need, 2);
+  const boats = [];
+
+  for (const spot of spots) {
+    if (boats.length >= 12) break;
+
+    // It has to float completely, in whichever direction it is pointing.
+    const c = Math.floor(spot.x / world.tile);
+    const r = Math.floor(spot.y / world.tile);
+    const alongY = world.isWaterAt(spot.x, spot.y - need) &&
+                   world.isWaterAt(spot.x, spot.y + need);
+    const angle = alongY ? Math.PI / 2 : 0;
+
+    const pick = hash(c + 17, r + 41) < 0.55 ? 'speedboat' : 'ferry';
+    const colour = Math.floor(hash(c + 7, r + 23) * CONFIG.CAR_BODY_PALETTE.length);
+
+    const boat = new Car(world, spot.x, spot.y, angle, {
+      body: CONFIG.CAR_BODY_PALETTE[colour],
+      roof: CONFIG.CAR_ROOF_PALETTE[colour],
+      type: pick,
+    });
+
+    if (world.blocksBoat(boat.x, boat.y, boat.half, boat.half)) continue;
+    if (world._overlaps(boat.x, boat.y, boat.half, boat.half,
+                        [...existing, ...boats].map((k) => k.boundsBox()))) continue;
+    boats.push(boat);
+  }
+
+  return boats;
 }

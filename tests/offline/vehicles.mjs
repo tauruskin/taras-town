@@ -36,8 +36,11 @@ check('prices climb as you go along the row', ascending,
       CONFIG.VEHICLES.map((v) => v.price).join(' -> '));
 
 for (const v of CONFIG.VEHICLES) {
+  // A boat has no wheels, so `wheel` is 0 for one and must be positive for
+  // anything that rolls.
   const sane = v.LENGTH > 20 && v.WIDTH > 15 && v.MAX_SPEED > 50 &&
-               v.ACCEL > 50 && v.TURN_RATE > 0.5 && v.wheel > 0;
+               v.ACCEL > 50 && v.TURN_RATE > 0.5 &&
+               (v.water ? v.wheel === 0 : v.wheel > 0);
   check(v.id + ': the numbers are sane', sane,
         v.LENGTH + 'x' + v.WIDTH + ' speed ' + v.MAX_SPEED + ' turn ' + v.TURN_RATE);
 
@@ -80,9 +83,24 @@ for (let i = 0; i < CONFIG.VEHICLES.length; i++) {
   const car = new Car(world, world.spawn.x, world.spawn.y - 96, 0,
                       { body: '#FF6B6B', roof: '#E05252', type: v.id });
 
-  // Put it somewhere it definitely fits before starting.
-  const start = world.findFreeSpot(car.x, car.y, car.half, [], 300);
-  if (start) { car.x = start.x; car.y = start.y; }
+  if (v.water) {
+    // A boat has to be tested on the river. Driven round the town square it
+    // is aground from the first frame, and "wedged" would be the right
+    // answer to the wrong question.
+    // Clear of the moored boats as well as afloat: `others` now includes them,
+    // and starting inside one would be reported as ending up inside scenery.
+    const otherBoxes = others.map((c) => c.boundsBox());
+    const afloat = world.sweepSpots((kind) => kind === T.WATER, 300, 0, car.half + 8, 2)
+      .find((s) => !world.blocksBoat(s.x, s.y, car.half, car.half) &&
+                   !world._overlaps(s.x, s.y, car.half, car.half, otherBoxes));
+    if (!afloat) { check(v.id + ': somewhere to float', false, 'nowhere on the map'); continue; }
+    car.x = afloat.x;
+    car.y = afloat.y;
+  } else {
+    // Put it somewhere it definitely fits before starting.
+    const start = world.findFreeSpot(car.x, car.y, car.half, [], 300);
+    if (start) { car.x = start.x; car.y = start.y; }
+  }
 
   let top = 0, stuck = 0, escaped = false, embedded = false;
   let prev = { x: car.x, y: car.y };

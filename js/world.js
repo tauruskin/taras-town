@@ -45,10 +45,10 @@ const ROAD_EVERY_COLS = 13;
 // Wide enough to be somewhere you go rather than an edge you walk along: it
 // can be swum in, it has islands out in the middle of it, and the things
 // floating on it are cover in their own right.
-const RIVER_TILES = 10;
+const RIVER_TILES = 15;
 
 /** How many islands are dropped into the river. */
-const ISLANDS = 3;
+const ISLANDS = 4;
 
 // Roughly one block in four is left as parkland rather than built on. Parks
 // are where most of the trees are, and trees are where you hide.
@@ -200,6 +200,10 @@ export class World {
         if (this._overlaps(x, y, half, half, null)) continue;
         if (this.isWaterAt(x, y)) continue;
         if (this.hiddenAt(x, y)) continue;
+        // Room to walk off in ANY direction. A spot can be free and still be
+        // a slot between two walls, and starting a game unable to walk north
+        // is a poor first impression.
+        if (this.openness(x, y, half) < 0.8) continue;
         return { x, y };
       }
     }
@@ -728,6 +732,21 @@ export class World {
     return false;
   }
 
+  /**
+   * And the exact opposite, for a boat: is any part of it aground?
+   *
+   * Same corner-and-middle test, so a ferry cannot beach its bow while the
+   * rest of it floats.
+   */
+  blocksBoat(cx, cy, halfW, halfH) {
+    for (const dx of [-halfW, 0, halfW]) {
+      for (const dy of [-halfH, 0, halfH]) {
+        if (!this.isWaterAt(cx + dx, cy + dy)) return true;
+      }
+    }
+    return false;
+  }
+
   // =====================================================================
   // Collision
   // =====================================================================
@@ -742,13 +761,18 @@ export class World {
    *               fixed `solids` list.
    * @returns { x, y, blocked } — the new centre, and whether anything was hit.
    */
-  moveBox(x, y, halfW, halfH, dx, dy, extra, noWater = false) {
+  /**
+   * @param terrain  what this thing can travel over:
+   *                 null    — a person, who walks and swims and minds neither
+   *                 'land'  — wheels, stopped by water
+   *                 'water' — a hull, stopped by land
+   */
+  moveBox(x, y, halfW, halfH, dx, dy, extra, terrain = null) {
     let blocked = false;
-    // `noWater` is what keeps vehicles out of the river. People may swim, so
-    // for them water is simply not an obstacle at all.
     const stopped = (px, py) =>
       this._overlaps(px, py, halfW, halfH, extra) ||
-      (noWater && this.blocksVehicle(px, py, halfW, halfH));
+      (terrain === 'land' && this.blocksVehicle(px, py, halfW, halfH)) ||
+      (terrain === 'water' && this.blocksBoat(px, py, halfW, halfH));
 
     let nx = x + dx;
     if (stopped(nx, y)) { nx = x; blocked = true; }

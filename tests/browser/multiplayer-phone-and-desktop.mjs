@@ -199,19 +199,30 @@ if (connected) {
     const w = c.width, h = c.height;
     const d = g.getImageData(0, 0, w, h).data;
     const midX = w / 2, midY = h / 2;
-    let sum = 0, n = 0;
-    for (let y = Math.round(h * 0.2); y < h; y += 2) {
+    let sum = 0, sumY = 0, n = 0;
+    // The whole view, not all but the top fifth: the other player is often
+    // exactly up there, and skipping it reported them as missing.
+    const dpr = w / parseFloat(c.style.width);
+    const inHud = (px, py) => {
+      const cx = px / dpr, cy = py / dpr, cw = w / dpr;
+      if (cx < 150 && cy < 80) return true;
+      if (Math.abs(cx - cw / 2) < 90 && cy < 60) return true;
+      if (cx > cw - 210 && cy < 200) return true;
+      return false;
+    };
+    for (let y = 0; y < h; y += 2) {
       for (let x = 0; x < w; x += 2) {
         if (Math.abs(x - midX) < 46 && Math.abs(y - midY) < 46) continue;  // ourselves
+        if (inHud(x, y)) continue;
         const i = (y * w + x) * 4;
         // The blue cap crown, #4EA8FF, tightly matched so the river's #4FC3F7
         // and the pond do not count.
         if (Math.abs(d[i] - 78) < 12 && Math.abs(d[i + 1] - 168) < 12 && Math.abs(d[i + 2] - 255) < 12) {
-          sum += x; n++;
+          sum += x; sumY += y; n++;
         }
       }
     }
-    return n > 12 ? Math.round(sum / n) : -1;
+    return n > 12 ? JSON.stringify({ x: Math.round(sum / n), y: Math.round(sumY / n) }) : '';
   })()`);
 
   // Everyone starts on the same square, so A's character is sitting exactly
@@ -219,19 +230,33 @@ if (connected) {
   await a.push(-1, 0, 1800);
   await sleep(900);
 
-  const westX = await findGhostX(b);
-  check('B can see A on screen', westX >= 0, westX >= 0 ? 'at x=' + westX : 'no other player visible');
+  const westRaw = await findGhostX(b);
+  const westAt = westRaw ? JSON.parse(westRaw) : null;
+  check('B can see A on screen', !!westAt, westAt ? 'at x=' + westAt.x : 'no other player visible');
   await b.shoot('3-guest-sees-host');
 
-  // Now come back part of the way. Deliberately shorter than the walk out:
-  // returning the whole way puts A exactly on top of B, back inside the box
-  // excluded above, which reads as "not visible" rather than "moved".
-  await a.push(1, 0, 750);
-  await sleep(1000);
-
-  const eastX = await findGhostX(b);
-  check("A walking east moves east on B's screen", eastX >= 0 && eastX > westX + 40,
-        westX + ' -> ' + eastX);
+  // Now walk A somewhere else and check B sees the change.
+  //
+  // This used to walk back east and insist the ghost moved east by a set
+  // amount. Players are solid to each other now, so walking back towards B
+  // can quite properly be stopped by B — and then the test reported a broken
+  // connection when what it had actually found was the collision working. So
+  // it walks a clear way instead, and asks only that B sees A move.
+  // Try each way in turn until one of them is clear. Which direction happens
+  // to be walkable from wherever A stopped is a fact about the map, not about
+  // the connection, and the connection is what is being tested here.
+  let after = null;
+  let moved = -1;
+  for (const [vx, vy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    await a.push(vx, vy, 900);
+    await sleep(900);
+    const raw = await findGhostX(b);
+    after = raw ? JSON.parse(raw) : null;
+    moved = after && westAt ? Math.hypot(after.x - westAt.x, after.y - westAt.y) : -1;
+    if (moved > 40) break;
+  }
+  check("A walking about moves on B's screen", moved > 40,
+        westAt ? JSON.stringify(westAt) + ' -> ' + JSON.stringify(after) : 'never seen');
   await b.shoot('4-guest-sees-host-move');
 
   // --- and the other way round: B should be visible to A ------------------
@@ -239,10 +264,26 @@ if (connected) {
     const c = document.getElementById('game'), g = c.getContext('2d');
     const w = c.width, h = c.height, d = g.getImageData(0, 0, w, h).data;
     const midX = w / 2, midY = h / 2;
+    const dpr = w / parseFloat(c.style.width);
     let n = 0;
-    for (let y = Math.round(h * 0.2); y < h; y += 2) {
+
+    // Skip the HUD, not the whole top of the screen.
+    //
+    // This used to ignore the top fifth, which is where the badges live — and
+    // also, often, where the other player is. It reported "cannot see them"
+    // for somebody standing in plain sight a little north of the middle.
+    const inHud = (x, y) => {
+      const cx = x / dpr, cy = y / dpr, cw = w / dpr;
+      if (cx < 150 && cy < 80) return true;              // the coin counter
+      if (Math.abs(cx - cw / 2) < 90 && cy < 60) return true;  // player count
+      if (cx > cw - 210 && cy < 200) return true;        // buttons + minimap
+      return false;
+    };
+
+    for (let y = 0; y < h; y += 2) {
       for (let x = 0; x < w; x += 2) {
         if (Math.abs(x - midX) < 46 && Math.abs(y - midY) < 46) continue;
+        if (inHud(x, y)) continue;
         const i = (y * w + x) * 4;
         // B still wears the default yellow cap; its brim (#B87A0C) is unique
         // to a cap, unlike the crown which matches the coins.

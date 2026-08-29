@@ -168,7 +168,9 @@ export class Menu {
   }
 
   /**
-   * @param choice { hat, shirt, car } — the selected index in each row
+   * @param choice { hat, shirt, car, vehicle, boat } — what is chosen in each
+   *               row. `vehicle` and `boat` are both positions in the vehicle
+   *               row: one car and one boat are chosen at the same time.
    * @param save   the whole save, for coins and what has been bought
    * @param shake  { id, amount } — a locked dot being wobbled after a failed
    *               purchase, which is how "not enough coins yet" is said
@@ -197,7 +199,14 @@ export class Menu {
       for (let i = 0; i < row.count; i++) {
         const id = row.id + ':' + i;
         let x = L.firstX + i * L.gap;
-        const picked = choice[row.id] === i;
+        // Which one has a ring round it. The vehicle row holds both cars and
+        // boats, and one of each is chosen at a time: buying a speedboat must
+        // not leave the car with no ring on it.
+        const picked = row.id === 'vehicle'
+          ? (CONFIG.VEHICLES[i] && CONFIG.VEHICLES[i].water
+              ? choice.boat === i
+              : choice.vehicle === i)
+          : choice[row.id] === i;
         const unlocked = Menu.isUnlocked(row.id, i, save);
         const base = L.r * (row.scale || 1);
         const rr = picked ? base * 1.12 : base;
@@ -376,6 +385,32 @@ export function drawVehiclePicture(ctx, index, size, colourIndex = 0) {
   }
 
   ctx.fillStyle = body;
+  if (v.water) {
+    // A hull: pointed at the bow, square at the stern. The point is the whole
+    // difference between "boat" and "car" at this size.
+    ctx.beginPath();
+    ctx.moveTo(L / 2, 0);
+    ctx.quadraticCurveTo(L * 0.2, -W / 2, -L * 0.28, -W / 2);
+    ctx.lineTo(-L / 2, -W * 0.36);
+    ctx.lineTo(-L / 2, W * 0.36);
+    ctx.lineTo(-L * 0.28, W / 2);
+    ctx.quadraticCurveTo(L * 0.2, W / 2, L / 2, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // A pale deck, so it is not a solid lozenge.
+    ctx.fillStyle = '#F4E3C3';
+    roundRect(ctx, -L * 0.34, -W * 0.30, L * 0.62, W * 0.60, 3);
+    ctx.fill();
+
+    ctx.fillStyle = roof;
+    roundRect(ctx, v.shape === 'ferry' ? L * 0.02 : -L * 0.28,
+              -W * 0.26, L * 0.22, W * 0.52, 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
   if (v.shape === 'sports') {
     ctx.beginPath();
     ctx.moveTo(L / 2, 0);

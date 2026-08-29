@@ -186,9 +186,14 @@ export function createNpcs(world) {
     2,
   );
 
-  const byDistance = spots.slice().sort((a, b) =>
-    Math.hypot(a.x - world.spawn.x, a.y - world.spawn.y) -
-    Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
+  // Nobody stands right on the spawn. Neighbours are solid, and one of them
+  // planted a step north of where the game begins is a wall across the first
+  // direction a child pushes the stick.
+  const byDistance = spots
+    .filter((s) => Math.hypot(s.x - world.spawn.x, s.y - world.spawn.y) > 150)
+    .sort((a, b) =>
+      Math.hypot(a.x - world.spawn.x, a.y - world.spawn.y) -
+      Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
 
   const chosen = [];
   const farEnough = (s, gap) => !chosen.some((c) => Math.hypot(c.x - s.x, c.y - s.y) < gap);
@@ -204,6 +209,7 @@ export function createNpcs(world) {
   // crowded and the jobs feel cheap.
   for (const s of spots) {
     if (chosen.length >= PEOPLE.length + EXTRA_NEIGHBOURS) break;
+    if (Math.hypot(s.x - world.spawn.x, s.y - world.spawn.y) <= 150) continue;
     if (farEnough(s, 1100)) chosen.push(s);
   }
 

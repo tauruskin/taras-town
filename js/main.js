@@ -124,6 +124,27 @@ function startGame(chosenRoom, chosenName) {
   if (room) {
     roomCode = room;
     net = new Net(room);
+
+    // Step aside before anybody else arrives.
+    //
+    // Everyone joining a room starts from the same spot, so without this two
+    // children materialise inside one another — and now that players are
+    // solid, standing in the same square is the one place the game cannot
+    // sort out for them. A step in some direction each is all it takes.
+    // Which way to step is taken from the name rather than from chance, so
+    // the same person always starts in the same place. Two people with
+    // different names step different ways, which is the whole point; two with
+    // the same name step the same way and are simply eased apart afterwards,
+    // like anybody else who ends up standing in one another.
+    const half = CONFIG.PLAYER.HITBOX / 2;
+    const seed = [...(save.name || 'x')].reduce((n, ch) => n + ch.charCodeAt(0), 0);
+    const a = ((seed % 12) / 12) * Math.PI * 2;
+    const aside = world.findFreeSpot(player.x + Math.cos(a) * 70,
+                                     player.y + Math.sin(a) * 70, half, null, 200);
+    if (aside && !world.hiddenAt(aside.x, aside.y)) {
+      player.x = aside.x;
+      player.y = aside.y;
+    }
     // Put the room in the address, so this game can be bookmarked or the
     // link shared, exactly like the ones typed in by hand.
     try {
@@ -400,7 +421,8 @@ function render() {
 
   if (menu.open) {
     menu.draw(ctx, w, h,
-      { hat: save.hat, shirt: save.shirt, car: save.car, vehicle: save.vehicle },
+      { hat: save.hat, shirt: save.shirt, car: save.car,
+        vehicle: save.vehicle, boat: save.boat },
       save, shake);
     // The purse stays on screen in the shop. Deciding whether you can afford
     // something while your total is hidden is no decision at all.
@@ -840,11 +862,30 @@ function separateIfInsideSomebody(dt) {
 }
 
 /** The closest car within reach, or null. */
+/**
+ * Wear or drive the thing just chosen.
+ *
+ * Boats live in the same row of the menu as the cars but in their own slot,
+ * so that buying a speedboat does not turn the car on the road into one.
+ */
+function chooseItem(rowId, i) {
+  if (rowId === 'vehicle' && CONFIG.VEHICLES[i] && CONFIG.VEHICLES[i].water) {
+    save.boat = i;
+  } else {
+    save[rowId] = i;
+  }
+}
+
 function findCarToEnter() {
   let best = null;
   let bestDist = CONFIG.CAR.ENTER_RADIUS;
 
   for (const car of cars) {
+    // Boats are moored out there from the start, so there is something to
+    // save up FOR — but until one has been bought they are scenery, and
+    // walking up to one offers nothing.
+    if (car.water && save.boat === null) continue;
+
     const d = Math.hypot(car.x - player.x, car.y - player.y);
     if (d < bestDist) { bestDist = d; best = car; }
   }
@@ -854,9 +895,10 @@ function findCarToEnter() {
 function enterCar(car) {
   drivenCar = car;
   mode = DRIVING;
-  // Whatever he gets into becomes his chosen vehicle, in his chosen colour.
+  // Whatever he gets into becomes his chosen vehicle, in his chosen colour —
+  // his chosen BOAT if the thing floats, which is a different slot.
   car.repaint(save.car);
-  car.setVehicle(save.vehicle, cars);
+  car.setVehicle(car.water ? save.boat : save.vehicle, cars);
 }
 
 function exitCar() {
@@ -980,7 +1022,7 @@ function handleMenuPresses() {
 
       // Already his? Just wear it.
       if (Menu.isUnlocked(row.id, i, save)) {
-        save[row.id] = i;
+        chooseItem(row.id, i);
         applyChoices();
         persist();
         continue;
@@ -991,7 +1033,7 @@ function handleMenuPresses() {
       if (save.coins >= price) {
         save.coins -= price;
         save.unlocked[row.id].push(i);
-        save[row.id] = i;              // and put it on straight away
+        chooseItem(row.id, i);         // and put it on straight away
         applyChoices();
         playSuccess();
         effects.celebrate(canvas.clientWidth / 2, canvas.clientHeight / 2, 0, 40);
@@ -1018,10 +1060,15 @@ function applyChoices() {
 
   target.repaint(save.car);
 
+  // A boat takes the chosen BOAT and a car the chosen car: showing the change
+  // behind the menu must not turn the ferry he is standing on into a bus.
+  const want = target.water ? save.boat : save.vehicle;
+  if (want === null || want === undefined) return;
+
   // Changing vehicle changes its size, so this can fail: there may be no room
   // for a bus where a hatchback was parked. setVehicle says so rather than
   // leaving it embedded in a wall, and then the choice is quietly refused.
-  if (!target.setVehicle(save.vehicle, cars)) {
+  if (!target.setVehicle(want, cars)) {
     save.vehicle = target.spec ? CONFIG.VEHICLES.indexOf(target.spec) : 0;
     shake = { id: 'vehicle:' + save.vehicle, amount: 0.45 };
     playDenied();
