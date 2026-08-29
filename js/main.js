@@ -26,6 +26,7 @@ import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
+import { startMusic, stopMusic, setMusicMuted } from './music.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
 import { StartScreen, sanitizeName } from './startscreen.js';
@@ -161,6 +162,11 @@ function startGame(chosenRoom, chosenName) {
   // Phones refuse to make any sound until the page has been touched. This
   // tap is that touch, so it is the only moment audio can be set up.
   initAudio();
+
+  // The music starts with the game. This tap is the only moment a phone will
+  // allow any sound at all, so it has to be started here rather than later.
+  setMusicMuted(save.muted);
+  startMusic();
 
   // Both of these are unsupported on iPhone Safari and will simply do
   // nothing there, which is why the CSS "please rotate" screen also exists.
@@ -962,6 +968,9 @@ function exitCar() {
 function toggleSound() {
   save.muted = !save.muted;
   setMuted(save.muted);
+  // One button for everything, music included. Two buttons would be tidier
+  // for an adult and worse for a 6-year-old, who wants "make it quiet".
+  setMusicMuted(save.muted);
   // A little pip on the way back on, so you can hear that it worked. Nothing
   // on the way off, for obvious reasons.
   if (!save.muted) playPickup();
@@ -1269,7 +1278,14 @@ window.addEventListener('pagehide', () => {
   if (net) net.leave();
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') persist();
+  if (document.visibilityState === 'hidden') {
+    persist();
+    // No point playing to a pocket, and it costs battery.
+    stopMusic();
+  } else if (running) {
+    setMusicMuted(save.muted);
+    startMusic();
+  }
 });
 
 /**

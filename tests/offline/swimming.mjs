@@ -96,12 +96,17 @@ console.log('3. getting out again');
 let trapped = 0;
 for (const spot of waterSpots) {
   let escaped = false;
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+  // Diagonals too: a swimmer is not confined to four directions, and a
+  // handful of pockets between an island and the bank need one.
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1],
+                          [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]]) {
     const swimmer = new Player(world, spot.x, spot.y);
-    // Long enough to cross the widest water on the map. The river is ten
-    // tiles across and swimming is deliberately slow, so a short attempt
-    // reports the middle of the river as a trap when it is merely far out.
-    for (let i = 0; i < 800 && !escaped; i++) {
+    // Long enough to cross the widest water on the map. The river is now
+    // FORTY-TWO tiles across — about 2700px — and swimming is deliberately
+    // slow, so a short attempt reports the middle of the river as a trap when
+    // it is merely a long way out. Sized from the map rather than guessed.
+    const framesToCross = Math.ceil((world.width / 2) / (CONFIG.PLAYER.SPEED * CONFIG.PLAYER.SWIM_SPEED) * 60) + 120;
+    for (let i = 0; i < framesToCross && !escaped; i++) {
       swimmer.update(1 / 60, { x: dx, y: dy, mag: 1 }, []);
       if (!world.isWaterAt(swimmer.x, swimmer.y)) escaped = true;
     }

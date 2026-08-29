@@ -53,6 +53,7 @@ const PRECACHE = [
   './js/pwa.js',
   './js/startscreen.js',
   './js/minimap.js',
+  './js/music.js',
   './js/vendor/peerjs.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

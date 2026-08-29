@@ -53,8 +53,21 @@ const redInButton = () => ev(`(() => {
   const n = Math.round(${BTN.r} * 2 * dpr);
   const d = g.getImageData(x, y, n, n).data;
   let red = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i] > 190 && d[i + 1] < 110 && d[i + 2] < 110) red++;
+
+  // Only inside the CIRCLE. The button is round and this box is square, so its
+  // corners show the town behind it — and the town has red roofs and red cars
+  // in it. Counting the corners meant the answer depended on what happened to
+  // be parked behind the speaker.
+  const mid = n / 2;
+  const limit = (mid * 0.82) * (mid * 0.82);
+
+  for (let py = 0; py < n; py++) {
+    for (let px = 0; px < n; px++) {
+      const dx = px - mid, dy = py - mid;
+      if (dx * dx + dy * dy > limit) continue;
+      const i = (py * n + px) * 4;
+      if (d[i] > 190 && d[i + 1] < 110 && d[i + 2] < 110) red++;
+    }
   }
   return red;
 })()`);

@@ -122,6 +122,11 @@ async function main() {
     for (const port of PORTS) {
       children.push(spawn(chrome, [
         '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run',
+        // Let the audio clock actually run, so the music suite can hear
+        // anything at all. Without these the AudioContext stays suspended,
+        // currentTime never advances, and nothing is ever scheduled.
+        '--autoplay-policy=no-user-gesture-required',
+        '--mute-audio',
         `--remote-debugging-port=${port}`,
         `--user-data-dir=${join(SHOTS, 'chrome-' + port)}`,
         'about:blank',

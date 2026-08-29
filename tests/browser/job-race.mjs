@@ -136,7 +136,10 @@ await shoot('1-at-organiser');
 await ev('window.__realRandom = Math.random; Math.random = () => 0.5;');
 await tapButton();
 await ev('Math.random = window.__realRandom;');
-check('race accepted', (await btnState()) === 'none', await btnState());
+// Not necessarily "no button": having taken the race, a car parked nearby is
+// quite properly the next thing offered, and the town has sixty of them.
+const afterAccept = await btnState();
+check('race accepted', afterAccept !== 'JOB', afterAccept);
 await shoot('2-race-started');
 
 // Absolute coin totals are no longer meaningful: coins lie around town and

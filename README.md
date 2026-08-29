@@ -2,8 +2,8 @@
 
 A friendly little open-world town you can wander around, made for a 6-year-old.
 Top-down view, touch controls, no violence, nothing scary — just a bright
-cartoon town with houses, shops, parks, a market, a wide river you can swim in,
-and boats to save up for.
+cartoon town with houses, shops, parks, a market, and a wide estuary you can
+swim in, with islands, boats to save up for, and quiet music playing.
 
 **Play:** https://tauruskin.github.io/taras-town/
 
@@ -96,7 +96,7 @@ open <http://127.0.0.1:8777/tools/map.html>.
 node tests/run.mjs
 ```
 
-Starts a web server and two browsers, runs **31 suites**, and shuts everything
+Starts a web server and two browsers, runs **32 suites**, and shuts everything
 down. Nothing to install. After a deploy, `node tests/run.mjs --live` runs the
 same checks against the real site — which catches things a local copy never
 will.
@@ -136,6 +136,7 @@ the old version after that, pull down to refresh the page.
 | `js/net.js` | Playing together. Only ever loaded when a `?room=` is present. |
 | `js/effects.js` | Confetti and the floating coin when a job is done. |
 | `js/audio.js` | Little sounds, generated live. There are no sound files. |
+| `js/music.js` | The background music, also generated live. Also no files. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
 | `js/vendor/` | The one piece of third-party code. See the README in there. |
 | `tests/` | Everything that checks the game still works. See the README in there. |
@@ -168,7 +169,9 @@ To change the **size or shape of the town**, see "The town is generated" below.
 ## The town is generated
 
 The whole town comes out of two numbers — `MAP_COLS` and `MAP_ROWS` in
-`js/config.js`, currently **96 × 72 squares of 64 pixels**, so 6144 × 4608. The
+`js/config.js`, currently **96 × 72 squares of 64 pixels**, so 6144 × 4608. Of
+that, **42% is water and 58% is land** — set by `RIVER_TILES` in `js/world.js`,
+which is how wide the estuary down the right-hand side is. The
 roads, the blocks between them, the houses that fill those blocks, which blocks
 are left as parkland, where the market goes, the river, its islands and the
 lake are all worked out from that size. Making the town bigger is a matter of
@@ -215,9 +218,9 @@ dry land, **not under a bush**, and with room to walk off in any direction.
 ## Hiding places
 
 The game is mostly used for hide-and-seek, so cover is a feature rather than
-scenery. There are around **590 trees and 850 other pieces of cover**, in nine
-kinds — most of that count is the lily pads and reeds, since the river got
-wider twice:
+scenery. There are around **460 trees and 1,200 other pieces of cover**, in nine
+kinds. Most of that count is lily pads and reeds, because the water is now
+nearly half the map:
 
 | On land | In the water |
 |---|---|
@@ -252,6 +255,37 @@ bright orange ring is the clearest thing on him.
 There is no drowning, no timer and no way to fail. `tests/offline/swimming.mjs`
 checks the thing that would actually matter: from every one of the water tiles,
 in four directions, there is always a way back to dry land.
+
+## Music
+
+There is no music file. The tune is a few lines of note data played through the
+same oscillators that make the game's other sounds, so it adds **nothing at all**
+to what the phone downloads, works with no connection, and leaves nothing
+permanent in the repository.
+
+That last point is not theoretical here: a 14MB MP3 was once committed to this
+project, and git keeps history for ever — the file was still in the repository's
+weight after being deleted, and the fix in the end was to restore from a backup.
+A properly compressed loop would be a few hundred kilobytes rather than
+fourteen megabytes, but it would still be downloaded on install and still be
+permanent.
+
+How it is meant to sound: quiet, slow and a bit dreamy, something that can play
+under a game for hours without anybody noticing it. Three things do most of that
+work — everything is in a **major pentatonic** scale, which has no semitone
+steps, so nothing picked from it can sound wrong against anything else; the
+melody is **sparse**, and plenty of bars have only a note or two in them; and it
+**never repeats exactly**, because each bar is improvised rather than looped, so
+there is no seam to start listening for.
+
+**One button turns everything off**, music and sound effects together. Two
+buttons would be tidier for an adult and worse for a 6-year-old, who wants "make
+it quiet". The music also stops whenever the game is not on screen, because
+playing to a pocket costs battery.
+
+If a real recording is ever wanted instead, `js/music.js` is the only file that
+would change: `startMusic` / `stopMusic` / `setMusicMuted` is the whole of what
+the rest of the game knows about it.
 
 ## Vehicles
 
@@ -569,4 +603,7 @@ Tested on the live site with a phone-shaped browser and a desktop-shaped one.
 - [x] **12 — Boats.** A speedboat and a ferry, moored in the water and bought
       in the same shop.
 - [x] **13 — Finding each other.** Bumping, and a map in the corner.
-- [ ] 14 — Buying buildings in the shop.
+- [x] **14 — Water everywhere, and music.** The estuary grew to nearly half
+      the map, with nine islands in it, and quiet generated music plays under
+      everything.
+- [ ] 15 — Buying buildings in the shop.

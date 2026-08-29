@@ -38,6 +38,16 @@ export function isMuted() {
 }
 
 /**
+ * The one AudioContext, for the music to share.
+ *
+ * A second context would be a second lot of hardware plumbing, and on some
+ * phones only the first one is allowed to make any noise at all.
+ */
+export function audioContext() {
+  return ctx;
+}
+
+/**
  * One note.
  * @param freq   pitch in Hz
  * @param start  seconds from now

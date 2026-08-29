@@ -45,10 +45,10 @@ const ROAD_EVERY_COLS = 13;
 // Wide enough to be somewhere you go rather than an edge you walk along: it
 // can be swum in, it has islands out in the middle of it, and the things
 // floating on it are cover in their own right.
-const RIVER_TILES = 24;
+const RIVER_TILES = 42;
 
 /** How many islands are dropped into the river. */
-const ISLANDS = 6;
+const ISLANDS = 9;
 
 // Roughly one block in four is left as parkland rather than built on. Parks
 // are where most of the trees are, and trees are where you hide.

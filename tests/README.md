@@ -77,6 +77,7 @@ game.**
 | `multiplayer-phone-and-desktop` | The same, with one phone-shaped browser and one desktop-shaped one. |
 | `multiplayer-rejoin` | The host leaves; the other player takes over hosting on its own; the first rejoins. Nobody reloads anything. |
 | `bumping` | Walking into another player moves them — **and neither player can ever be stuck**, including one leaned on while backed against a wall. |
+| `music` | Music starts by itself after the first tap, keeps playing, stops when the game is hidden, and starts again when it comes back — counted by wrapping `createOscillator`, so no test-only code ships. |
 | `pwa` | Loads the game online so the service worker installs, cuts the network off entirely, then opens the game again as a fresh visit and confirms it still boots and plays. |
 
 ### `_helpers.mjs`
@@ -174,6 +175,16 @@ about which suite guards what stops a green tick being mistaken for proof.
 - **A CDP screenshot's clip `scale` and an emulated device pixel ratio both
   resize the capture — setting both multiplies them together.** That silently
   produced icons a third of the size they claimed.
+- **Headless Chrome has no audio clock unless you ask for one.** `run.mjs`
+  passes `--autoplay-policy=no-user-gesture-required` and `--mute-audio`;
+  without them the AudioContext stays suspended, `currentTime` never advances,
+  and the music schedules one bar and then nothing for ever. `browser/music`
+  checks whether the clock is actually running and says so rather than
+  reporting a bug that is not there.
+- **A stuck service worker survives between runs.** The browsers keep their
+  profile in `tests/screenshots/chrome-*`, so a failed registration stays
+  failed and `browser/pwa` then fails for a reason that has nothing to do with
+  your change. Delete those folders and run it again before believing it.
 - **Look at the screenshots** in `tests/screenshots/`, and at
   `tools/map.html` for the map. Code that passes every assertion has looked
   visibly broken more than once.
