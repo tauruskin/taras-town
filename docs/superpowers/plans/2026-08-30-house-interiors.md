@@ -38,6 +38,13 @@ Read `CLAUDE.md` before starting. The ones this plan touches constantly:
 | `js/furniture.js` | The catalog. What pieces exist, what they cost, how each one is drawn, and the picker overlay for choosing one. |
 | `tests/offline/interiors.mjs` | Offline suite for door data, room generation, and drawing. |
 
+> **Every new file in `js/` must also be added to the `PRECACHE` list in
+> `sw.js`.** `tests/offline/pwa.mjs` checks that every `js/*.js` file is
+> precached and goes red otherwise — the game is installable and has to work
+> with no signal, so a module missing from that list is a real bug, not a test
+> being fussy. This caught out Task 2 and it applies again to `js/furniture.js`
+> in Task 6.
+
 **Modified:**
 
 | File | Change |

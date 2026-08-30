@@ -7,8 +7,8 @@
  * the town's tile grid never learns that interiors exist.
  *
  * Every room is a pure function of its building's seed, exactly like the town
- * itself: 43 houses have 43 different insides and not one byte is stored for
- * them. Only the furniture he places is ever saved.
+ * itself: all 53 buildings have their own inside and not one byte is stored
+ * for any of them. Only the furniture he places is ever saved.
  *
  * The file is in two halves and they must stay apart:
  *
