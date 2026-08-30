@@ -151,7 +151,16 @@ export function onMat(room, x, y) {
  * which are drawn on top of the room.
  */
 export function roomPlacement(room, screenW, screenH) {
-  const scale = Math.min(1, (screenW - 96) / room.w, (screenH - 72) / room.h);
+  // Grown to fill the screen as well as shrunk to fit it, up to a limit.
+  //
+  // Capping this at 1 left a small room adrift in a big dark border on every
+  // screen, with the furniture and the spots drawn far smaller than they
+  // needed to be — and they are what he is aiming a finger at. Everything in
+  // here is drawn rather than an image, so making it bigger costs nothing and
+  // loses no sharpness. The ceiling only stops a room becoming so enormous on
+  // a tablet that he cannot see the whole of it at once, which is the one
+  // thing the fixed camera is for.
+  const scale = Math.min(2, (screenW - 96) / room.w, (screenH - 72) / room.h);
   return {
     x: Math.round((screenW - room.w * scale) / 2),
     y: Math.round((screenH - room.h * scale) / 2),

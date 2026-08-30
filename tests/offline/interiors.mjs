@@ -197,6 +197,65 @@ let drewFurniture = 0;
 for (const f of FURNITURE) { drawFurniture(ctx, f.id, 40); drewFurniture++; }
 check(`drew all ${drewFurniture} pieces with no NaN`, drewFurniture === FURNITURE.length);
 
+// --- the picker must fit on the phone --------------------------------------
+//
+// Its clear and close buttons are the only way out of it. Laid out from fixed
+// numbers they fell off the bottom of three of these seven screens — an
+// iPhone SE among them — so opening the picker on those phones was a trap:
+// no way to close it, no way to change your mind, and nothing on screen to
+// say why. Same shape of bug as a room taller than the display.
+//
+// These are the sizes tests/offline/menu-buttons.mjs already treats as
+// supported, and they are listed here rather than imported so that adding one
+// there makes this fail until somebody has thought about it.
+const { pickerButtons, drawPicker } = await import('../../js/furniture.js');
+console.log('\nthe picker');
+
+const SCREENS = [
+  { w: 568, h: 320, what: 'iPhone SE, landscape' },
+  { w: 667, h: 375, what: 'iPhone 8, landscape' },
+  { w: 844, h: 390, what: 'iPhone 12, landscape' },
+  { w: 915, h: 412, what: 'a big Android, landscape' },
+  { w: 1024, h: 768, what: 'a tablet' },
+  { w: 640, h: 300, what: 'a squat viewport' },
+  { w: 740, h: 280, what: 'a very squat viewport' },
+];
+
+for (const s of SCREENS) {
+  const buttons = pickerButtons(s.w, s.h);
+  const off = buttons.filter((b) =>
+    b.x - b.r < 0 || b.x + b.r > s.w || b.y - b.r < 0 || b.y + b.r > s.h);
+  check(`${s.what}: all ${buttons.length} choices are on screen`,
+    off.length === 0, off.map((b) => b.id).join(', '));
+}
+
+// A finger is not a pixel. Anything he has to hit must stay big enough to hit.
+const MIN_TAP_R = 16;
+for (const s of SCREENS) {
+  const tooSmall = pickerButtons(s.w, s.h).filter((b) => b.r < MIN_TAP_R);
+  check(`${s.what}: nothing shrank below ${MIN_TAP_R}px`,
+    tooSmall.length === 0,
+    `smallest is ${Math.min(...pickerButtons(s.w, s.h).map((b) => b.r)).toFixed(1)}px`);
+}
+
+// And the two buttons that get him out must never end up under one another.
+for (const s of SCREENS) {
+  const bs = pickerButtons(s.w, s.h);
+  const none = bs.find((b) => b.id === 'furniture:none');
+  const close = bs.find((b) => b.id === 'picker-close');
+  check(`${s.what}: clear and close do not overlap`,
+    Math.hypot(none.x - close.x, none.y - close.y) > none.r + close.r,
+    'the two ways out of the picker are on top of each other');
+}
+
+let drewPicker = 0;
+for (const s of SCREENS) {
+  drawPicker(ctx, s.w, s.h, { coins: 30, unlocked: { furniture: [] } }, null);
+  drawPicker(ctx, s.w, s.h, { coins: 0, unlocked: {} }, { id: 'furniture:chest', amount: 0.4 });
+  drewPicker++;
+}
+check(`drew the picker at all ${drewPicker} sizes with no NaN`, drewPicker === SCREENS.length);
+
 // --- the save shape --------------------------------------------------------
 const { defaultSaveForTests } = await import('../../js/save.js');
 console.log('\nsaving');

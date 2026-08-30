@@ -466,6 +466,7 @@ function render() {
     drawActionButton();
     drawSound(w, h);
     drawMusic(w, h);
+    drawHome(w, h);
     drawCoinCounter(w, h);
     if (pickingSpot !== null) drawPicker(ctx, w, h, save, shake);
     effects.draw(ctx);
@@ -1250,12 +1251,21 @@ function refreshButtons() {
       y: place.y + s.y * place.scale,
       r: CONFIG.INTERIOR.SPOT_R * place.scale,
     }));
+    // Home comes inside with him.
+    //
+    // The shop and the map are no use in a bedroom and are left outside, but
+    // the way out of the game is not a convenience — it is the escape hatch.
+    // Without it the ONLY way out of a room is finding the mat, and a child
+    // who has not worked out that the mat is a door is simply stuck in a
+    // house with no way back to anything he recognises.
     const action = actionButtonPos();
+    const home = Menu.homePos(w, h);
     input.setButtons([
       ...spots,
       { id: 'action', x: action.x, y: action.y, r: action.r },
       soundButton,
       musicButton,
+      { id: 'menu-home', x: home.x, y: home.y, r: home.r },
     ]);
     return;
   }

@@ -179,26 +179,46 @@ export function drawFurniture(ctx, id, size) {
 // of the way. Two different jobs, two different shapes.
 // ---------------------------------------------------------------------------
 
-const PICKER = { r: 30, gap: 74, cols: 4, padY: 26 };
+const PICKER = { r: 30, gap: 74, cols: 4 };
 
-/** Where each choice sits, given the screen size. Also used for hit-testing. */
+/**
+ * Where each choice sits, given the screen size. Also used for hit-testing.
+ *
+ * Laid out from the space available rather than from fixed numbers, and the
+ * WHOLE thing is measured — the pieces and the row beneath them together —
+ * before it is centred.
+ *
+ * Fixed numbers put the clear and close buttons off the bottom of three of
+ * the seven screen sizes this game supports, an iPhone SE among them. Those
+ * two are the only way out of the picker, so on those phones opening it was a
+ * trap: no way to close it, no way to change your mind, and nothing on screen
+ * to suggest why. Everything here is therefore derived from `h`.
+ */
 export function pickerButtons(w, h) {
   const rows = Math.ceil(FURNITURE.length / PICKER.cols);
-  const gridW = (PICKER.cols - 1) * PICKER.gap;
-  const gridH = (rows - 1) * PICKER.gap;
+
+  // The grid needs `rows` lines plus one more for clear-and-close, and a
+  // little air top and bottom.
+  const gap = Math.min(PICKER.gap, (h - 40) / (rows + 1), (w - 40) / PICKER.cols);
+  const r = Math.min(PICKER.r, gap * 0.4);
+
+  const gridW = (PICKER.cols - 1) * gap;
+  const gridH = (rows - 1) * gap;
+  const totalH = gridH + gap;          // the extra row underneath
   const x0 = w / 2 - gridW / 2;
-  const y0 = h / 2 - gridH / 2 + PICKER.padY;
+  const y0 = h / 2 - totalH / 2;
 
   const out = FURNITURE.map((f, i) => ({
     id: `furniture:${f.id}`,
-    x: x0 + (i % PICKER.cols) * PICKER.gap,
-    y: y0 + Math.floor(i / PICKER.cols) * PICKER.gap,
-    r: PICKER.r,
+    x: x0 + (i % PICKER.cols) * gap,
+    y: y0 + Math.floor(i / PICKER.cols) * gap,
+    r,
   }));
 
   // Clearing the spot, and closing without choosing.
-  out.push({ id: 'furniture:none', x: w / 2 - 46, y: y0 + gridH + 76, r: PICKER.r });
-  out.push({ id: 'picker-close',   x: w / 2 + 46, y: y0 + gridH + 76, r: PICKER.r });
+  const bottom = y0 + gridH + gap;
+  out.push({ id: 'furniture:none', x: w / 2 - gap * 0.62, y: bottom, r });
+  out.push({ id: 'picker-close',   x: w / 2 + gap * 0.62, y: bottom, r });
   return out;
 }
 
@@ -214,6 +234,11 @@ export function drawPicker(ctx, w, h, save, shake) {
   ctx.fillRect(0, 0, w, h);
 
   for (const b of pickerButtons(w, h)) {
+    // Everything inside a button is measured from that button's own radius,
+    // which shrinks on a short screen. Drawing the contents at fixed sizes
+    // would have them spilling out over the edge of the circle they belong to.
+    const k = b.r / 30;
+
     const wobble = shake && shake.id === b.id
       ? Math.sin(shake.amount * 30) * 6 : 0;
     ctx.save();
@@ -227,24 +252,25 @@ export function drawPicker(ctx, w, h, save, shake) {
     if (b.id === 'picker-close') {
       // A tick: done here.
       ctx.strokeStyle = '#3A3A42';
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 5 * k;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(-11, 1); ctx.lineTo(-3, 9); ctx.lineTo(12, -9);
+      ctx.moveTo(-11 * k, 1 * k); ctx.lineTo(-3 * k, 9 * k); ctx.lineTo(12 * k, -9 * k);
       ctx.stroke();
     } else if (b.id === 'furniture:none') {
       // An empty spot: take whatever is here away.
       ctx.strokeStyle = '#9AA0AC';
-      ctx.setLineDash([5, 5]);
-      ctx.lineWidth = 4;
+      ctx.setLineDash([5 * k, 5 * k]);
+      ctx.lineWidth = 4 * k;
       ctx.beginPath();
-      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.arc(0, 0, 15 * k, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.setLineDash([]);
     } else {
       const id = b.id.split(':')[1];
       const owned = isFurnitureUnlocked(id, save);
       ctx.globalAlpha = owned ? 1 : 0.45;
-      drawFurniture(ctx, id, 40);
+      drawFurniture(ctx, id, 40 * k);
       ctx.globalAlpha = 1;
 
       if (!owned) {
@@ -252,13 +278,13 @@ export function drawPicker(ctx, w, h, save, shake) {
         const price = priceOfFurniture(id);
         ctx.fillStyle = '#FFD166';
         ctx.beginPath();
-        ctx.arc(0, b.r - 2, 13, 0, Math.PI * 2);
+        ctx.arc(0, b.r - 2 * k, 13 * k, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#3A3A42';
-        ctx.font = 'bold 15px system-ui, sans-serif';
+        ctx.font = `bold ${Math.round(15 * k)}px system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(String(price), 0, b.r - 1);
+        ctx.fillText(String(price), 0, b.r - 1 * k);
       }
     }
     ctx.restore();
