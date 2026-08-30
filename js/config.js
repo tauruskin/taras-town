@@ -57,7 +57,12 @@ export const CONFIG = {
     MAX_SPOTS: 6,
 
     // Floors, picked per house. Warm and domestic — nothing gloomy.
-    FLOORS: ['#C9A227', '#B98A5A', '#9FB07A', '#C08A7A', '#8FA9B8'],
+    // Two of these used to be the exact colours of things that stand ON them
+    // — one was the furniture wood, one was the plant pot — so those pieces
+    // vanished into the floor. The outline in furniture.js is what really
+    // fixes that, but there is no reason to keep asking it to rescue a
+    // straight collision, so the clashing two are gone.
+    FLOORS: ['#C9A227', '#D9C9A8', '#9FB07A', '#CBA6B0', '#8FA9B8'],
   },
 
   // What can be put in a room. Bought once, then placed as often as he likes

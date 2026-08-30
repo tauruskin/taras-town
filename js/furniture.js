@@ -37,37 +37,62 @@ export function drawFurniture(ctx, id, size) {
   const u = size / 48;
   ctx.save();
 
-  const wood = '#B98A5A';
-  const darkWood = '#8C6A4A';
+  const wood = '#8A5A32';
+  const darkWood = '#5E3D22';
+
+  // Every piece is drawn with a dark outline round it.
+  //
+  // Without one, a piece whose colour happens to match the floor it is
+  // standing on simply is not there: the wood was the exact same brown as one
+  // of the five floors, and a chair bought and placed on that floor showed
+  // nothing but its legs. Chasing the clashes one at a time is hopeless —
+  // nine colours against five floors is forty-five pairs, and every new piece
+  // or new floor adds more. An outline means the shape always reads, whatever
+  // it is standing on and whatever gets added later.
+  ctx.strokeStyle = 'rgba(50,34,22,0.85)';
+  ctx.lineWidth = 2 * u;
+  ctx.lineJoin = 'round';
+  const box = (x, y, w, h) => { ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); };
+  const blob = () => { ctx.fill(); ctx.stroke(); };
 
   if (id === 'stool') {
     ctx.fillStyle = wood;
     ctx.beginPath();
     ctx.ellipse(0, -4 * u, 15 * u, 7 * u, 0, 0, Math.PI * 2);
-    ctx.fill();
+    blob();
     ctx.fillStyle = darkWood;
-    ctx.fillRect(-11 * u, -2 * u, 4 * u, 14 * u);
-    ctx.fillRect(7 * u, -2 * u, 4 * u, 14 * u);
+    box(-11 * u, -2 * u, 4 * u, 14 * u);
+    box(7 * u, -2 * u, 4 * u, 14 * u);
 
   } else if (id === 'chair') {
+    // A wide back across the whole seat, not a single post.
+    //
+    // It was a thin bar up one side, and at this size that read as a stick
+    // standing next to a stool — and the stool is the piece immediately
+    // before this one in the list. Two things he cannot tell apart are worth
+    // less than one, when the only way he can choose is by the picture.
     ctx.fillStyle = '#E07A5F';
-    ctx.fillRect(-13 * u, -18 * u, 5 * u, 20 * u);          // back
+    box(-14 * u, -20 * u, 28 * u, 13 * u);         // the back
+    ctx.fillStyle = darkWood;
+    box(-12 * u, -9 * u, 3 * u, 10 * u);           // the posts holding it up
+    box(9 * u, -9 * u, 3 * u, 10 * u);
+
     ctx.fillStyle = wood;
     ctx.beginPath();
     ctx.ellipse(0, 0, 15 * u, 7 * u, 0, 0, Math.PI * 2);    // seat
-    ctx.fill();
+    blob();
     ctx.fillStyle = darkWood;
-    ctx.fillRect(-11 * u, 2 * u, 4 * u, 14 * u);
-    ctx.fillRect(7 * u, 2 * u, 4 * u, 14 * u);
+    box(-11 * u, 2 * u, 4 * u, 14 * u);
+    box(7 * u, 2 * u, 4 * u, 14 * u);
 
   } else if (id === 'table') {
     ctx.fillStyle = wood;
     ctx.beginPath();
     ctx.ellipse(0, -4 * u, 22 * u, 10 * u, 0, 0, Math.PI * 2);
-    ctx.fill();
+    blob();
     ctx.fillStyle = darkWood;
-    ctx.fillRect(-2 * u, 2 * u, 4 * u, 16 * u);
-    ctx.fillRect(-14 * u, 14 * u, 28 * u, 4 * u);
+    box(-2 * u, 2 * u, 4 * u, 16 * u);
+    box(-14 * u, 14 * u, 28 * u, 4 * u);
 
   } else if (id === 'lamp') {
     ctx.fillStyle = '#FFD166';
@@ -77,10 +102,10 @@ export function drawFurniture(ctx, id, size) {
     ctx.lineTo(8 * u, -20 * u);
     ctx.lineTo(-8 * u, -20 * u);
     ctx.closePath();
-    ctx.fill();
+    blob();
     ctx.fillStyle = darkWood;
-    ctx.fillRect(-2 * u, -4 * u, 4 * u, 20 * u);
-    ctx.fillRect(-9 * u, 14 * u, 18 * u, 4 * u);
+    box(-2 * u, -4 * u, 4 * u, 20 * u);
+    box(-9 * u, 14 * u, 18 * u, 4 * u);
 
   } else if (id === 'plant') {
     ctx.fillStyle = '#7BB661';
@@ -88,7 +113,7 @@ export function drawFurniture(ctx, id, size) {
       ctx.beginPath();
       ctx.ellipse(Math.sin(a) * 9 * u, -12 * u - Math.cos(a) * 5 * u,
                   6 * u, 11 * u, a, 0, Math.PI * 2);
-      ctx.fill();
+      blob();
     }
     ctx.fillStyle = '#C08A7A';
     ctx.beginPath();
@@ -97,40 +122,40 @@ export function drawFurniture(ctx, id, size) {
     ctx.lineTo(7 * u, 16 * u);
     ctx.lineTo(-7 * u, 16 * u);
     ctx.closePath();
-    ctx.fill();
+    blob();
 
   } else if (id === 'shelf') {
     ctx.fillStyle = darkWood;
-    ctx.fillRect(-18 * u, -18 * u, 36 * u, 4 * u);
-    ctx.fillRect(-18 * u, -2 * u, 36 * u, 4 * u);
-    ctx.fillRect(-18 * u, 14 * u, 36 * u, 4 * u);
+    box(-18 * u, -18 * u, 36 * u, 4 * u);
+    box(-18 * u, -2 * u, 36 * u, 4 * u);
+    box(-18 * u, 14 * u, 36 * u, 4 * u);
     const books = ['#E07A5F', '#7BB661', '#6C9BD1', '#FFD166'];
     books.forEach((c, i) => {
       ctx.fillStyle = c;
-      ctx.fillRect((-16 + i * 8) * u, -14 * u, 6 * u, 12 * u);
-      ctx.fillRect((-16 + i * 8) * u, 2 * u, 6 * u, 12 * u);
+      box((-16 + i * 8) * u, -14 * u, 6 * u, 12 * u);
+      box((-16 + i * 8) * u, 2 * u, 6 * u, 12 * u);
     });
 
   } else if (id === 'picture') {
     ctx.fillStyle = darkWood;
-    ctx.fillRect(-18 * u, -14 * u, 36 * u, 28 * u);
+    box(-18 * u, -14 * u, 36 * u, 28 * u);
     ctx.fillStyle = '#BFE3F5';
-    ctx.fillRect(-14 * u, -10 * u, 28 * u, 20 * u);
+    box(-14 * u, -10 * u, 28 * u, 20 * u);
     ctx.fillStyle = '#7BB661';
     ctx.beginPath();
     ctx.moveTo(-14 * u, 10 * u);
     ctx.lineTo(-2 * u, -2 * u);
     ctx.lineTo(10 * u, 10 * u);
     ctx.closePath();
-    ctx.fill();
+    blob();
     ctx.fillStyle = '#FFD166';
     ctx.beginPath();
     ctx.arc(8 * u, -5 * u, 4 * u, 0, Math.PI * 2);
-    ctx.fill();
+    blob();
 
   } else if (id === 'chest') {
     ctx.fillStyle = wood;
-    ctx.fillRect(-18 * u, -6 * u, 36 * u, 22 * u);
+    box(-18 * u, -6 * u, 36 * u, 22 * u);
     ctx.fillStyle = darkWood;
     ctx.beginPath();
     ctx.moveTo(-18 * u, -6 * u);
@@ -138,9 +163,9 @@ export function drawFurniture(ctx, id, size) {
     ctx.lineTo(14 * u, -18 * u);
     ctx.lineTo(-14 * u, -18 * u);
     ctx.closePath();
-    ctx.fill();
+    blob();
     ctx.fillStyle = '#FFD166';
-    ctx.fillRect(-4 * u, -4 * u, 8 * u, 9 * u);
+    box(-4 * u, -4 * u, 8 * u, 9 * u);
   }
 
   ctx.restore();
