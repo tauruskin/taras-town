@@ -32,6 +32,7 @@ import { Net, roomFromUrl } from './net.js';
 import { StartScreen, sanitizeName } from './startscreen.js';
 import { Minimap } from './minimap.js';
 import { registerServiceWorker } from './pwa.js';
+import { roomFor, drawRoom, drawSpots, clampToRoom, onMat, roomPlacement } from './interior.js';
 
 // ---------------------------------------------------------------------------
 // Set-up
@@ -80,11 +81,16 @@ setMuted(save.muted);
 // What the player is doing right now.
 const ON_FOOT = 'foot';
 const DRIVING = 'drive';
+const INSIDE  = 'inside';
 let mode = ON_FOOT;
 let drivenCar = null;      // the Car being driven, or null
 let nearbyCar = null;      // the Car close enough to get into, or null
 let action = null;         // what the action button would do right now
 let shake = null;          // a locked colour wobbling after a failed purchase
+
+// Which room he is in, and the building it belongs to. Both null outdoors.
+let room = null;
+let roomBuilding = null;
 
 let dpr = 1;       // device pixel ratio, capped for performance
 let scale = 1;     // world pixels -> screen pixels
@@ -310,12 +316,38 @@ function update(dt) {
     if (action.kind === 'exit') exitCar();
     else if (action.kind === 'enter') enterCar(action.car);
     else if (action.kind === 'job') takeJob(action.npc);
+    else if (action.kind === 'enter-house') enterHouse(action.building);
+    else if (action.kind === 'leave-house') leaveHouse();
   }
 
   // --- move ------------------------------------------------------------
   if (mapOpen) return;      // looking at the map, not walking about
 
-  if (mode === DRIVING) {
+  if (mode === INSIDE) {
+    // Written out rather than going through player.update(), which collides
+    // against the TOWN — and in here the player's coordinates are the room's,
+    // not the town's. Nothing in a room is solid except the walls.
+    const stick = input.vector;
+    if (stick.mag > 0) {
+      const dist = CONFIG.PLAYER.SPEED * stick.mag * dt;
+      const next = clampToRoom(
+        room,
+        player.x + stick.x * dist,
+        player.y + stick.y * dist,
+        CONFIG.PLAYER.HITBOX / 2,
+      );
+      player.x = next.x;
+      player.y = next.y;
+
+      // Turn to face the joystick by the shortest way round, the same way
+      // Player.update does it.
+      const want = Math.atan2(stick.y, stick.x);
+      let diff = want - player.angle;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      player.angle += diff * Math.min(1, CONFIG.PLAYER.TURN_SPEED * dt);
+    }
+  } else if (mode === DRIVING) {
     drivenCar.update(dt, input.vector, cars.filter((c) => c !== drivenCar));
   } else {
     player.update(dt, input.vector, blockers());
@@ -383,6 +415,43 @@ function update(dt) {
 }
 
 function render() {
+  if (mode === INSIDE) {
+    // Drawn centred on screen rather than through the camera. A room is four
+    // squares deep and fits on the screen whole — a camera that scrolled it
+    // would be motion for nothing, and it would hide the spot he is walking
+    // towards.
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const placed = (save.rooms && save.rooms[room.seed]) || {};
+
+    const { x: rx, y: ry, scale: fit } = roomPlacement(room, w, h);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#2B2F3A';           // the dark beyond the walls
+    ctx.fillRect(0, 0, w, h);
+
+    // Everything from here is in ROOM coordinates, which is also the space
+    // player.x/player.y are in while he is inside — so he draws in the right
+    // place with no conversion.
+    ctx.save();
+    ctx.translate(rx, ry);
+    ctx.scale(fit, fit);
+    drawRoom(ctx, room, placed, clock);
+    player.draw(ctx);
+    drawSpots(ctx, room, placed, clock);
+    ctx.restore();
+
+    // Controls, in screen coordinates, exactly as outdoors.
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawJoystick();
+    drawActionButton();
+    drawSound(w, h);
+    drawMusic(w, h);
+    drawCoinCounter(w, h);
+    effects.draw(ctx);
+    return;
+  }
+
   const view = camera.view;
 
   // --- world, drawn in world coordinates -------------------------------
@@ -656,15 +725,37 @@ function drawCoinCounter(w, h) {
 function findAction() {
   if (mode === DRIVING) return { kind: 'exit' };
 
-  const npc = findNpcWithJob();
-  if (npc && nearbyCar) {
-    const dn = Math.hypot(npc.x - player.x, npc.y - player.y);
-    const dc = Math.hypot(nearbyCar.x - player.x, nearbyCar.y - player.y);
-    return dn <= dc ? { kind: 'job', npc } : { kind: 'enter', car: nearbyCar };
+  // Inside, the one button is the way out — and only when he is on the mat,
+  // so it cannot be pressed by accident from across the room.
+  if (mode === INSIDE) {
+    return onMat(room, player.x, player.y) ? { kind: 'leave-house' } : null;
   }
-  if (npc) return { kind: 'job', npc };
-  if (nearbyCar) return { kind: 'enter', car: nearbyCar };
-  return null;
+
+  const npc = findNpcWithJob();
+  const house = findDoorToEnter();
+
+  // Standing between two things, the nearer one wins — the same rule the car
+  // and the neighbour already settle it by.
+  const options = [];
+  if (npc) options.push({ kind: 'job', npc, d: Math.hypot(npc.x - player.x, npc.y - player.y) });
+  if (nearbyCar) options.push({ kind: 'enter', car: nearbyCar, d: Math.hypot(nearbyCar.x - player.x, nearbyCar.y - player.y) });
+  if (house) options.push({ kind: 'enter-house', building: house.b, d: house.d });
+
+  if (!options.length) return null;
+  options.sort((a, b) => a.d - b.d);
+  return options[0];
+}
+
+/** The nearest house whose door he is standing on, or null. */
+function findDoorToEnter() {
+  let best = null;
+  let bestDist = CONFIG.INTERIOR.ENTER_RADIUS;
+
+  for (const b of world.buildings) {
+    const d = Math.hypot(b.door.x - player.x, b.door.y - player.y);
+    if (d < bestDist) { bestDist = d; best = b; }
+  }
+  return best ? { b: best, d: bestDist } : null;
 }
 
 /** The nearest neighbour close enough to hand out a job. */
@@ -966,6 +1057,33 @@ function findCarToEnter() {
   return best;
 }
 
+function enterHouse(building) {
+  roomBuilding = building;
+  room = roomFor(building);
+  player.x = room.start.x;
+  player.y = room.start.y;
+  player.angle = -Math.PI / 2;      // facing into the room
+  player.speed01 = 0;
+  player.swimming = false;          // left set from outdoors otherwise
+  mode = INSIDE;
+  playAccept();
+}
+
+function leaveHouse() {
+  const b = roomBuilding;
+  // Back onto the doorstep, facing away from the house — the same idea as
+  // being put down beside a car rather than inside it.
+  player.x = b.door.x;
+  player.y = b.door.y;
+  player.angle = Math.PI / 2;
+  player.speed01 = 0;
+
+  room = null;
+  roomBuilding = null;
+  mode = ON_FOOT;
+  persist();
+}
+
 function enterCar(car) {
   drivenCar = car;
   mode = DRIVING;
@@ -1231,8 +1349,8 @@ function drawActionButton() {
 
   // A colour per job, so the button's meaning is readable at a glance even
   // before you look at the picture on it.
-  const colour = action.kind === 'exit' ? '#FF9F45'
-               : action.kind === 'enter' ? '#5AC85A'
+  const colour = action.kind === 'exit' || action.kind === 'leave-house' ? '#FF9F45'
+               : action.kind === 'enter' || action.kind === 'enter-house' ? '#5AC85A'
                : '#4EA8FF';
 
   ctx.save();
@@ -1253,8 +1371,9 @@ function drawActionButton() {
   ctx.stroke();
 
   ctx.translate(b.x, b.y);
-  if (action.kind === 'exit') drawPersonIcon();
+  if (action.kind === 'exit' || action.kind === 'leave-house') drawPersonIcon();
   else if (action.kind === 'enter') drawCarIcon(colour);
+  else if (action.kind === 'enter-house') drawDoorIcon();
   else drawMissionIcon(ctx, action.npc.mission, 22);
 
   ctx.restore();
@@ -1275,6 +1394,13 @@ function drawCarIcon(colour) {
   roundRectPath(-16, 11, 11, 6, 3); ctx.fill();
   roundRectPath(7, -17, 11, 6, 3); ctx.fill();
   roundRectPath(7, 11, 11, 6, 3); ctx.fill();
+}
+
+/** A tiny open doorway, for the "go inside" button. */
+function drawDoorIcon() {
+  ctx.fillStyle = '#FFFFFF';
+  roundRectPath(-13, -18, 26, 36, 8);
+  ctx.fill();
 }
 
 /** A tiny person, for the "get out" button. */

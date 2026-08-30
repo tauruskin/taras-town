@@ -38,6 +38,7 @@ export const CONFIG = {
   // Everything about the insides of houses.
   INTERIOR: {
     DOOR_STEP: 26,     // how far outside the front wall the doorstep sits
+    ENTER_RADIUS: 46,  // how close to a door he must be to walk in
 
     TILE: 96,          // one floor square inside a house
     // How deep every room is, in floor squares. THREE, not four, because the

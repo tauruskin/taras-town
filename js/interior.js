@@ -134,6 +134,31 @@ export function onMat(room, x, y) {
 // Drawing. Everything below here touches a canvas; everything above does not.
 // ---------------------------------------------------------------------------
 
+/**
+ * Where a room sits on screen, and how much it had to shrink to get there.
+ *
+ * Scaled down to fit but never enlarged. A room is sized for an ordinary
+ * phone held sideways, but "ordinary" is not every phone — and the mat is on
+ * the FRONT wall, so a room even slightly taller than the screen puts the
+ * only way out below the bottom of it. A child who cannot get out of a room
+ * is the worst thing this feature could do, so the fit is enforced rather
+ * than assumed.
+ *
+ * Used by the drawing AND by the hit-testing, from here, because a spot drawn
+ * in one place and tapped in another is a bug you cannot see in a screenshot.
+ *
+ * The margins keep the walls clear of the joystick and the action button,
+ * which are drawn on top of the room.
+ */
+export function roomPlacement(room, screenW, screenH) {
+  const scale = Math.min(1, (screenW - 96) / room.w, (screenH - 72) / room.h);
+  return {
+    x: Math.round((screenW - room.w * scale) / 2),
+    y: Math.round((screenH - room.h * scale) / 2),
+    scale,
+  };
+}
+
 /** A rounded rectangle path. Same helper the HUD uses, kept local. */
 function roundRectPath(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
