@@ -646,16 +646,10 @@ const LAND_VEHICLES = CONFIG.VEHICLES
   .filter((i) => i >= 0);
 
 export function createCars(world) {
-  const half = CONFIG.CAR.HITBOX_MAX / 2;
-
-  // Spots on the road, well spread out, and not jammed against scenery.
-  const spots = world.sweepSpots(
-    (kind) => kind === T.ROAD,
-    290,          // close enough that there is usually one in sight
-    0.42,
-    half,
-    2,
-  );
+  // Parked on the pavement beside the road, never in it. Where those spots
+  // are is the world's business, not this file's — the neighbours have to
+  // keep off them too, and only the world can tell them both the same thing.
+  const spots = world.parking.map((p) => ({ ...p }));
 
   // The nearest one to where the player starts goes first and is always an
   // ordinary car: the very first vehicle he ever finds should be easy to
@@ -676,12 +670,10 @@ export function createCars(world) {
   for (let i = 0; i < wanted && i < clearOfSpawn.length; i++) {
     const spot = clearOfSpawn[i];
 
-    // Point the car along the road it is standing on, rather than across it.
+    // Point the car along the road it is parked beside, rather than across it.
     const c = Math.floor(spot.x / world.tile);
     const r = Math.floor(spot.y / world.tile);
-    const across = world.grid[r] && world.grid[r][c - 1] === T.ROAD &&
-                   world.grid[r][c + 1] === T.ROAD;
-    const angle = across ? 0 : Math.PI / 2;
+    const angle = spot.horizontal ? 0 : Math.PI / 2;
 
     // A spread of vehicles, but the first is always the plain one — and only
     // ones with wheels. Picking from the whole list started parking speedboats

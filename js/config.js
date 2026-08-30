@@ -35,6 +35,19 @@ export const CONFIG = {
     EDGE: 16,
   },
 
+  // Where the neighbours stand.
+  //
+  // On the world rather than in npc.js because the parked cars have to keep
+  // off these squares — both want the pavement — and only the world can tell
+  // the two of them the same thing.
+  NEIGHBOURS: {
+    NEAR_START: 4,      // one of each job kind, within a short walk of the start
+    EXTRA: 8,           // and this many more, spread across the rest of town
+    MIN_FROM_SPAWN: 150,
+    NEAR_GAP: 320,      // how far apart the first few stand
+    FAR_GAP: 1100,      // and the rest, so the town does not feel crowded
+  },
+
   // Everything about the insides of houses.
   INTERIOR: {
     DOOR_STEP: 26,     // how far outside the front wall the doorstep sits

@@ -83,6 +83,15 @@ These are the user's, not suggestions:
 - **Other players are never solid.** They push apart instead, and only the one
   who is walking pushes. Making them solid sticks two children together — this
   has been tried and reverted.
+- **Cars park on the pavement, never on the road.** A road is two tiles wide
+  and a car and a driver are about 45px each, so a parked car either side left
+  a gap too narrow to drive through — 15.7% of the driving line was blocked.
+  `world.parking` holds the spots.
+- **`world.neighbourSpots` and `world.parking` both live on the World**, and
+  the neighbours choose first. Both want the pavement, and whoever creates
+  them must not get to decide: a neighbour inside a parked car is a job that
+  cannot be taken. Letting the cars win moved a neighbour behind a hedge and
+  cost a job without any test noticing until the browser suite walked to her.
 - **Every on-screen button's position lives in `js/ui.js`** — `Menu.cornerPos`
   for the four round ones, `Menu.actionPos` for the big one — and their sizes
   come from `CONFIG.UI`. The tests read those. Writing a coordinate into a test
@@ -96,7 +105,7 @@ These are the user's, not suggestions:
 - **Boats are the opposite of cars.** `moveBox`'s terrain argument decides
   which: `'land'` is stopped by water, `'water'` by land. A chosen boat is
   `save.boat`, kept apart from `save.vehicle` so buying a speedboat does not
-  turn the car on the road into one.
+  turn the car parked at the kerb into one.
 
 ## Tests — never run the full suite by default
 

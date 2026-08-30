@@ -123,11 +123,29 @@ export class World {
     // doing it in this order.
     this._collectSolids();
     this._indexSolids();
+
     this._buildHidingPlaces();
     this._buildWaterHidingPlaces();
 
     // A safe spot on the pavement near the middle of town.
     this.spawn = this._findSpawn();
+
+    // Where the neighbours stand, and where the cars park. Both live here
+    // rather than in whoever creates them, because both want the pavement and
+    // must not be given the same square: a neighbour standing inside a parked
+    // car cannot be walked up to or given a job. Deriving both from the world
+    // means they can never disagree, whatever order they are built in and
+    // whichever test builds them.
+    //
+    // Last, because both are measured out from the spawn.
+    //
+    // The neighbours choose first and the cars work round them, not the other
+    // way about. Where a neighbour stands decides whether a job can be found
+    // at all, while a parking space is one of many — there are comfortably
+    // more of those than there are cars to fill them. Doing it the other way
+    // round moved a neighbour behind a hedge and quietly cost a job.
+    this.neighbourSpots = this._findNeighbourSpots();
+    this.parking = this._findParking();
   }
 
   /**
@@ -890,6 +908,87 @@ export class World {
    * @param minOpenness  reject anywhere more hemmed-in than this
    * @param stride       how many squares to skip while sweeping
    */
+  /**
+   * Where cars are parked: on the pavement, beside a road.
+   *
+   * Cars used to stand in the middle of the road, which put every one of them
+   * in the lane you drive down. A road is two tiles wide and a car and a
+   * driver are about forty-five pixels each, so two parked cars left a gap far
+   * too narrow to squeeze between — driving anywhere meant hitting them.
+   *
+   * `horizontal` is which way the road beside the spot runs, which decides
+   * which way the car parked there points. A car parked across the street it
+   * is standing beside looks like it has crashed, not parked.
+   */
+  _findNeighbourSpots() {
+    const N = CONFIG.NEIGHBOURS;
+    const half = CONFIG.PLAYER.HITBOX / 2;
+
+    const spots = this.sweepSpots(
+      (kind) => kind === T.SIDEWALK || kind === T.PARK,
+      150,
+      0.5,
+      half,
+      2,
+    );
+
+    // Nobody stands right on the spawn. Neighbours are solid, and one of them
+    // planted a step north of where the game begins is a wall across the first
+    // direction a child pushes the stick.
+    const byDistance = spots
+      .filter((s) => Math.hypot(s.x - this.spawn.x, s.y - this.spawn.y) > N.MIN_FROM_SPAWN)
+      .sort((a, b) =>
+        Math.hypot(a.x - this.spawn.x, a.y - this.spawn.y) -
+        Math.hypot(b.x - this.spawn.x, b.y - this.spawn.y));
+
+    const chosen = [];
+    const farEnough = (s, gap) => !chosen.some((c) => Math.hypot(c.x - s.x, c.y - s.y) < gap);
+
+    // First, one of each job within a short walk of the start.
+    for (const s of byDistance) {
+      if (chosen.length >= N.NEAR_START) break;
+      if (farEnough(s, N.NEAR_GAP)) chosen.push(s);
+    }
+
+    // Then more, spread right out across the rest of the town. Kept few and
+    // far apart on purpose: a neighbour on every corner would make the place
+    // feel crowded and the jobs feel cheap.
+    for (const s of spots) {
+      if (chosen.length >= N.NEAR_START + N.EXTRA) break;
+      if (Math.hypot(s.x - this.spawn.x, s.y - this.spawn.y) <= N.MIN_FROM_SPAWN) continue;
+      if (farEnough(s, N.FAR_GAP)) chosen.push(s);
+    }
+
+    return chosen;
+  }
+
+  _findParking() {
+    const half = CONFIG.CAR.HITBOX_MAX / 2;
+    const at = (r, c) => (this.grid[r] ? this.grid[r][c] : undefined);
+
+    return this.sweepSpots((kind) => kind === T.SIDEWALK, 290, 0.42, half, 2)
+      // Never on top of somebody. They chose first, and a neighbour inside a
+      // parked car is a job that cannot be taken.
+      .filter((s) => !this.neighbourSpots.some(
+        (n) => Math.abs(n.x - s.x) < 56 && Math.abs(n.y - s.y) < 56))
+      .map((s) => {
+        const c = Math.floor(s.x / this.tile);
+        const r = Math.floor(s.y / this.tile);
+
+        // Only the four square neighbours count. A pavement tile touching a
+        // road at its corner is round the back of a block, and a car tucked in
+        // there is one nobody would ever find.
+        if (at(r, c - 1) === T.ROAD || at(r, c + 1) === T.ROAD) {
+          return { x: s.x, y: s.y, horizontal: false };
+        }
+        if (at(r - 1, c) === T.ROAD || at(r + 1, c) === T.ROAD) {
+          return { x: s.x, y: s.y, horizontal: true };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
   sweepSpots(matches, separation, minOpenness, half, stride = 2) {
     const out = [];
 

@@ -376,7 +376,7 @@ ferry cannot beach its bow while the rest of it floats. `moveBox` takes a
 terrain of `null` (a person, who minds neither), `'land'` or `'water'`.
 
 **Boats are chosen separately from cars.** They share the shop row, but buying a
-speedboat must not turn the car parked on the road into one — so the save
+speedboat must not turn the car parked at the kerb into one — so the save
 remembers a chosen boat *and* a chosen car, and whichever you board takes the
 right one. Boats lie moored in the water from the start whether or not anybody
 owns one, because seeing a speedboat tied up out there is the reason to save for

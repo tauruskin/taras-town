@@ -176,44 +176,10 @@ const PEOPLE = [
  * same kind of job still send you somewhere different each time.
  */
 export function createNpcs(world) {
-  const half = CONFIG.PLAYER.HITBOX / 2;
-
-  const spots = world.sweepSpots(
-    (kind) => kind === T.SIDEWALK || kind === T.PARK,
-    150,
-    0.5,
-    half,
-    2,
-  );
-
-  // Nobody stands right on the spawn. Neighbours are solid, and one of them
-  // planted a step north of where the game begins is a wall across the first
-  // direction a child pushes the stick.
-  const byDistance = spots
-    .filter((s) => Math.hypot(s.x - world.spawn.x, s.y - world.spawn.y) > 150)
-    .sort((a, b) =>
-      Math.hypot(a.x - world.spawn.x, a.y - world.spawn.y) -
-      Math.hypot(b.x - world.spawn.x, b.y - world.spawn.y));
-
-  const chosen = [];
-  const farEnough = (s, gap) => !chosen.some((c) => Math.hypot(c.x - s.x, c.y - s.y) < gap);
-
-  // First, one of each job within a short walk of the start.
-  for (const s of byDistance) {
-    if (chosen.length >= PEOPLE.length) break;
-    if (farEnough(s, 320)) chosen.push(s);
-  }
-
-  // Then more, spread right out across the rest of the town. Kept few and far
-  // apart on purpose: a neighbour on every corner would make the place feel
-  // crowded and the jobs feel cheap.
-  for (const s of spots) {
-    if (chosen.length >= PEOPLE.length + EXTRA_NEIGHBOURS) break;
-    if (Math.hypot(s.x - world.spawn.x, s.y - world.spawn.y) <= 150) continue;
-    if (farEnough(s, 1100)) chosen.push(s);
-  }
-
-  return chosen.map((spot, i) => {
+  // WHERE they stand is the world's business — the parked cars have to keep
+  // off those same squares, and only the world can tell both the same thing.
+  // What is left here is who each of them is.
+  return world.neighbourSpots.map((spot, i) => {
     // The personalities are dealt round, so the extras are not all the same
     // person standing in different places.
     const who = PEOPLE[i % PEOPLE.length];

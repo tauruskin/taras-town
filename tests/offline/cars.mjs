@@ -9,7 +9,12 @@ const cars = createCars(world);
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
 
-// --- 1. every car is parked on a road, clear of scenery -------------------
+// --- 1. every car is parked BESIDE a road, clear of scenery ---------------
+//
+// Beside it, not on it. Cars used to stand in the middle of a road tile, and a
+// road is two tiles wide while a car and a driver are about forty-five pixels
+// each — so a parked car on either side left a gap far too narrow to drive
+// between. The complaint was simply "I always hit them", and it was right.
 console.log(`\n1. ${cars.length} parked cars`);
 cars.forEach((car, i) => {
   const tc = Math.floor(car.x / world.tile);
@@ -21,8 +26,15 @@ cars.forEach((car, i) => {
   if (car.water) {
     if (kind !== T.WATER) fail(`boat ${i} is moored on ${kindName}, not water`);
     if (world.blocksBoat(car.x, car.y, car.half, car.half)) fail(`boat ${i} is aground`);
-  } else if (kind !== T.ROAD) {
-    fail(`car ${i} is parked on ${kindName}, not a road`);
+  } else {
+    if (kind !== T.SIDEWALK) {
+      fail(`car ${i} is parked on ${kindName}, not the pavement`);
+    }
+    // On the pavement but nowhere near a street is a car nobody would find.
+    const at = (r, c) => (world.grid[r] ? world.grid[r][c] : undefined);
+    const nextToRoad = at(tr, tc - 1) === T.ROAD || at(tr, tc + 1) === T.ROAD ||
+                       at(tr - 1, tc) === T.ROAD || at(tr + 1, tc) === T.ROAD;
+    if (!nextToRoad) fail(`car ${i} is parked on a pavement with no road beside it`);
   }
 
   const others = cars.filter(c => c !== car).map(c => c.boundsBox());
@@ -30,7 +42,69 @@ cars.forEach((car, i) => {
     fail(`car ${i} at (${car.x},${car.y}) is overlapping scenery or another car`);
   }
 });
-if (!failures) console.log('   all on roads, none overlapping');
+if (!failures) console.log('   all parked at the kerb, none overlapping');
+
+// --- 1b. and the road itself is clear all the way along -------------------
+//
+// This is the check that actually matters, and the one the old "is it on a
+// road" test could never have caught: drive the centre line of every street in
+// town at the width of the widest thing he can drive, and nothing may be in
+// the way. Before the cars moved off the road this was blocked 15.7% of the
+// time — an obstacle every hundred pixels or so.
+console.log('\n1b. driving every street end to end');
+const drive = CONFIG.CAR.HITBOX_MAX / 2;
+const parked = cars.map((c) => c.boundsBox());
+const inTheWay = (x, y) => parked.some((b) =>
+  x + drive > b.x && x - drive < b.x + b.w &&
+  y + drive > b.y && y - drive < b.y + b.h);
+
+let blocked = 0, samples = 0;
+for (const [r0] of world.hRoads) {
+  const y = (r0 + 1) * world.tile;
+  for (let x = 100; x < world.roadEndCol * world.tile; x += 16) {
+    samples++;
+    if (inTheWay(x, y)) blocked++;
+  }
+}
+for (const [c0] of world.vRoads) {
+  const x = (c0 + 1) * world.tile;
+  for (let y = 100; y < world.height - 100; y += 16) {
+    samples++;
+    if (inTheWay(x, y)) blocked++;
+  }
+}
+if (blocked) fail(`${blocked} of ${samples} points down the middle of the streets are blocked by a parked car`);
+else console.log(`   ${samples} points down the middle of every street, nothing in the way`);
+
+// Nobody may be left standing inside a parked car either. The neighbours want
+// the same pavement, and two of the four job-givers ended up in one the moment
+// the cars moved off the road.
+console.log('\n1c. the neighbours are not inside the cars');
+const { createNpcs } = await import('../../js/npc.js');
+const people = createNpcs(world);
+const personHalf = CONFIG.PLAYER.HITBOX / 2;
+const embedded = people.filter((n) => world._overlaps(n.x, n.y, personHalf, personHalf, parked));
+if (embedded.length) fail(`${embedded.length} of ${people.length} neighbours are standing inside a parked car`);
+else console.log(`   all ${people.length} neighbours are standing in the open`);
+
+// Nor may a parked car seal a front door. Doorsteps are on the pavement too,
+// and since the cars moved onto it they are competing for the same ground —
+// a car across a door is a house he can see the door of and never get into.
+console.log('\n1d. no parked car is blocking a front door');
+const canReachDoor = (b) => {
+  for (let a = 0; a < 24; a++) {
+    for (const rad of [0, 14, 28, 42]) {
+      if (rad > CONFIG.INTERIOR.ENTER_RADIUS) continue;
+      const x = b.door.x + Math.cos((a / 24) * Math.PI * 2) * rad;
+      const y = b.door.y + Math.sin((a / 24) * Math.PI * 2) * rad;
+      if (!world._overlaps(x, y, personHalf, personHalf, parked)) return true;
+    }
+  }
+  return false;
+};
+const sealed = world.buildings.filter((b) => !canReachDoor(b));
+if (sealed.length) fail(`${sealed.length} houses have a car across the door (seeds ${sealed.map((b) => b.seed).join(', ')})`);
+else console.log(`   all ${world.buildings.length} front doors still reachable`);
 
 // --- 2. the player can reach every car on foot ----------------------------
 // (a car walled in by trees would be a car he can never drive)
