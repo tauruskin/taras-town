@@ -249,6 +249,25 @@ export function drawRoom(ctx, room, placed, clock, drawPiece = () => {}) {
     }
   }
 
+  // What he has put here, drawn back to front so a piece nearer the camera
+  // overlaps one behind it.
+  const order = room.spots
+    .map((s, i) => ({ s, i }))
+    .filter(({ i }) => placed && placed[i])
+    .sort((a, b) => a.s.y - b.s.y);
+
+  for (const { s, i } of order) {
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    // A soft shadow so a piece sits ON the floor rather than floating over it.
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.beginPath();
+    ctx.ellipse(0, 16, 20, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    drawPiece(ctx, placed[i], 48);
+    ctx.restore();
+  }
+
   // The way out. A mat, so it reads as a doorway from the inside.
   ctx.fillStyle = '#8C6A4A';
   roundRectPath(ctx, room.mat.x, room.mat.y, room.mat.w, room.mat.h, 6);

@@ -33,6 +33,8 @@ import { StartScreen, sanitizeName } from './startscreen.js';
 import { Minimap } from './minimap.js';
 import { registerServiceWorker } from './pwa.js';
 import { roomFor, drawRoom, drawSpots, clampToRoom, onMat, roomPlacement } from './interior.js';
+import { FURNITURE, priceOfFurniture, isFurnitureUnlocked,
+         drawFurniture, drawPicker, pickerButtons } from './furniture.js';
 
 // ---------------------------------------------------------------------------
 // Set-up
@@ -91,6 +93,9 @@ let shake = null;          // a locked colour wobbling after a failed purchase
 // Which room he is in, and the building it belongs to. Both null outdoors.
 let room = null;
 let roomBuilding = null;
+
+// Which spot he is choosing furniture for, or null when the picker is shut.
+let pickingSpot = null;
 
 let dpr = 1;       // device pixel ratio, capped for performance
 let scale = 1;     // world pixels -> screen pixels
@@ -306,6 +311,13 @@ function update(dt) {
     return;
   }
 
+  if (mode === INSIDE) {
+    handleInsidePresses();
+    // With the picker up, nothing else in the room responds — not the action
+    // button, not the joystick.
+    if (pickingSpot !== null) return;
+  }
+
   if (input.consumePress('menu-open')) {
     menu.open = true;
     return;
@@ -443,7 +455,7 @@ function render() {
     ctx.save();
     ctx.translate(rx, ry);
     ctx.scale(fit, fit);
-    drawRoom(ctx, room, placed, clock);
+    drawRoom(ctx, room, placed, clock, drawFurniture);
     player.draw(ctx);
     drawSpots(ctx, room, placed, clock);
     ctx.restore();
@@ -455,6 +467,7 @@ function render() {
     drawSound(w, h);
     drawMusic(w, h);
     drawCoinCounter(w, h);
+    if (pickingSpot !== null) drawPicker(ctx, w, h, save, shake);
     effects.draw(ctx);
     return;
   }
@@ -1218,6 +1231,35 @@ function refreshButtons() {
     return;
   }
 
+  if (mode === INSIDE) {
+    // The picker owns the screen while it is open.
+    if (pickingSpot !== null) {
+      input.setButtons(pickerButtons(w, h));
+      return;
+    }
+    // Otherwise: the spots, plus the controls he always has.
+    //
+    // Placed through roomPlacement so that a spot is tapped exactly where it
+    // was drawn. The room is scaled to fit the screen, so the radius has to be
+    // scaled with it — a spot drawn small on a squat screen but hit-tested at
+    // full size would swallow taps meant for its neighbour.
+    const place = roomPlacement(room, w, h);
+    const spots = room.spots.map((s, i) => ({
+      id: `spot:${i}`,
+      x: place.x + s.x * place.scale,
+      y: place.y + s.y * place.scale,
+      r: CONFIG.INTERIOR.SPOT_R * place.scale,
+    }));
+    const action = actionButtonPos();
+    input.setButtons([
+      ...spots,
+      { id: 'action', x: action.x, y: action.y, r: action.r },
+      soundButton,
+      musicButton,
+    ]);
+    return;
+  }
+
   // While the menu is open it owns the whole screen — except the sound
   // button, which stays where it is.
   if (menu.open) {
@@ -1245,6 +1287,64 @@ function refreshButtons() {
   list.push({ id: 'minimap', x: m.x, y: m.y, r: m.r });
 
   input.setButtons(list);
+}
+
+/**
+ * A tap inside a house: a glowing spot, or a choice in the picker.
+ *
+ * Mirrors handleMenuPresses — while the picker is open it takes every press
+ * and nothing else in the room responds, which is the same rule the shop menu
+ * follows.
+ */
+function handleInsidePresses() {
+  if (pickingSpot !== null) {
+    if (input.consumePress('picker-close')) { pickingSpot = null; return; }
+    if (input.consumePress('furniture:none')) { placeFurniture(pickingSpot, null); return; }
+    for (const f of FURNITURE) {
+      if (input.consumePress(`furniture:${f.id}`)) { chooseFurniture(f.id); return; }
+    }
+    return;
+  }
+
+  for (let i = 0; i < room.spots.length; i++) {
+    if (input.consumePress(`spot:${i}`)) { pickingSpot = i; return; }
+  }
+}
+
+/** Buy it if it isn't owned yet, then put it in the spot he tapped. */
+function chooseFurniture(furnitureId) {
+  if (!isFurnitureUnlocked(furnitureId, save)) {
+    const price = priceOfFurniture(furnitureId);
+    if (save.coins < price) {
+      // Not enough yet. Say so by wobbling it and making an unhappy noise —
+      // never with a message, which he could not read anyway. Same as the shop.
+      shake = { id: `furniture:${furnitureId}`, amount: 0.45 };
+      playDenied();
+      return;
+    }
+    save.coins -= price;
+    save.unlocked.furniture.push(furnitureId);
+    playSuccess();
+    effects.celebrate(canvas.clientWidth / 2, canvas.clientHeight / 2, 0, 40);
+  }
+  placeFurniture(pickingSpot, furnitureId);
+}
+
+/** Put a piece in a spot, or clear it with null. */
+function placeFurniture(spotIndex, furnitureId) {
+  if (spotIndex === null) return;
+  if (!save.rooms[room.seed]) save.rooms[room.seed] = {};
+  const inThisRoom = save.rooms[room.seed];
+
+  if (furnitureId === null) delete inThisRoom[spotIndex];
+  else inThisRoom[spotIndex] = furnitureId;
+
+  // A room he has emptied should not keep a slot in the save forever.
+  if (Object.keys(inThisRoom).length === 0) delete save.rooms[room.seed];
+
+  pickingSpot = null;
+  playPickup();
+  persist();
 }
 
 /**

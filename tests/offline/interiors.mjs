@@ -148,9 +148,25 @@ const ctx = new Proxy({}, {
   set() { return true; },
 });
 
-let drew = 0;
-for (const room of rooms) { drawRoom(ctx, room, {}, 0, () => {}); drew++; }
-check(`drew all ${drew} rooms with no NaN (${calls} canvas calls)`, drew === rooms.length);
+// Destructured under different names because the furniture section further
+// down imports the same module again — reusing the names there would be a
+// redeclaration, and referring to those ones from up here would be a temporal
+// dead zone error.
+const { drawFurniture: drawPieceForTest, FURNITURE: catalogForTest } =
+  await import('../../js/furniture.js');
+
+let drewFilled = 0;
+for (const room of rooms) {
+  // Once empty, and once with every spot filled — a room full of furniture is
+  // a different code path from an empty one, and it is the one he will
+  // actually be looking at.
+  drawRoom(ctx, room, {}, 0, drawPieceForTest);
+  const full = {};
+  room.spots.forEach((_, i) => { full[i] = catalogForTest[i % catalogForTest.length].id; });
+  drawRoom(ctx, room, full, 0, drawPieceForTest);
+  drewFilled++;
+}
+check(`drew all ${drewFilled} rooms empty and full, with no NaN`, drewFilled === rooms.length);
 
 // --- furniture -------------------------------------------------------------
 const { FURNITURE, priceOfFurniture, isFurnitureUnlocked, drawFurniture } =

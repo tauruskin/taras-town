@@ -170,3 +170,98 @@ export function drawFurniture(ctx, id, size) {
 
   ctx.restore();
 }
+
+// ---------------------------------------------------------------------------
+// The picker: a compact overlay for choosing one piece.
+//
+// Deliberately NOT the full-screen shop. The shop is for changing what he
+// wears; this appears where he tapped, shows pictures and prices, and gets out
+// of the way. Two different jobs, two different shapes.
+// ---------------------------------------------------------------------------
+
+const PICKER = { r: 30, gap: 74, cols: 4, padY: 26 };
+
+/** Where each choice sits, given the screen size. Also used for hit-testing. */
+export function pickerButtons(w, h) {
+  const rows = Math.ceil(FURNITURE.length / PICKER.cols);
+  const gridW = (PICKER.cols - 1) * PICKER.gap;
+  const gridH = (rows - 1) * PICKER.gap;
+  const x0 = w / 2 - gridW / 2;
+  const y0 = h / 2 - gridH / 2 + PICKER.padY;
+
+  const out = FURNITURE.map((f, i) => ({
+    id: `furniture:${f.id}`,
+    x: x0 + (i % PICKER.cols) * PICKER.gap,
+    y: y0 + Math.floor(i / PICKER.cols) * PICKER.gap,
+    r: PICKER.r,
+  }));
+
+  // Clearing the spot, and closing without choosing.
+  out.push({ id: 'furniture:none', x: w / 2 - 46, y: y0 + gridH + 76, r: PICKER.r });
+  out.push({ id: 'picker-close',   x: w / 2 + 46, y: y0 + gridH + 76, r: PICKER.r });
+  return out;
+}
+
+/**
+ * @param save   for coins and what has been bought
+ * @param shake  { id, amount } — a locked piece being wobbled after a failed
+ *               purchase, which is how "not enough coins yet" is said without
+ *               any words
+ */
+export function drawPicker(ctx, w, h, save, shake) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(20,24,34,0.72)';
+  ctx.fillRect(0, 0, w, h);
+
+  for (const b of pickerButtons(w, h)) {
+    const wobble = shake && shake.id === b.id
+      ? Math.sin(shake.amount * 30) * 6 : 0;
+    ctx.save();
+    ctx.translate(b.x + wobble, b.y);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(0, 0, b.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (b.id === 'picker-close') {
+      // A tick: done here.
+      ctx.strokeStyle = '#3A3A42';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-11, 1); ctx.lineTo(-3, 9); ctx.lineTo(12, -9);
+      ctx.stroke();
+    } else if (b.id === 'furniture:none') {
+      // An empty spot: take whatever is here away.
+      ctx.strokeStyle = '#9AA0AC';
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      const id = b.id.split(':')[1];
+      const owned = isFurnitureUnlocked(id, save);
+      ctx.globalAlpha = owned ? 1 : 0.45;
+      drawFurniture(ctx, id, 40);
+      ctx.globalAlpha = 1;
+
+      if (!owned) {
+        // A coin and a number. Digits are the one kind of text he reads.
+        const price = priceOfFurniture(id);
+        ctx.fillStyle = '#FFD166';
+        ctx.beginPath();
+        ctx.arc(0, b.r - 2, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#3A3A42';
+        ctx.font = 'bold 15px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(price), 0, b.r - 1);
+      }
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
