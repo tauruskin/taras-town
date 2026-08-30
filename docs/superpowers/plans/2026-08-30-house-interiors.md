@@ -833,7 +833,44 @@ In `js/main.js`, in `update(dt)`, replace the movement block at lines 318-323:
   }
 ```
 
-- [ ] **Step 7: Draw the room**
+- [ ] **Step 7: Work out where the room sits on screen — once**
+
+Both the drawing and the tap-testing need to know where the room landed and
+how much it was scaled by. Two copies of that sum is how a glowing spot ends
+up somewhere other than where it is drawn, so it is one function.
+
+Add to `js/interior.js`, at the top of the drawing half:
+
+```js
+/**
+ * Where a room sits on screen, and how much it had to shrink to get there.
+ *
+ * Scaled down to fit but never enlarged. A room is sized for an ordinary
+ * phone held sideways, but "ordinary" is not every phone — and the mat is on
+ * the FRONT wall, so a room even slightly taller than the screen puts the
+ * only way out below the bottom of it. A child who cannot get out of a room
+ * is the worst thing this feature could do, so the fit is enforced rather
+ * than assumed.
+ *
+ * Used by the drawing AND by the hit-testing, from here, because a spot drawn
+ * in one place and tapped in another is a bug you cannot see in a screenshot.
+ *
+ * The margins keep the walls clear of the joystick and the action button,
+ * which are drawn on top of the room.
+ */
+export function roomPlacement(room, screenW, screenH) {
+  const scale = Math.min(1, (screenW - 96) / room.w, (screenH - 72) / room.h);
+  return {
+    x: Math.round((screenW - room.w * scale) / 2),
+    y: Math.round((screenH - room.h * scale) / 2),
+    scale,
+  };
+}
+```
+
+Add `roomPlacement` to the import in `js/main.js`.
+
+- [ ] **Step 8: Draw the room**
 
 In `render()`, add an inside branch as the **first** thing in the function,
 before the camera and world drawing begin:
@@ -846,9 +883,9 @@ before the camera and world drawing begin:
     // towards.
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    const rx = Math.round((w - room.w) / 2);
-    const ry = Math.round((h - room.h) / 2);
     const placed = (save.rooms && save.rooms[room.seed]) || {};
+
+    const { x: rx, y: ry, scale: fit } = roomPlacement(room, w, h);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#2B2F3A';           // the dark beyond the walls
@@ -859,6 +896,7 @@ before the camera and world drawing begin:
     // place with no conversion.
     ctx.save();
     ctx.translate(rx, ry);
+    ctx.scale(fit, fit);
     drawRoom(ctx, room, placed, clock, drawFurniture);
     player.draw(ctx);
     drawSpots(ctx, room, placed, clock);
@@ -1451,13 +1489,17 @@ In `refreshButtons()` (`js/main.js:1069`), add an inside branch before the `menu
       return;
     }
     // Otherwise: the spots, plus the controls he always has.
-    const rx = (w - room.w) / 2;
-    const ry = (h - room.h) / 2;
+    //
+    // Placed through roomPlacement so that a spot is tapped exactly where it
+    // was drawn. The room is scaled to fit the screen, so the radius has to be
+    // scaled with it — a spot drawn small on a squat screen but hit-tested at
+    // full size would swallow taps meant for its neighbour.
+    const place = roomPlacement(room, w, h);
     const spots = room.spots.map((s, i) => ({
       id: `spot:${i}`,
-      x: rx + s.x,
-      y: ry + s.y,
-      r: CONFIG.INTERIOR.SPOT_R,
+      x: place.x + s.x * place.scale,
+      y: place.y + s.y * place.scale,
+      r: CONFIG.INTERIOR.SPOT_R * place.scale,
     }));
     const action = actionButtonPos();
     input.setButtons([

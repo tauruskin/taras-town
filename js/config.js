@@ -40,7 +40,14 @@ export const CONFIG = {
     DOOR_STEP: 26,     // how far outside the front wall the doorstep sits
 
     TILE: 96,          // one floor square inside a house
-    ROWS: 4,           // how deep every room is, in floor squares
+    // How deep every room is, in floor squares. THREE, not four, because the
+    // phone is held sideways: four rows made a room 384px tall, which is
+    // taller than an iPhone SE in landscape is high. The mat is on the front
+    // wall, so an overflowing room put the only way out below the bottom of
+    // the screen — a room a child could walk into and not get out of.
+    // The room is also scaled to fit in main.js, which covers the sizes this
+    // still does not, but it should not need rescuing on an ordinary phone.
+    ROWS: 3,
     WALL: 30,          // the band of wall drawn across the back
     MAT: { w: 84, h: 34 },   // the way out, on the front wall
     SPOT_R: 26,        // a decorating spot's radius

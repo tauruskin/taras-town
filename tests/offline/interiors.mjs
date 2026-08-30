@@ -83,6 +83,25 @@ check('rooms vary between houses',
   new Set(rooms.map((r) => `${r.w}x${r.floor}x${r.spots.length}`)).size > 3,
   'every house generated the same room');
 
+// A room has to fit on the phone, and this is not a detail — the mat is on the
+// FRONT wall, so a room taller than the screen puts the only way out below the
+// bottom of it. That is a room he can walk into and not get out of.
+//
+// 320 is an iPhone SE held sideways, the smallest ordinary phone this game is
+// played on. Anything squatter than that is rescued by the scale-to-fit in
+// main.js; nothing should need rescuing on a real phone.
+const SMALLEST_PHONE_HEIGHT = 320;
+check(`every room fits on a ${SMALLEST_PHONE_HEIGHT}px-high screen without scaling`,
+  rooms.every((r) => r.h <= SMALLEST_PHONE_HEIGHT),
+  `tallest room is ${Math.max(...rooms.map((r) => r.h))}px`);
+
+// And the way out must be inside the room it belongs to, however the room is
+// shaped — a mat hanging off the bottom edge is unreachable.
+check('the way out is inside every room',
+  rooms.every((r) => r.mat.y >= 0 && r.mat.y + r.mat.h <= r.h &&
+                     r.mat.x >= 0 && r.mat.x + r.mat.w <= r.w),
+  'a mat hangs outside its room');
+
 // --- drawing must not throw, and must never pass NaN to a canvas -----------
 const { drawRoom } = await import('../../js/interior.js');
 console.log('\ndrawing');

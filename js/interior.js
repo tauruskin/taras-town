@@ -60,10 +60,16 @@ export function roomFor(building) {
   // looks like somebody lives in it rather than like an empty box. They are
   // not removable and they are not solid.
   const bedLeft = hash(s + 57, 19) < 0.5;
-  const fixed = [
-    { kind: 'bed', x: bedLeft ? 16 : w - 16 - 78, y: C.WALL + 12, w: 78, h: 122 },
-    { kind: 'rug', x: w / 2 - 62, y: h / 2 - 30, w: 124, h: 68 },
-  ];
+  const bed = { kind: 'bed', x: bedLeft ? 16 : w - 16 - 78, y: C.WALL + 12, w: 78, h: 122 };
+
+  // The rug lies on the floor BELOW the bed, not beside it. Beside it, the two
+  // overlapped by a corner in the narrowest rooms — invisible while the rug was
+  // a faint smudge, and obviously wrong the moment it was solid enough to see.
+  // Measuring from the bed rather than from the middle of the room means it
+  // stays clear however the room is proportioned.
+  const rug = { kind: 'rug', x: w / 2 - 62, y: bed.y + bed.h + 8, w: 124, h: 68 };
+
+  const fixed = [bed, rug];
 
   // Decorating spots: every floor square that is clear, then the best few by a
   // deterministic roll, then sorted so the order NEVER wobbles — the save
@@ -195,9 +201,16 @@ export function drawRoom(ctx, room, placed, clock, drawPiece = () => {}) {
   // The fixed pieces, under everything he places.
   for (const f of room.fixed) {
     if (f.kind === 'rug') {
-      ctx.fillStyle = 'rgba(255,255,255,0.30)';
+      // Solid, with a border. At 30% white it was a faint smudge on the floor
+      // and did not read as a rug at all — which defeats the only reason the
+      // fixed pieces exist, which is that an undecorated room should still
+      // look like somebody lives in it.
+      ctx.fillStyle = 'rgba(255,255,255,0.62)';
       roundRectPath(ctx, f.x, f.y, f.w, f.h, 18);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
     } else {
       ctx.fillStyle = '#E8EDF2';                     // mattress
       roundRectPath(ctx, f.x, f.y, f.w, f.h, 8);
