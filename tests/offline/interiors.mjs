@@ -29,9 +29,35 @@ check('every door sits on the bottom edge, horizontally centred',
   world.buildings.every((b) => Math.abs(b.door.x - (b.x + b.w / 2)) < 0.01),
   'a door is not centred on its building');
 
-check('every door sits just outside the front wall',
-  world.buildings.every((b) => b.door.y > b.y + b.h && b.door.y < b.y + b.h + 64),
-  'a door is inside the building or too far from it');
+check('every door sits just outside the wall it is on',
+  world.buildings.every((b) => b.doorSide === 'front'
+    ? b.door.y > b.y + b.h && b.door.y < b.y + b.h + 64
+    : b.door.y < b.y && b.door.y > b.y - 64),
+  'a door is inside its building or too far from it');
+
+// The one that matters. Houses are built in rows back to back, and a door on
+// the wrong wall opens into the house behind — 17 of the 53 did, and those
+// houses could not be walked up to at all. Jobs never noticed because they
+// quietly skip a doorstep they cannot stand on, so a third of the town was
+// undeliverable too and the only symptom was deliveries never going there.
+//
+// This asks the only question that matters: can he actually get to it?
+const half = CONFIG.PLAYER.HITBOX / 2;
+const reachable = (b) => {
+  for (let a = 0; a < 24; a++) {
+    for (const rad of [0, 14, 28, 42]) {
+      if (rad > CONFIG.INTERIOR.ENTER_RADIUS) continue;
+      const x = b.door.x + Math.cos((a / 24) * Math.PI * 2) * rad;
+      const y = b.door.y + Math.sin((a / 24) * Math.PI * 2) * rad;
+      if (!world._overlaps(x, y, half, half)) return true;
+    }
+  }
+  return false;
+};
+const shut = world.buildings.filter((b) => !reachable(b));
+check('every house can actually be walked up to and entered',
+  shut.length === 0,
+  `${shut.length} of ${world.buildings.length} are sealed shut (seeds ${shut.map((b) => b.seed).join(', ')})`);
 
 // --- rooms -----------------------------------------------------------------
 const { roomFor } = await import('../../js/interior.js');
