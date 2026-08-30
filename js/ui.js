@@ -529,8 +529,8 @@ export function drawSoundButton(ctx, x, y, r, on, held) {
     ctx.lineWidth = 4 * u;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(5 * u, -10 * u);
-    ctx.lineTo(15 * u, 10 * u);
+    ctx.moveTo(-9 * u, -9 * u);
+    ctx.lineTo(6 * u, 9 * u);
     ctx.stroke();
   }
   ctx.restore();
