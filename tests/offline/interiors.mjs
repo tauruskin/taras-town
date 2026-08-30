@@ -7,7 +7,14 @@ const { World } = await import('../../js/world.js');
 const { CONFIG } = await import('../../js/config.js');
 
 let fail = 0;
-const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
+// The third argument is what went WRONG, so it is only printed when something
+// did. menu-buttons.mjs passes a string that happens to be empty on success
+// and so gets away with always printing it; these checks pass a fixed message,
+// which on a passing line would read as though the test had just failed.
+const check = (l, ok, d) => {
+  if (!ok) fail++;
+  console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (!ok && d ? ': ' + d : ''));
+};
 
 const world = new World();
 

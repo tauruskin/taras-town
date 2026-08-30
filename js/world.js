@@ -342,11 +342,22 @@ export class World {
           // and an alley is a fine place to hide.
           if (hash(tx + 57, ty + 91) > 0.16) {
             const slot = (i * 3) % CONFIG.ROOF_PALETTE.length;
+
+            // Worked out once and used for both the footprint and the door.
+            // An object literal cannot refer to its own fields, so writing the
+            // door out in full would mean the same arithmetic twice — and a
+            // door that quietly stops matching the house it belongs to is the
+            // exact bug this field exists to prevent.
+            const bx = tx * tile;
+            const by = ty * tile;
+            const bw = tw * tile;
+            const bh = 3 * tile;
+
             this.buildings.push({
-              x: tx * tile,
-              y: ty * tile,
-              w: tw * tile,
-              h: 3 * tile,
+              x: bx,
+              y: by,
+              w: bw,
+              h: bh,
               wall: CONFIG.WALL_PALETTE[slot],
               roof: CONFIG.ROOF_PALETTE[slot],
               // Roughly one in five is a shop, which gets a sign over the door.
@@ -356,10 +367,7 @@ export class World {
               // rather than recomputed by each of them — two copies of this
               // number is how a delivery ends up at a different door from the
               // one you can walk through.
-              door: {
-                x: tx * tile + (tw * tile) / 2,
-                y: ty * tile + 3 * tile + CONFIG.INTERIOR.DOOR_STEP,
-              },
+              door: { x: bx + bw / 2, y: by + bh + CONFIG.INTERIOR.DOOR_STEP },
               seed: i,
             });
             i++;
