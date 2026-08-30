@@ -152,5 +152,34 @@ let drew = 0;
 for (const room of rooms) { drawRoom(ctx, room, {}, 0, () => {}); drew++; }
 check(`drew all ${drew} rooms with no NaN (${calls} canvas calls)`, drew === rooms.length);
 
+// --- furniture -------------------------------------------------------------
+const { FURNITURE, priceOfFurniture, isFurnitureUnlocked, drawFurniture } =
+  await import('../../js/furniture.js');
+console.log('\nfurniture');
+
+check('the catalog is not empty', FURNITURE.length > 0);
+
+check('every piece has a unique id',
+  new Set(FURNITURE.map((f) => f.id)).size === FURNITURE.length,
+  'two pieces share an id, so they would share a save slot');
+
+check('at least two pieces are free',
+  FURNITURE.filter((f) => priceOfFurniture(f.id) === 0).length >= 2,
+  'an empty purse could not decorate anything');
+
+check('a free piece is unlocked with no save at all',
+  isFurnitureUnlocked('stool', { coins: 0, unlocked: {} }) === true);
+
+check('a paid piece is locked until it is bought',
+  isFurnitureUnlocked('chest', { coins: 0, unlocked: { furniture: [] } }) === false &&
+  isFurnitureUnlocked('chest', { coins: 0, unlocked: { furniture: ['chest'] } }) === true);
+
+check('an unknown id is never unlocked',
+  isFurnitureUnlocked('nonsense', { coins: 999, unlocked: { furniture: [] } }) === false);
+
+let drewFurniture = 0;
+for (const f of FURNITURE) { drawFurniture(ctx, f.id, 40); drewFurniture++; }
+check(`drew all ${drewFurniture} pieces with no NaN`, drewFurniture === FURNITURE.length);
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL INTERIOR CHECKS PASSED');
 process.exit(fail ? 1 : 0);

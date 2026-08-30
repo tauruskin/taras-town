@@ -60,6 +60,23 @@ export const CONFIG = {
     FLOORS: ['#C9A227', '#B98A5A', '#9FB07A', '#C08A7A', '#8FA9B8'],
   },
 
+  // What can be put in a room. Bought once, then placed as often as he likes
+  // in as many houses as he likes — buying a chair means he owns chairs.
+  // Paying per placement would make every tap a small risk, which is the
+  // opposite of what decorating should feel like at six.
+  //
+  // The first two are free so an empty purse can still change something.
+  FURNITURE: [
+    { id: 'stool',   price: 0 },
+    { id: 'chair',   price: 0 },
+    { id: 'table',   price: 12 },
+    { id: 'lamp',    price: 12 },
+    { id: 'plant',   price: 18 },
+    { id: 'shelf',   price: 18 },
+    { id: 'picture', price: 24 },
+    { id: 'chest',   price: 24 },
+  ],
+
   PLAYER: {
     SPEED: 175,        // pixels per second at full joystick push
     SWIM_SPEED: 0.62,  // how much of that speed he manages in the water
