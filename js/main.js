@@ -32,6 +32,9 @@ import { Net, roomFromUrl } from './net.js';
 import { StartScreen, sanitizeName } from './startscreen.js';
 import { Minimap } from './minimap.js';
 import { registerServiceWorker } from './pwa.js';
+import { roomFor, drawRoom, drawSpots, clampToRoom, onMat, roomPlacement } from './interior.js';
+import { FURNITURE, priceOfFurniture, isFurnitureUnlocked,
+         drawFurniture, drawPicker, pickerButtons } from './furniture.js';
 
 // ---------------------------------------------------------------------------
 // Set-up
@@ -80,11 +83,19 @@ setMuted(save.muted);
 // What the player is doing right now.
 const ON_FOOT = 'foot';
 const DRIVING = 'drive';
+const INSIDE  = 'inside';
 let mode = ON_FOOT;
 let drivenCar = null;      // the Car being driven, or null
 let nearbyCar = null;      // the Car close enough to get into, or null
 let action = null;         // what the action button would do right now
 let shake = null;          // a locked colour wobbling after a failed purchase
+
+// Which room he is in, and the building it belongs to. Both null outdoors.
+let room = null;
+let roomBuilding = null;
+
+// Which spot he is choosing furniture for, or null when the picker is shut.
+let pickingSpot = null;
 
 let dpr = 1;       // device pixel ratio, capped for performance
 let scale = 1;     // world pixels -> screen pixels
@@ -300,6 +311,13 @@ function update(dt) {
     return;
   }
 
+  if (mode === INSIDE) {
+    handleInsidePresses();
+    // With the picker up, nothing else in the room responds — not the action
+    // button, not the joystick.
+    if (pickingSpot !== null) return;
+  }
+
   if (input.consumePress('menu-open')) {
     menu.open = true;
     return;
@@ -310,12 +328,45 @@ function update(dt) {
     if (action.kind === 'exit') exitCar();
     else if (action.kind === 'enter') enterCar(action.car);
     else if (action.kind === 'job') takeJob(action.npc);
+    else if (action.kind === 'enter-house') enterHouse(action.building);
+    else if (action.kind === 'leave-house') leaveHouse();
   }
 
   // --- move ------------------------------------------------------------
   if (mapOpen) return;      // looking at the map, not walking about
 
-  if (mode === DRIVING) {
+  if (mode === INSIDE) {
+    // Written out rather than going through player.update(), which collides
+    // against the TOWN — and in here the player's coordinates are the room's,
+    // not the town's. Nothing in a room is solid except the walls.
+    const stick = input.vector;
+    if (stick.mag > 0) {
+      const dist = CONFIG.PLAYER.SPEED * stick.mag * dt;
+      const next = clampToRoom(
+        room,
+        player.x + stick.x * dist,
+        player.y + stick.y * dist,
+        CONFIG.PLAYER.HITBOX / 2,
+      );
+      player.x = next.x;
+      player.y = next.y;
+
+      // Turn to face the joystick by the shortest way round, the same way
+      // Player.update does it.
+      const want = Math.atan2(stick.y, stick.x);
+      let diff = want - player.angle;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      player.angle += diff * Math.min(1, CONFIG.PLAYER.TURN_SPEED * dt);
+      player.walkPhase += dt * CONFIG.PLAYER.BOB_SPEED * stick.mag;
+    }
+
+    // The arm and leg swing, smoothed the same way Player.update smooths it.
+    // Without this he slides around the room like a chess piece — the walk is
+    // most of what makes him look like a person rather than a sprite.
+    player.speed01 += (stick.mag - player.speed01) * Math.min(1, 12 * dt);
+    if (player.speed01 < 0.02) player.speed01 = 0;
+  } else if (mode === DRIVING) {
     drivenCar.update(dt, input.vector, cars.filter((c) => c !== drivenCar));
   } else {
     player.update(dt, input.vector, blockers());
@@ -383,6 +434,45 @@ function update(dt) {
 }
 
 function render() {
+  if (mode === INSIDE) {
+    // Drawn centred on screen rather than through the camera. A room is three
+    // squares deep and fits on the screen whole — a camera that scrolled it
+    // would be motion for nothing, and it would hide the spot he is walking
+    // towards.
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const placed = (save.rooms && save.rooms[room.seed]) || {};
+
+    const { x: rx, y: ry, scale: fit } = roomPlacement(room, w, h);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#2B2F3A';           // the dark beyond the walls
+    ctx.fillRect(0, 0, w, h);
+
+    // Everything from here is in ROOM coordinates, which is also the space
+    // player.x/player.y are in while he is inside — so he draws in the right
+    // place with no conversion.
+    ctx.save();
+    ctx.translate(rx, ry);
+    ctx.scale(fit, fit);
+    drawRoom(ctx, room, placed, clock, drawFurniture);
+    player.draw(ctx);
+    drawSpots(ctx, room, placed, clock);
+    ctx.restore();
+
+    // Controls, in screen coordinates, exactly as outdoors.
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawJoystick();
+    drawActionButton();
+    drawSound(w, h);
+    drawMusic(w, h);
+    drawHome(w, h);
+    drawCoinCounter(w, h);
+    if (pickingSpot !== null) drawPicker(ctx, w, h, save, shake);
+    effects.draw(ctx);
+    return;
+  }
+
   const view = camera.view;
 
   // --- world, drawn in world coordinates -------------------------------
@@ -656,15 +746,37 @@ function drawCoinCounter(w, h) {
 function findAction() {
   if (mode === DRIVING) return { kind: 'exit' };
 
-  const npc = findNpcWithJob();
-  if (npc && nearbyCar) {
-    const dn = Math.hypot(npc.x - player.x, npc.y - player.y);
-    const dc = Math.hypot(nearbyCar.x - player.x, nearbyCar.y - player.y);
-    return dn <= dc ? { kind: 'job', npc } : { kind: 'enter', car: nearbyCar };
+  // Inside, the one button is the way out — and only when he is on the mat,
+  // so it cannot be pressed by accident from across the room.
+  if (mode === INSIDE) {
+    return onMat(room, player.x, player.y) ? { kind: 'leave-house' } : null;
   }
-  if (npc) return { kind: 'job', npc };
-  if (nearbyCar) return { kind: 'enter', car: nearbyCar };
-  return null;
+
+  const npc = findNpcWithJob();
+  const house = findDoorToEnter();
+
+  // Standing between two things, the nearer one wins — the same rule the car
+  // and the neighbour already settle it by.
+  const options = [];
+  if (npc) options.push({ kind: 'job', npc, d: Math.hypot(npc.x - player.x, npc.y - player.y) });
+  if (nearbyCar) options.push({ kind: 'enter', car: nearbyCar, d: Math.hypot(nearbyCar.x - player.x, nearbyCar.y - player.y) });
+  if (house) options.push({ kind: 'enter-house', building: house.b, d: house.d });
+
+  if (!options.length) return null;
+  options.sort((a, b) => a.d - b.d);
+  return options[0];
+}
+
+/** The nearest house whose door he is standing on, or null. */
+function findDoorToEnter() {
+  let best = null;
+  let bestDist = CONFIG.INTERIOR.ENTER_RADIUS;
+
+  for (const b of world.buildings) {
+    const d = Math.hypot(b.door.x - player.x, b.door.y - player.y);
+    if (d < bestDist) { bestDist = d; best = b; }
+  }
+  return best ? { b: best, d: bestDist } : null;
 }
 
 /** The nearest neighbour close enough to hand out a job. */
@@ -775,6 +887,11 @@ function updateGhosts(dt) {
 
 function drawGhosts(ctx, view) {
   for (const g of ghosts.values()) {
+    // Somebody who has gone indoors is not on the street. Drawing them at the
+    // last position they sent leaves a friend standing frozen on a doorstep
+    // for as long as they are in there.
+    if (g.mode === INSIDE) continue;
+
     if (g.x < view.x - 120 || g.x > view.x + view.w + 120) continue;
     if (g.y < view.y - 120 || g.y > view.y + view.h + 120) continue;
 
@@ -830,6 +947,9 @@ function drawNameplates(view) {
   // Everybody else first, so that where two players stand on the same spot our
   // own name ends up on top and he can always find himself.
   for (const g of ghosts.values()) {
+    // Indoors, so not drawn — and a name with nobody under it is worse than
+    // no name, because it says somebody is standing there.
+    if (g.mode === INSIDE) continue;
     plate(g.x, g.y, g.mode === DRIVING ? g.car.length / 2 + 18 : 38, g.name);
   }
 
@@ -885,6 +1005,10 @@ function separateIfInsideSomebody(dt) {
 
   for (const g of ghosts.values()) {
     if (g.mode === DRIVING) continue;
+    // Nor by somebody indoors. Being shoved aside on an empty pavement by a
+    // friend who is in the house beside you would be baffling — and there is
+    // nobody there to shove out into the open, which is what this is for.
+    if (g.mode === INSIDE) continue;
 
     const dx = player.x - g.x;
     const dy = player.y - g.y;
@@ -964,6 +1088,33 @@ function findCarToEnter() {
     if (d < bestDist) { bestDist = d; best = car; }
   }
   return best;
+}
+
+function enterHouse(building) {
+  roomBuilding = building;
+  room = roomFor(building);
+  player.x = room.start.x;
+  player.y = room.start.y;
+  player.angle = -Math.PI / 2;      // facing into the room
+  player.speed01 = 0;
+  player.swimming = false;          // left set from outdoors otherwise
+  mode = INSIDE;
+  playAccept();
+}
+
+function leaveHouse() {
+  const b = roomBuilding;
+  // Back onto the doorstep, facing away from the house — the same idea as
+  // being put down beside a car rather than inside it.
+  player.x = b.door.x;
+  player.y = b.door.y;
+  player.angle = Math.PI / 2;
+  player.speed01 = 0;
+
+  room = null;
+  roomBuilding = null;
+  mode = ON_FOOT;
+  persist();
 }
 
 function enterCar(car) {
@@ -1081,6 +1232,44 @@ function refreshButtons() {
     return;
   }
 
+  if (mode === INSIDE) {
+    // The picker owns the screen while it is open.
+    if (pickingSpot !== null) {
+      input.setButtons(pickerButtons(w, h));
+      return;
+    }
+    // Otherwise: the spots, plus the controls he always has.
+    //
+    // Placed through roomPlacement so that a spot is tapped exactly where it
+    // was drawn. The room is scaled to fit the screen, so the radius has to be
+    // scaled with it — a spot drawn small on a squat screen but hit-tested at
+    // full size would swallow taps meant for its neighbour.
+    const place = roomPlacement(room, w, h);
+    const spots = room.spots.map((s, i) => ({
+      id: `spot:${i}`,
+      x: place.x + s.x * place.scale,
+      y: place.y + s.y * place.scale,
+      r: CONFIG.INTERIOR.SPOT_R * place.scale,
+    }));
+    // Home comes inside with him.
+    //
+    // The shop and the map are no use in a bedroom and are left outside, but
+    // the way out of the game is not a convenience — it is the escape hatch.
+    // Without it the ONLY way out of a room is finding the mat, and a child
+    // who has not worked out that the mat is a door is simply stuck in a
+    // house with no way back to anything he recognises.
+    const action = actionButtonPos();
+    const home = Menu.homePos(w, h);
+    input.setButtons([
+      ...spots,
+      { id: 'action', x: action.x, y: action.y, r: action.r },
+      soundButton,
+      musicButton,
+      { id: 'menu-home', x: home.x, y: home.y, r: home.r },
+    ]);
+    return;
+  }
+
   // While the menu is open it owns the whole screen — except the sound
   // button, which stays where it is.
   if (menu.open) {
@@ -1108,6 +1297,64 @@ function refreshButtons() {
   list.push({ id: 'minimap', x: m.x, y: m.y, r: m.r });
 
   input.setButtons(list);
+}
+
+/**
+ * A tap inside a house: a glowing spot, or a choice in the picker.
+ *
+ * Mirrors handleMenuPresses — while the picker is open it takes every press
+ * and nothing else in the room responds, which is the same rule the shop menu
+ * follows.
+ */
+function handleInsidePresses() {
+  if (pickingSpot !== null) {
+    if (input.consumePress('picker-close')) { pickingSpot = null; return; }
+    if (input.consumePress('furniture:none')) { placeFurniture(pickingSpot, null); return; }
+    for (const f of FURNITURE) {
+      if (input.consumePress(`furniture:${f.id}`)) { chooseFurniture(f.id); return; }
+    }
+    return;
+  }
+
+  for (let i = 0; i < room.spots.length; i++) {
+    if (input.consumePress(`spot:${i}`)) { pickingSpot = i; return; }
+  }
+}
+
+/** Buy it if it isn't owned yet, then put it in the spot he tapped. */
+function chooseFurniture(furnitureId) {
+  if (!isFurnitureUnlocked(furnitureId, save)) {
+    const price = priceOfFurniture(furnitureId);
+    if (save.coins < price) {
+      // Not enough yet. Say so by wobbling it and making an unhappy noise —
+      // never with a message, which he could not read anyway. Same as the shop.
+      shake = { id: `furniture:${furnitureId}`, amount: 0.45 };
+      playDenied();
+      return;
+    }
+    save.coins -= price;
+    save.unlocked.furniture.push(furnitureId);
+    playSuccess();
+    effects.celebrate(canvas.clientWidth / 2, canvas.clientHeight / 2, 0, 40);
+  }
+  placeFurniture(pickingSpot, furnitureId);
+}
+
+/** Put a piece in a spot, or clear it with null. */
+function placeFurniture(spotIndex, furnitureId) {
+  if (spotIndex === null) return;
+  if (!save.rooms[room.seed]) save.rooms[room.seed] = {};
+  const inThisRoom = save.rooms[room.seed];
+
+  if (furnitureId === null) delete inThisRoom[spotIndex];
+  else inThisRoom[spotIndex] = furnitureId;
+
+  // A room he has emptied should not keep a slot in the save forever.
+  if (Object.keys(inThisRoom).length === 0) delete save.rooms[room.seed];
+
+  pickingSpot = null;
+  playPickup();
+  persist();
 }
 
 /**
@@ -1231,8 +1478,8 @@ function drawActionButton() {
 
   // A colour per job, so the button's meaning is readable at a glance even
   // before you look at the picture on it.
-  const colour = action.kind === 'exit' ? '#FF9F45'
-               : action.kind === 'enter' ? '#5AC85A'
+  const colour = action.kind === 'exit' || action.kind === 'leave-house' ? '#FF9F45'
+               : action.kind === 'enter' || action.kind === 'enter-house' ? '#5AC85A'
                : '#4EA8FF';
 
   ctx.save();
@@ -1253,8 +1500,9 @@ function drawActionButton() {
   ctx.stroke();
 
   ctx.translate(b.x, b.y);
-  if (action.kind === 'exit') drawPersonIcon();
+  if (action.kind === 'exit' || action.kind === 'leave-house') drawPersonIcon();
   else if (action.kind === 'enter') drawCarIcon(colour);
+  else if (action.kind === 'enter-house') drawDoorIcon();
   else drawMissionIcon(ctx, action.npc.mission, 22);
 
   ctx.restore();
@@ -1275,6 +1523,13 @@ function drawCarIcon(colour) {
   roundRectPath(-16, 11, 11, 6, 3); ctx.fill();
   roundRectPath(7, -17, 11, 6, 3); ctx.fill();
   roundRectPath(7, 11, 11, 6, 3); ctx.fill();
+}
+
+/** A tiny open doorway, for the "go inside" button. */
+function drawDoorIcon() {
+  ctx.fillStyle = '#FFFFFF';
+  roundRectPath(-13, -18, 26, 36, 8);
+  ctx.fill();
 }
 
 /** A tiny person, for the "get out" button. */

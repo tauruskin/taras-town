@@ -110,6 +110,9 @@ export class World {
     this._plan();
     this._buildGrid();
     this._buildBuildings();
+    // Which wall each front door is on. A separate pass because it depends on
+    // where the NEIGHBOURS ended up, so every building has to exist first.
+    this._placeDoors();
     this._buildParkProps();
     this._buildTrees();
 
@@ -321,6 +324,16 @@ export class World {
     }
   }
 
+  /**
+   * The houses, in rows, block by block.
+   *
+   * DO NOT REORDER THIS. Each building's `seed` is simply the order it was
+   * made in, and since interiors arrived that number is no longer only about
+   * how the town looks — it is the key his furniture is saved under. Change
+   * the order houses are generated in and every child's chairs and tables
+   * move into somebody else's house. Adding houses at the END is safe;
+   * inserting, removing or resorting is not.
+   */
   _buildBuildings() {
     const tile = this.tile;
     let i = 0;
@@ -342,15 +355,31 @@ export class World {
           // and an alley is a fine place to hide.
           if (hash(tx + 57, ty + 91) > 0.16) {
             const slot = (i * 3) % CONFIG.ROOF_PALETTE.length;
+
+            // Worked out once and used for both the footprint and the door.
+            // An object literal cannot refer to its own fields, so writing the
+            // door out in full would mean the same arithmetic twice — and a
+            // door that quietly stops matching the house it belongs to is the
+            // exact bug this field exists to prevent.
+            const bx = tx * tile;
+            const by = ty * tile;
+            const bw = tw * tile;
+            const bh = 3 * tile;
+
             this.buildings.push({
-              x: tx * tile,
-              y: ty * tile,
-              w: tw * tile,
-              h: 3 * tile,
+              x: bx,
+              y: by,
+              w: bw,
+              h: bh,
               wall: CONFIG.WALL_PALETTE[slot],
               roof: CONFIG.ROOF_PALETTE[slot],
               // Roughly one in five is a shop, which gets a sign over the door.
               shop: hash(tx + 13, ty + 29) < 0.2,
+              // Which wall the door is on, and the point outside it. Filled in
+              // by _placeDoors() once every building exists, because which
+              // side works depends on what got built behind this one.
+              doorSide: null,
+              door: null,
               seed: i,
             });
             i++;
@@ -358,6 +387,44 @@ export class World {
           tx += tw + 1;     // a one-tile gap between neighbours
         }
       }
+    }
+  }
+
+  /**
+   * Which wall each front door is on, and the standing point outside it.
+   *
+   * Houses go up in rows back to back with no gap between them, so a door on
+   * the south wall of a house in the row behind opens straight into the house
+   * in front. Seventeen of the fifty-three did exactly that, and those houses
+   * could not be walked up to at all.
+   *
+   * Nothing caught it for a long time because jobs quietly dropped any
+   * doorstep they could not stand on — so a third of the town was silently
+   * undeliverable as well, and the only symptom was that deliveries never
+   * seemed to go to those streets.
+   *
+   * So the side is chosen per house rather than assumed: the front if there is
+   * room to stand there, the back if there is not. Neither is possible for a
+   * house wedged between two others, and that one keeps its front door and
+   * stays shut — better than a door on a wall with no way to reach it.
+   */
+  _placeDoors() {
+    const step = CONFIG.INTERIOR.DOOR_STEP;
+
+    // Room to stand means not inside any building, with a little margin so a
+    // doorstep flush against a neighbour's wall does not count.
+    const clear = (x, y) => !this.buildings.some(
+      (o) => x > o.x - 10 && x < o.x + o.w + 10 &&
+             y > o.y - 10 && y < o.y + o.h + 10);
+
+    for (const b of this.buildings) {
+      const mid = b.x + b.w / 2;
+      const front = { x: mid, y: b.y + b.h + step };
+      const back = { x: mid, y: b.y - step };
+
+      const useFront = clear(front.x, front.y) || !clear(back.x, back.y);
+      b.doorSide = useFront ? 'front' : 'back';
+      b.door = useFront ? front : back;
     }
   }
 
@@ -1217,8 +1284,13 @@ export class World {
       roundRect(ctx, rx + rw - 30, ry + 8, 20, 20, 5);
       ctx.fill();
 
+      // The door is painted on whichever wall it is actually on. Drawing it
+      // always on the front looked tidier, but for the houses whose door had
+      // to move to the back it meant walking up to a painted door and having
+      // nothing happen — the one thing a picture must never do in this game.
       ctx.fillStyle = '#7B4B2A';
-      roundRect(ctx, b.x + b.w / 2 - 15, b.y + b.h - 17, 30, 13, 5);
+      const doorY = b.doorSide === 'back' ? b.y + 4 : b.y + b.h - 17;
+      roundRect(ctx, b.x + b.w / 2 - 15, doorY, 30, 13, 5);
       ctx.fill();
     }
   }

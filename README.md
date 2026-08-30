@@ -51,7 +51,7 @@ and four things in the corners.
 
 | Where | What |
 |---|---|
-| Bottom right | The action button — get in and out of a car or boat, take a job. |
+| Bottom right | The action button — get in and out of a car or boat, take a job, **go into a house and come back out**. |
 | Top right | Four round buttons: a house (back to the opening screen), a **note** (music), a **speaker** (sound effects), and a palette (the shop). |
 | Below those | A round map of where you are. Tap it for the whole town. |
 | Top left | How many coins you have. |
@@ -145,6 +145,8 @@ the old version after that, pull down to refresh the page.
 | `js/audio.js` | Little sounds, generated live. There are no sound files. |
 | `js/music.js` | The background music, also generated live. Also no files. |
 | `js/save.js` | Saving progress. Every read and write is wrapped in try/catch so a broken or empty save can never stop the game starting. |
+| `js/interior.js` | The insides of houses: how a room is generated from its building, how it is drawn, and where you may stand in it. |
+| `js/furniture.js` | What can be put in a room, what each piece costs, how each is drawn, and the picker for choosing one. |
 | `js/vendor/` | The one piece of third-party code. See the README in there. |
 | `tests/` | Everything that checks the game still works. See the README in there. |
 | `manifest.json` / `sw.js` / `js/pwa.js` | What makes the game installable and playable offline. |
@@ -207,6 +209,57 @@ Collision goes through a coarse grid of buckets rather than walking the whole
 list of walls. With twelve times as many walls as the old hand-drawn map, it is
 **faster** than it used to be: 200,000 overlap tests went from 20ms to under
 10ms, with roughly nine times as many walls to check.
+
+## Inside the houses
+
+Every one of the 53 buildings can be walked into. Stand on the doorstep and the
+action button turns green with a door on it; press it and you are in the room.
+Press it again on the mat by the front wall and you are back on the same
+doorstep.
+
+**A room is not a place on the map.** It is a separate space with its own
+coordinates, entered by switching mode, with its own camera and its own
+collision. That is deliberate: an interior carved into the town's tile grid is
+one bad step away from walking out through a wall into the middle of a solid
+block.
+
+**Rooms are generated, never stored.** Size, wall colour, floor, window,
+bed and rug all come from the building's seed by the same hash the town uses,
+so all 53 have their own inside and not one byte is saved for them. Only the
+furniture he puts down is written to the save, and only for houses he has
+actually touched — a house he has never decorated does not appear in the save
+at all.
+
+Which wall a door is on is worked out per house rather than assumed. Houses go
+up in rows back to back with no gap, so a door always on the south wall put 17
+of the 53 doors inside the house in front — those houses could not be reached
+at all, and jobs had been quietly skipping them for as long as jobs existed.
+
+Nothing in a room is solid except the walls. Not the bed, not the rug, not a
+chair he has placed. Being wedged behind furniture in a room with one way out
+is worse than any amount of realism.
+
+### Decorating
+
+Each room has four to six glowing spots. Tapping one opens a picker of
+furniture; tapping a piece drops it in. Snapping to spots rather than dragging
+is what makes it work with a thumb — it is always tidy and needs no precision.
+
+**Furniture is bought once and then placed freely**, as often as he likes in as
+many houses as he likes. Buying a chair means he owns chairs. Paying per
+placement would make every tap a small financial risk, which is the opposite of
+what decorating should feel like at six. The first two pieces are free so an
+empty purse can still change something.
+
+Every piece is drawn with a dark outline. Without one, a piece whose colour
+happened to match the floor it stood on simply vanished — the wood was the
+exact same brown as one of the floors, and a chair bought and placed in such a
+house showed nothing but its legs.
+
+Decoration never leaves the phone. There is no message for it and there is not
+going to be one: in a shared game each player sees their own rooms, and someone
+who goes indoors stops being drawn on the street rather than standing frozen on
+a doorstep.
 
 ## Where the game starts
 

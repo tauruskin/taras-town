@@ -65,8 +65,7 @@ export class Missions {
   // =====================================================================
 
   /**
-   * One doorstep per house, taken from the buildings themselves: the door is
-   * drawn on a building's bottom edge, so the step is just below it.
+   * One doorstep per house, taken from the door the building already carries.
    *
    * Anything that can't be stood on, or is too cramped, is dropped. Add a
    * building to the town and it gets a delivery address for free.
@@ -76,12 +75,9 @@ export class Missions {
     const out = [];
 
     for (const b of this.world.buildings) {
-      const x = b.x + b.w / 2;
-      const y = b.y + b.h + 26;
-
       // A small search radius on purpose: if the doorstep isn't nearly where
       // the door is, this isn't a doorstep and we'd rather not use it.
-      const spot = this.world.findFreeSpot(x, y, half, null, 40);
+      const spot = this.world.findFreeSpot(b.door.x, b.door.y, half, null, 40);
       if (!spot) continue;
       if (this.world.openness(spot.x, spot.y, half) < MIN_OPENNESS) continue;
 

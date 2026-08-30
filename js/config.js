@@ -35,6 +35,53 @@ export const CONFIG = {
     EDGE: 16,
   },
 
+  // Everything about the insides of houses.
+  INTERIOR: {
+    DOOR_STEP: 26,     // how far outside the front wall the doorstep sits
+    ENTER_RADIUS: 46,  // how close to a door he must be to walk in
+
+    TILE: 96,          // one floor square inside a house
+    // How deep every room is, in floor squares. THREE, not four, because the
+    // phone is held sideways: four rows made a room 384px tall, which is
+    // taller than an iPhone SE in landscape is high. The mat is on the front
+    // wall, so an overflowing room put the only way out below the bottom of
+    // the screen — a room a child could walk into and not get out of.
+    // The room is also scaled to fit in main.js, which covers the sizes this
+    // still does not, but it should not need rescuing on an ordinary phone.
+    ROWS: 3,
+    WALL: 30,          // the band of wall drawn across the back
+    MAT: { w: 84, h: 34 },   // the way out, on the front wall
+    SPOT_R: 26,        // a decorating spot's radius
+
+    MIN_SPOTS: 4,
+    MAX_SPOTS: 6,
+
+    // Floors, picked per house. Warm and domestic — nothing gloomy.
+    // Two of these used to be the exact colours of things that stand ON them
+    // — one was the furniture wood, one was the plant pot — so those pieces
+    // vanished into the floor. The outline in furniture.js is what really
+    // fixes that, but there is no reason to keep asking it to rescue a
+    // straight collision, so the clashing two are gone.
+    FLOORS: ['#C9A227', '#D9C9A8', '#9FB07A', '#CBA6B0', '#8FA9B8'],
+  },
+
+  // What can be put in a room. Bought once, then placed as often as he likes
+  // in as many houses as he likes — buying a chair means he owns chairs.
+  // Paying per placement would make every tap a small risk, which is the
+  // opposite of what decorating should feel like at six.
+  //
+  // The first two are free so an empty purse can still change something.
+  FURNITURE: [
+    { id: 'stool',   price: 0 },
+    { id: 'chair',   price: 0 },
+    { id: 'table',   price: 12 },
+    { id: 'lamp',    price: 12 },
+    { id: 'plant',   price: 18 },
+    { id: 'shelf',   price: 18 },
+    { id: 'picture', price: 24 },
+    { id: 'chest',   price: 24 },
+  ],
+
   PLAYER: {
     SPEED: 175,        // pixels per second at full joystick push
     SWIM_SPEED: 0.62,  // how much of that speed he manages in the water
