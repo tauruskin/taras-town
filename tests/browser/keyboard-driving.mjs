@@ -2,6 +2,12 @@
 // press Space to get out. Also grabs a close-up of the player for the hat.
 import { writeFileSync } from 'node:fs';
 import { makeWalker, town, nearestCar } from './_helpers.mjs';
+// Where the action button is, asked of the game. Sampling a colour at a
+// coordinate written down here goes silently wrong the moment the button moves
+// or changes size: the pixel read is then the town behind it, which is never
+// the colour being looked for.
+const { Menu: _Menu } = await import('../../js/ui.js');
+
 const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
@@ -28,9 +34,10 @@ const VK = { w:87, a:65, s:83, d:68, ' ':32 };
 const key = (t, k) => send('Input.dispatchKeyEvent', { type: t, key: k,
   code: k === ' ' ? 'Space' : 'Key' + k.toUpperCase(), windowsVirtualKeyCode: VK[k], nativeVirtualKeyCode: VK[k] });
 
+const _ACT = _Menu.actionPos(844, 390);
 const btn = () => ev(`(() => { const c=document.getElementById('game'), g=c.getContext('2d');
   const dpr=c.width/parseFloat(c.style.width);
-  const d=g.getImageData(Math.round((parseFloat(c.style.width)-96)*dpr), Math.round((parseFloat(c.style.height)-92-34)*dpr),1,1).data;
+  const d=g.getImageData(Math.round(${_ACT.x}*dpr), Math.round((${_ACT.y} - ${_ACT.r} * 0.74)*dpr),1,1).data;
   return d[0]+','+d[1]+','+d[2]; })()`);
 const near = (s,r,g,b,t=26) => { const [R,G,B]=s.split(',').map(Number); return Math.abs(R-r)<=t&&Math.abs(G-g)<=t&&Math.abs(B-b)<=t; };
 const state = s => near(s,90,200,90) ? 'CAN-ENTER' : near(s,255,159,69) ? 'DRIVING' : 'no button';

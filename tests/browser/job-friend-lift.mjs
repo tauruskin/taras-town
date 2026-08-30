@@ -26,6 +26,12 @@ const shoot = async n => { const s = await send('Page.captureScreenshot', { form
 
 await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
 const W = 844, H = 390;
+
+// Where the buttons are, asked of the game rather than written down here.
+// Coordinates typed into a test go wrong the moment a button moves or changes
+// size, and they do not fail loudly — the tap simply lands on the town behind.
+const { Menu: _Menu } = await import('../../js/ui.js');
+const _ACTION = _Menu.actionPos(W, H);
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 2, mobile: true });
 await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
 await send('Page.navigate', { url: 'about:blank' }); await sleep(400);
@@ -46,7 +52,7 @@ const near = (s, r, g, b, t = 22) => {
   return Math.abs(R - r) <= t && Math.abs(G - g) <= t && Math.abs(B - b) <= t;
 };
 const btnState = async () => {
-  const c = await pixel(W - 96, H - 92 - 34);
+  const c = await pixel(_ACTION.x, _ACTION.y - _ACTION.r * 0.74);
   return near(c, 90, 200, 90) ? 'ENTER-CAR'
        : near(c, 255, 159, 69) ? 'EXIT-CAR'
        : near(c, 78, 168, 255) ? 'JOB' : 'none';
@@ -66,7 +72,7 @@ const push = async (vx, vy, ms) => {
   await sleep(110);
 };
 const tapButton = async () => {
-  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: W - 96, y: H - 92, id: 1 }] });
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: _ACTION.x, y: _ACTION.y, id: 1 }] });
   await sleep(90);
   await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await sleep(400);

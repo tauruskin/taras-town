@@ -12,6 +12,12 @@ const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
 const TAG = process.argv[3] || 'main-menu-button';
 const ROOM = '4821';
 
+// Where the buttons are, asked of the game rather than written down here.
+// Coordinates typed into a test go wrong the moment a button moves or changes
+// size, and they do not fail loudly — the tap simply lands on the town behind.
+const { Menu: _Menu } = await import('../../js/ui.js');
+
+
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
 const ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
 await new Promise((r) => ws.addEventListener('open', r));
@@ -93,8 +99,8 @@ const size = JSON.parse(await ev(`(() => {
   const c = document.getElementById('game');
   return JSON.stringify({ w: parseFloat(c.style.width), h: parseFloat(c.style.height) });
 })()`));
-const HOME = { x: size.w - 180, y: 52 };
-const OPENER = { x: size.w - 52, y: 52 };
+const HOME = _Menu.homePos(size.w, size.h);
+const OPENER = _Menu.openerPos(size.w, size.h);
 
 /** Is the opening screen showing? */
 const onStartScreen = () => ev(`(() => {

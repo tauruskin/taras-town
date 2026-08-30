@@ -20,7 +20,7 @@ import { Player } from './player.js';
 import { Car, createCars } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
-import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawNameplate } from './ui.js';
+import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawMusicButton, drawNameplate } from './ui.js';
 import { createNpcs } from './npc.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
@@ -108,6 +108,9 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 150));
 // The opening screen decides who we are playing with, then hands over.
 const fromUrl = roomFromUrl();
 const minimap = new Minimap(world);
+
+// Is the whole-town map open? Tapping the little one in the corner opens it.
+let mapOpen = false;
 const startScreenUi = new StartScreen(startGame, save.name);
 if (fromUrl) {
   // A link that already names a room has made the choice for us; asking
@@ -165,7 +168,7 @@ function startGame(chosenRoom, chosenName) {
 
   // The music starts with the game. This tap is the only moment a phone will
   // allow any sound at all, so it has to be started here rather than later.
-  setMusicMuted(save.muted);
+  setMusicMuted(save.musicMuted);
   startMusic();
 
   // Both of these are unsupported on iPhone Safari and will simply do
@@ -270,8 +273,18 @@ function update(dt) {
   action = findAction();
   refreshButtons();
 
-  // The sound button works whether the menu is open or shut.
+  // The sound and music buttons work whether the menu is open or shut.
   if (input.consumePress('sound')) toggleSound();
+  if (input.consumePress('music')) toggleMusic();
+
+  // The whole-town map. Opened by tapping the little one, closed by tapping
+  // anywhere at all — a child should never have to find a particular spot to
+  // get back to the game.
+  if (mapOpen) {
+    if (input.consumePress('map-close')) mapOpen = false;
+    return;
+  }
+  if (input.consumePress('minimap')) { mapOpen = true; return; }
 
   // So does the way home. It is on the playing screen as well as in the menu,
   // so that leaving a game you are playing with somebody else is one tap and
@@ -300,6 +313,8 @@ function update(dt) {
   }
 
   // --- move ------------------------------------------------------------
+  if (mapOpen) return;      // looking at the map, not walking about
+
   if (mode === DRIVING) {
     drivenCar.update(dt, input.vector, cars.filter((c) => c !== drivenCar));
   } else {
@@ -426,6 +441,15 @@ function render() {
   // the buttons, which must never be obscured by somebody else's long name.
   if (net) drawNameplates(view);
 
+  if (mapOpen) {
+    // Nothing else on screen. The corner buttons are not pressable while the
+    // map is up — a tap anywhere closes it — so drawing them would be showing
+    // controls that do not work.
+    minimap.drawFull(ctx, w, h, mode === DRIVING ? drivenCar : player, view);
+    effects.draw(ctx);
+    return;
+  }
+
   if (menu.open) {
     menu.draw(ctx, w, h,
       { hat: save.hat, shirt: save.shirt, car: save.car,
@@ -435,6 +459,7 @@ function render() {
     // something while your total is hidden is no decision at all.
     drawCoinCounter(w, h);
     drawSound(w, h);
+    drawMusic(w, h);
     drawHome(w, h);
     effects.draw(ctx);
     return;
@@ -444,10 +469,11 @@ function render() {
   drawActionButton();
   menu.drawOpener(ctx, w, h, input.isHeld('menu-open'));
   drawSound(w, h);
+  drawMusic(w, h);
   drawHome(w, h);
   drawWaypointArrow(w, h);
   drawCoinCounter(w, h);
-  minimap.draw(ctx, w, h, mode === DRIVING ? drivenCar : player, mode === DRIVING);
+  minimap.draw(ctx, w, h, mode === DRIVING ? drivenCar : player, mode === DRIVING, view);
   drawPlayerCount(w, h);
   effects.draw(ctx);
 }
@@ -455,6 +481,12 @@ function render() {
 function drawSound(w, h) {
   const b = soundButtonPos();
   drawSoundButton(ctx, b.x, b.y, b.r, !save.muted, input.isHeld('sound'));
+}
+
+/** The music button, beside the speaker. */
+function drawMusic(w, h) {
+  const b = musicButtonPos();
+  drawMusicButton(ctx, b.x, b.y, b.r, !save.musicMuted, input.isHeld('music'));
 }
 
 /** The way out of the game, shown only while the menu is open. */
@@ -969,12 +1001,25 @@ function exitCar() {
 function toggleSound() {
   save.muted = !save.muted;
   setMuted(save.muted);
-  // One button for everything, music included. Two buttons would be tidier
-  // for an adult and worse for a 6-year-old, who wants "make it quiet".
-  setMusicMuted(save.muted);
   // A little pip on the way back on, so you can hear that it worked. Nothing
   // on the way off, for obvious reasons.
   if (!save.muted) playPickup();
+  persist();
+}
+
+/**
+ * The music on and off, on its own.
+ *
+ * Separate from the sound effects because they are separate wishes: the pings
+ * tell you something happened, the music is just there. Wanting one without
+ * the other is ordinary, and a single button could not say which.
+ */
+function toggleMusic() {
+  save.musicMuted = !save.musicMuted;
+  setMusicMuted(save.musicMuted);
+  // A pip when it comes back on, the same as the sound button gives — as long
+  // as the effects themselves are not silenced.
+  if (!save.musicMuted && !save.muted) playPickup();
   persist();
 }
 
@@ -1007,16 +1052,17 @@ function findExitSpot(car) {
  * mute button.
  */
 function soundButtonPos() {
-  return { x: canvas.clientWidth - 116, y: 52, r: 26 };
+  return Menu.cornerPos(canvas.clientWidth, canvas.clientHeight, 1);
+}
+
+/** The music button sits next to the speaker, since they are a pair. */
+function musicButtonPos() {
+  return Menu.cornerPos(canvas.clientWidth, canvas.clientHeight, 2);
 }
 
 /** Where the big action button sits, in screen pixels. */
 function actionButtonPos() {
-  return {
-    x: canvas.clientWidth - 96,
-    y: canvas.clientHeight - 92,
-    r: 46,
-  };
+  return Menu.actionPos(canvas.clientWidth, canvas.clientHeight);
 }
 
 /** Tell the input layer which buttons are live this frame. */
@@ -1026,12 +1072,20 @@ function refreshButtons() {
 
   const sound = soundButtonPos();
   const soundButton = { id: 'sound', x: sound.x, y: sound.y, r: sound.r };
+  const mus = musicButtonPos();
+  const musicButton = { id: 'music', x: mus.x, y: mus.y, r: mus.r };
+
+  // With the map open, the only thing to press is "anywhere", which shuts it.
+  if (mapOpen) {
+    input.setButtons([{ id: 'map-close', x: w / 2, y: h / 2, w, h }]);
+    return;
+  }
 
   // While the menu is open it owns the whole screen — except the sound
   // button, which stays where it is.
   if (menu.open) {
     // menu.buttons already includes the home button, so nothing extra here.
-    input.setButtons([...menu.buttons(w, h), soundButton]);
+    input.setButtons([...menu.buttons(w, h), soundButton, musicButton]);
     return;
   }
 
@@ -1040,6 +1094,7 @@ function refreshButtons() {
   const list = [
     { id: 'menu-open', x: opener.x, y: opener.y, r: opener.r },
     soundButton,
+    musicButton,
     { id: 'menu-home', x: home.x, y: home.y, r: home.r },
   ];
 
@@ -1047,6 +1102,12 @@ function refreshButtons() {
     const b = actionButtonPos();
     list.push({ id: 'action', x: b.x, y: b.y, r: b.r });
   }
+
+  // The map is a rectangle rather than a circle, which is why the input layer
+  // understands both.
+  const m = Minimap.rect(w, h, world);
+  list.push({ id: 'minimap', x: m.x + m.w / 2, y: m.y + m.h / 2, w: m.w, h: m.h });
+
   input.setButtons(list);
 }
 
@@ -1284,7 +1345,7 @@ document.addEventListener('visibilitychange', () => {
     // No point playing to a pocket, and it costs battery.
     stopMusic();
   } else if (running) {
-    setMusicMuted(save.muted);
+    setMusicMuted(save.musicMuted);
     startMusic();
   }
 });

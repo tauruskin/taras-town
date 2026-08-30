@@ -69,7 +69,8 @@ game.**
 | `job-friend-lift` / `job-race` | The two more complicated jobs, including that race checkpoints pay nothing until the last one. |
 | `shop` | A locked colour cannot be worn while broke, coins are collected off the street, buying deducts the right amount and survives a reload. |
 | `vehicle-shop` | Buying a vehicle: the right price comes out, an unaffordable one stays locked, an owned one is free to re-select, it survives a reload — and the bus bought actually appears on the road. |
-| `sound` | The speaker button toggles, looks different in each state, is remembered across a reload, and works from inside the menu. |
+| `sound` | The speaker toggles, looks different in each state, is remembered across a reload, and works from inside the menu — **and the music button is a genuinely separate switch**, which a single button wired to both settings would otherwise pass. |
+| `map` | The corner map is small and clear of the buttons; tapping it opens the whole town and dims the game; the joystick is dead while it is up; tapping anywhere closes it and play resumes. |
 | `getting-out-live` | Drives hard into scenery until the vehicle really is wedged, then gets out and checks the player can walk. A smoke test, not the regression test — see the note below. |
 | `main-menu-button` | The house button is drawn on the playing screen and in the menu, leaves the shared game, returns to the opening screen with both choices offered, and loses nothing from the save. |
 | `multiplayer` | Two browsers, a real connection: they find each other and moving one moves the other's view of them. |
@@ -97,6 +98,12 @@ Shared by the browser suites:
 
 ### The two that cost the most time
 
+- **Never write a button's coordinates into a test either.** Nine suites broke
+  at once when the buttons were made smaller, because they each had `W - 96`
+  and `H - 92` written into them. They now ask `Menu.cornerPos`,
+  `Menu.openerPos` and `Menu.actionPos`, which is why all the on-screen
+  geometry lives in `ui.js` rather than in `main.js`. A coordinate that is
+  merely stale does not fail loudly: the tap lands on the town behind.
 - **Never navigate by hardcoded directions or destinations.** The suites used to
   say "drag down-left for 560ms and there will be a car" and "the teddy is at
   1376,1248". Both were true of one particular map and stopped being true the

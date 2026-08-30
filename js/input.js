@@ -150,8 +150,14 @@ export class Input {
 
   _hitButton(p) {
     for (const b of this.buttons) {
-      // A generous margin: a 6-year-old's aim is not precise.
-      if (Math.hypot(p.x - b.x, p.y - b.y) <= b.r + 12) return b;
+      // A generous margin either way: a 6-year-old's aim is not precise.
+      if (b.w !== undefined) {
+        // A rectangle, given by its middle and its half-sizes. The map is one.
+        if (Math.abs(p.x - b.x) <= b.w / 2 + 8 &&
+            Math.abs(p.y - b.y) <= b.h / 2 + 8) return b;
+      } else if (Math.hypot(p.x - b.x, p.y - b.y) <= b.r + 12) {
+        return b;
+      }
     }
     return null;
   }

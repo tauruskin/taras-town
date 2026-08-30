@@ -18,6 +18,12 @@
 // everything but a couple of small moving figures exactly where it was.
 import { writeFileSync } from 'node:fs';
 import { makeWalker, town, nearestCar } from './_helpers.mjs';
+// Where the action button is, asked of the game. Sampling a colour at a
+// coordinate written down here goes silently wrong the moment the button moves
+// or changes size: the pixel read is then the town behind it, which is never
+// the colour being looked for.
+const { Menu: _Menu } = await import('../../js/ui.js');
+
 
 const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
@@ -96,11 +102,12 @@ async function startFresh() {
 await startFresh();
 
 // --- reading the game off the canvas -------------------------------------
+const _ACT = _Menu.actionPos(844, 390);
 const buttonRgb = () => ev(`(() => {
   const c = document.getElementById('game'), g = c.getContext('2d');
   const dpr = c.width / parseFloat(c.style.width);
-  const d = g.getImageData(Math.round((parseFloat(c.style.width) - 96) * dpr),
-                           Math.round((parseFloat(c.style.height) - 92 - 34) * dpr), 1, 1).data;
+  const d = g.getImageData(Math.round(${_ACT.x} * dpr),
+                           Math.round((${_ACT.y} - ${_ACT.r} * 0.74) * dpr), 1, 1).data;
   return d[0] + ',' + d[1] + ',' + d[2];
 })()`);
 const near = (s, r, g, b, tol = 26) => {

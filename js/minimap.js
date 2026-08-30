@@ -20,9 +20,9 @@ import { T } from './world.js';
 import { roundRect } from './world.js';
 
 /** How wide the minimap is, as a fraction of the screen, and its limits. */
-const WIDTH_FRACTION = 0.17;
-const MIN_WIDTH = 76;
-const MAX_WIDTH = 132;
+const WIDTH_FRACTION = 0.12;
+const MIN_WIDTH = 53;
+const MAX_WIDTH = 92;
 
 export class Minimap {
   constructor(world) {
@@ -79,38 +79,48 @@ export class Minimap {
   static rect(w, h, world) {
     const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, w * WIDTH_FRACTION));
     const height = width * (world.height / world.width);
+    const corner = CONFIG.UI.EDGE + CONFIG.UI.BUTTON_R * 2;
     return {
       // Tucked under the row of round buttons in the top corner.
-      x: w - width - 16,
-      y: 90,
+      x: w - width - CONFIG.UI.EDGE,
+      y: corner + 14,
       w: width,
       h: height,
     };
   }
 
   /**
-   * @param at      where the player is, in world coordinates
-   * @param driving whether they are in a vehicle, which changes the marker
+   * Draw the town into a given box, with the player on it and a frame around
+   * whatever is currently on screen.
+   *
+   * The frame is the useful part. A dot alone says where you are but nothing
+   * about how much of the town you can see — and on a map this size a phone
+   * shows about a fortieth of it, which is impossible to guess.
    */
-  draw(ctx, w, h, at, driving) {
+  _paintInto(ctx, r, at, driving, view) {
     const world = this.world;
-    const r = Minimap.rect(w, h, world);
-
-    ctx.save();
-
-    // A soft dark card behind it, so the map reads against a bright town.
-    ctx.fillStyle = 'rgba(20,24,34,0.55)';
-    roundRect(ctx, r.x - 4, r.y - 4, r.w + 8, r.h + 8, 10);
-    ctx.fill();
 
     ctx.save();
     roundRect(ctx, r.x, r.y, r.w, r.h, 7);
     ctx.clip();
-    // The town itself, stretched from its one-pixel-per-tile version.
     ctx.imageSmoothingEnabled = true;
     ctx.globalAlpha = 0.92;
     ctx.drawImage(this.canvas, r.x, r.y, r.w, r.h);
     ctx.globalAlpha = 1;
+
+    // What is on screen right now.
+    if (view) {
+      const vx = r.x + (view.x / world.width) * r.w;
+      const vy = r.y + (view.y / world.height) * r.h;
+      const vw = Math.max(3, (view.w / world.width) * r.w);
+      const vh = Math.max(3, (view.h / world.height) * r.h);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.20)';
+      ctx.fillRect(vx, vy, vw, vh);
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(vx, vy, vw, vh);
+    }
     ctx.restore();
 
     ctx.strokeStyle = 'rgba(255,255,255,0.85)';
@@ -122,17 +132,69 @@ export class Minimap {
     // grey road and blue water alike.
     const px = r.x + (at.x / world.width) * r.w;
     const py = r.y + (at.y / world.height) * r.h;
+    // Small on both sizes of map. Scaled purely by width it came out twenty
+    // pixels across on the full map and swallowed the view frame — the very
+    // thing the frame is there to show.
+    const dot = Math.max(3.5, Math.min(7, r.w * 0.045));
 
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.arc(px, py, driving ? 6 : 5.5, 0, Math.PI * 2);
+    ctx.arc(px, py, dot + 2, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = driving ? '#FF9F45' : '#E5484D';
     ctx.beginPath();
-    ctx.arc(px, py, driving ? 4 : 3.5, 0, Math.PI * 2);
+    ctx.arc(px, py, dot, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /**
+   * The whole town, filling the screen, for when the little one is not enough.
+   *
+   * Opened by tapping the corner map. Everything else is dimmed behind it, the
+   * same way the shop is, so it is obvious that this is a thing to look at and
+   * then close rather than part of the game.
+   */
+  drawFull(ctx, w, h, at, view) {
+    const world = this.world;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,24,34,0.72)';
+    ctx.fillRect(0, 0, w, h);
+
+    // As big as fits, keeping the town's proportions.
+    const margin = 26;
+    const scale = Math.min((w - margin * 2) / world.width,
+                           (h - margin * 2) / world.height);
+    const bw = world.width * scale;
+    const bh = world.height * scale;
+    const r = { x: (w - bw) / 2, y: (h - bh) / 2, w: bw, h: bh };
+
+    ctx.fillStyle = 'rgba(20,24,34,0.55)';
+    roundRect(ctx, r.x - 5, r.y - 5, r.w + 10, r.h + 10, 12);
     ctx.fill();
 
+    this._paintInto(ctx, r, at, false, view);
+    ctx.restore();
+  }
+
+  /**
+   * @param at      where the player is, in world coordinates
+   * @param driving whether they are in a vehicle, which changes the marker
+   * @param view    the visible world rectangle, drawn as a frame
+   */
+  draw(ctx, w, h, at, driving, view) {
+    const world = this.world;
+    const r = Minimap.rect(w, h, world);
+
+    ctx.save();
+
+    // A soft dark card behind it, so the map reads against a bright town.
+    ctx.fillStyle = 'rgba(20,24,34,0.55)';
+    roundRect(ctx, r.x - 4, r.y - 4, r.w + 8, r.h + 8, 10);
+    ctx.fill();
+
+    this._paintInto(ctx, r, at, driving, view);
     ctx.restore();
   }
 }

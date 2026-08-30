@@ -6,6 +6,12 @@ const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
 const TAG = process.argv[3] || 'menu';
 
+// Where the buttons are, asked of the game rather than written down here.
+// Coordinates typed into a test go wrong the moment a button moves or changes
+// size, and they do not fail loudly — the tap simply lands on the town behind.
+const { Menu: _Menu } = await import('../../js/ui.js');
+
+
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
 const ws = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl);
 await new Promise(r => ws.addEventListener('open', r));
@@ -49,7 +55,7 @@ let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?': '+d:''}`); };
 
 const W = 844, H = 390;
-const opener = { x: W - 52, y: 52 };
+const opener = _Menu.openerPos(W, H);
 // Layout mirrors ui.js
 // Mirrors ui.js. Four rows now that vehicles are for sale, so the dots are
 // smaller and sit differently than they did with three.

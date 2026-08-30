@@ -52,13 +52,20 @@ and four things in the corners.
 | Where | What |
 |---|---|
 | Bottom right | The action button — get in and out of a car or boat, take a job. |
-| Top right | A house (back to the opening screen), a speaker (sound off), and a palette (the shop). |
-| Below those | The map of the town, with a dot for where you are. |
+| Top right | Four round buttons: a house (back to the opening screen), a **note** (music), a **speaker** (sound effects), and a palette (the shop). |
+| Below those | The map of the town. Tap it to see the whole thing. |
 | Top left | How many coins you have. |
 
-The speaker silences **everything**, and being switched off is remembered
-between visits. It stays in the same corner whether the menu is open or not,
-because a mute button you have to go looking for is not much use.
+**The speaker and the note are two separate switches.** The speaker silences
+the sound effects — the coin pings, the fanfares — and the note silences the
+background music. Wanting the pings without the tune, or the other way round,
+is an ordinary thing to want, and one button could not say which. Both are
+remembered between visits, and both stay in the same corner whether the menu is
+open or not, because a mute button you have to go looking for is not much use.
+
+All of the round buttons' sizes come from `CONFIG.UI` in `js/config.js` —
+`BUTTON_R` for the little ones and `ACTION_R` for the big one — so making them
+all bigger or smaller is one number each.
 
 On a computer, for testing:
 
@@ -96,7 +103,7 @@ open <http://127.0.0.1:8777/tools/map.html>.
 node tests/run.mjs
 ```
 
-Starts a web server and two browsers, runs **32 suites**, and shuts everything
+Starts a web server and two browsers, runs **33 suites**, and shuts everything
 down. Nothing to install. After a deploy, `node tests/run.mjs --live` runs the
 same checks against the real site — which catches things a local copy never
 will.
@@ -278,10 +285,15 @@ melody is **sparse**, and plenty of bars have only a note or two in them; and it
 **never repeats exactly**, because each bar is improvised rather than looped, so
 there is no seam to start listening for.
 
-**One button turns everything off**, music and sound effects together. Two
-buttons would be tidier for an adult and worse for a 6-year-old, who wants "make
-it quiet". The music also stops whenever the game is not on screen, because
-playing to a pocket costs battery.
+**The music has its own button**, a note, next to the speaker that silences the
+sound effects. They are deliberately different *shapes* rather than different
+colours: two round buttons that differ only in hue are two buttons a child has
+to remember the order of, while a note and a speaker are told apart at a glance.
+
+The music also stops whenever the game is not on screen, because playing to a
+pocket costs battery, and it waits for a suspended audio context to actually
+start rather than scheduling notes against a frozen clock — which is real
+Safari behaviour and would otherwise fire them all at once on resume.
 
 If a real recording is ever wanted instead, `js/music.js` is the only file that
 would change: `startMusic` / `stopMusic` / `setMusicMuted` is the whole of what
@@ -353,12 +365,23 @@ player in the vehicle. Staying in is recoverable; being put down inside a wall
 is not. `tests/offline/getting-out.mjs` tries 5,000 ways out and fails five ways
 against the old code.
 
-## The minimap
+## The map
 
 The town is about forty screens across, which is easy to get lost in. The map
 never changes, so it is painted **once** into an offscreen canvas and stamped
 into the corner each frame — redrawing nine thousand tiles every frame to fill a
 hundred pixels would be a silly way to spend a phone's battery.
+
+Two things are drawn on it: **a dot for you**, and **a frame around whatever is
+currently on screen**. The frame is the useful half. A dot says where you are
+but nothing about how much of the town you can see, and on a map this size that
+is impossible to guess.
+
+**Tapping the corner map opens the whole town**, filling the screen with the
+game dimmed behind it. Tapping *anywhere at all* closes it again — a child
+should never have to find a particular spot to get back to the game — and the
+joystick does nothing while it is up, so nobody comes back to find themselves
+in the river. That last part is checked by `tests/browser/map.mjs`.
 
 **Only you are on it.** Not the other players: this game is mostly hide-and-seek,
 and a map with everybody's position on it would end that in about four seconds.
@@ -606,4 +629,7 @@ Tested on the live site with a phone-shaped browser and a desktop-shaped one.
 - [x] **14 — Water everywhere, and music.** The estuary grew to nearly half
       the map, with nine islands in it, and quiet generated music plays under
       everything.
-- [ ] 15 — Buying buildings in the shop.
+- [x] **15 — Two audio switches, and a map you can open.** Music and sound
+      effects turn off separately, the buttons are smaller, and the corner map
+      shows what you can see and opens full screen when tapped.
+- [ ] 16 — Buying buildings in the shop.

@@ -21,6 +21,20 @@ export const CONFIG = {
   // ---------------------------------------------------------------------
   // Player (on foot)
   // ---------------------------------------------------------------------
+  // ---------------------------------------------------------------------
+  // The controls on screen
+  // ---------------------------------------------------------------------
+  UI: {
+    // Radius of the little round buttons in the top corner, and of the big
+    // action button. One number so they stay in proportion with each other.
+    BUTTON_R: 21,
+    ACTION_R: 37,
+
+    // Gap between the corner buttons, and how far the row sits from the edge.
+    BUTTON_GAP: 10,
+    EDGE: 16,
+  },
+
   PLAYER: {
     SPEED: 175,        // pixels per second at full joystick push
     SWIM_SPEED: 0.62,  // how much of that speed he manages in the water

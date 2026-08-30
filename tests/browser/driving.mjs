@@ -10,6 +10,13 @@ const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
 const TAG = process.argv[3] || 'm2';
 
+// Where the action button is, asked of the game. Sampling a colour at a
+// coordinate written down here goes silently wrong the moment the button moves
+// or changes size: the pixel read is then the town behind it, which is never
+// the colour being looked for.
+const { Menu: _Menu } = await import('../../js/ui.js');
+
+
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
 const page = targets.find(t => t.type === 'page');
 const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -65,14 +72,16 @@ const touch = (type, x, y) => send('Input.dispatchTouchEvent', {
 });
 
 /** Colour of the action button's centre, read straight off the live canvas. */
+const _act = _Menu.actionPos(844, 390);
+const _ACT_X = _act.x, _ACT_Y = _act.y - _act.r * 0.74;
 const buttonColour = () => evaluate(`(() => {
   const c = document.getElementById('game');
   const g = c.getContext('2d');
   const dpr = c.width / parseFloat(c.style.width);
-  const x = Math.round((parseFloat(c.style.width) - 96) * dpr);
+  const x = Math.round(${_ACT_X} * dpr);
   // Sample ABOVE the centre: the middle of the button is covered by the
   // white icon, so the centre pixel tells you nothing about which button it is.
-  const y = Math.round((parseFloat(c.style.height) - 92 - 34) * dpr);
+  const y = Math.round(${_ACT_Y} * dpr);
   const d = g.getImageData(x, y, 1, 1).data;
   return d[0] + ',' + d[1] + ',' + d[2];
 })()`);
@@ -132,7 +141,7 @@ await shoot('2-beside-car');
 // --- 3. press it and get in ------------------------------------------------
 const btn = await evaluate(`(() => {
   const c = document.getElementById('game');
-  return JSON.stringify({ x: parseFloat(c.style.width) - 96, y: parseFloat(c.style.height) - 92 });
+  return JSON.stringify({ x: ${_act.x}, y: ${_act.y} });
 })()`);
 const B = JSON.parse(btn);
 await touch('touchStart', B.x, B.y);

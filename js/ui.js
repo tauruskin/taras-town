@@ -76,9 +76,42 @@ export class Menu {
     };
   }
 
+  /**
+   * Where the nth round button in the top corner sits.
+   *
+   * Counted from the corner rather than written out one by one, so adding a
+   * button — or changing how big they all are — is one number in config.js
+   * and everything else follows. The order, from the corner inwards:
+   *
+   *   0  the shop            (and the tick that closes it)
+   *   1  sound effects
+   *   2  music
+   *   3  back to the opening screen
+   */
+  static cornerPos(w, h, index) {
+    const U = CONFIG.UI;
+    return {
+      x: w - U.EDGE - U.BUTTON_R - index * (U.BUTTON_R * 2 + U.BUTTON_GAP),
+      y: U.EDGE + U.BUTTON_R,
+      r: U.BUTTON_R,
+    };
+  }
+
+  /**
+   * The big round button in the bottom corner: get in, get out, take a job.
+   *
+   * Here rather than in main.js so that every on-screen button's geometry is
+   * in one file — the tests read these too, and a test that writes the
+   * coordinates down instead goes wrong the moment a button moves.
+   */
+  static actionPos(w, h) {
+    const r = CONFIG.UI.ACTION_R;
+    return { x: w - r - 38, y: h - r - 34, r };
+  }
+
   /** Where the menu button itself lives when the menu is shut. */
   static openerPos(w, h) {
-    return { x: w - 52, y: 52, r: 26 };
+    return Menu.cornerPos(w, h, 0);
   }
 
   /**
@@ -93,7 +126,7 @@ export class Menu {
    * things that are about the game rather than about the town.
    */
   static homePos(w, h) {
-    return { x: w - 180, y: 52, r: 26 };
+    return Menu.cornerPos(w, h, 3);
   }
 
   /** The rows, in order. Kept as data so milestone 5 can mark items locked. */
@@ -581,6 +614,68 @@ export function drawNameplate(ctx, x, y, name) {
 
   ctx.fillStyle = '#FFFFFF';
   ctx.fillText(label, x, y + 0.5);
+  ctx.restore();
+}
+
+/**
+ * The music button: a pair of quavers.
+ *
+ * Deliberately a different SHAPE from the speaker beside it rather than a
+ * different colour. Two round buttons that differ only in hue are two buttons
+ * a child has to remember the order of; a note and a speaker are told apart at
+ * a glance.
+ */
+export function drawMusicButton(ctx, x, y, r, on, held) {
+  const rr = held ? r - 2 : r;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath();
+  ctx.arc(x, y + (held ? 2 : 5), rr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(x, y, rr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.translate(x, y);
+  const u = rr / 21;
+  const body = on ? '#3A3A42' : '#9AA0AC';
+
+  // Two note heads, their stems, and the beam across the top.
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.ellipse(-6 * u, 6 * u, 4.6 * u, 3.6 * u, -0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(7 * u, 3.5 * u, 4.6 * u, 3.6 * u, -0.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  roundRect(ctx, -3 * u, -9 * u, 2.4 * u, 16 * u, 1.2 * u);
+  ctx.fill();
+  roundRect(ctx, 10 * u, -11 * u, 2.4 * u, 15 * u, 1.2 * u);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-3 * u, -9 * u);
+  ctx.lineTo(12.4 * u, -11.5 * u);
+  ctx.lineTo(12.4 * u, -6.5 * u);
+  ctx.lineTo(-3 * u, -4 * u);
+  ctx.closePath();
+  ctx.fill();
+
+  if (!on) {
+    // The same red line the speaker uses when it is off, so "off" looks the
+    // same on both buttons.
+    ctx.strokeStyle = '#E5484D';
+    ctx.lineWidth = 4 * u;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-11 * u, -10 * u);
+    ctx.lineTo(11 * u, 11 * u);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 

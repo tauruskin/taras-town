@@ -11,6 +11,12 @@ const PORT = 9333;
 const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
 const TAG = process.argv[3] || 'vehicle-shop';
 
+// Where the buttons are, asked of the game rather than written down here.
+// Coordinates typed into a test go wrong the moment a button moves or changes
+// size, and they do not fail loudly — the tap simply lands on the town behind.
+const { Menu: _Menu } = await import('../../js/ui.js');
+
+
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
 const ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
 await new Promise((r) => ws.addEventListener('open', r));
@@ -97,7 +103,7 @@ const FIRST = W * 0.175;
 const GAP = ((W - R - 20) - FIRST) / 7;
 const ROW_Y = [H * 0.30, H * 0.465, H * 0.63, H * 0.795];
 const vehicleDot = (i) => ({ x: FIRST + i * GAP, y: ROW_Y[3] });
-const OPENER = { x: W - 52, y: 52 };
+const OPENER = _Menu.openerPos(W, H);
 
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
@@ -198,7 +204,7 @@ for (let i = 0; i < 14; i++) {
 // The action button turns green when a vehicle is in reach; press it.
 const btnColour = () => ev(`(() => { const c=document.getElementById('game'), g=c.getContext('2d');
   const dpr=c.width/parseFloat(c.style.width);
-  const d=g.getImageData(Math.round((${W} - 96)*dpr), Math.round((${H} - 92 - 34)*dpr),1,1).data;
+  const d=g.getImageData(Math.round(${_Menu.actionPos(W, H).x}*dpr), Math.round((${_Menu.actionPos(W, H).y - _Menu.actionPos(W, H).r * 0.74})*dpr),1,1).data;
   return d[0]+','+d[1]+','+d[2]; })()`);
 const near = (s, r, g, b, t = 22) => {
   const [R, G, B] = s.split(',').map(Number);
@@ -206,7 +212,7 @@ const near = (s, r, g, b, t = 22) => {
 };
 check('reached a vehicle to get into', near(await btnColour(), 90, 200, 90), await btnColour());
 
-await tap(W - 96, H - 92);
+await tap(_Menu.actionPos(W, H).x, _Menu.actionPos(W, H).y);
 await sleep(900);
 check('now driving', near(await btnColour(), 255, 159, 69), await btnColour());
 await shoot('4-driving-the-bus');
