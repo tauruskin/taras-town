@@ -83,5 +83,29 @@ check('rooms vary between houses',
   new Set(rooms.map((r) => `${r.w}x${r.floor}x${r.spots.length}`)).size > 3,
   'every house generated the same room');
 
+// --- drawing must not throw, and must never pass NaN to a canvas -----------
+const { drawRoom } = await import('../../js/interior.js');
+console.log('\ndrawing');
+
+let calls = 0;
+const ctx = new Proxy({}, {
+  get(_, prop) {
+    if (prop === 'canvas') return { width: 800, height: 460 };
+    return (...args) => {
+      calls++;
+      for (const a of args) {
+        if (typeof a === 'number' && !Number.isFinite(a)) {
+          throw new Error(`Non-finite number passed to ctx.${String(prop)}: ${args}`);
+        }
+      }
+    };
+  },
+  set() { return true; },
+});
+
+let drew = 0;
+for (const room of rooms) { drawRoom(ctx, room, {}, 0, () => {}); drew++; }
+check(`drew all ${drew} rooms with no NaN (${calls} canvas calls)`, drew === rooms.length);
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL INTERIOR CHECKS PASSED');
 process.exit(fail ? 1 : 0);
