@@ -42,8 +42,11 @@ These are the user's, not suggestions:
   `chooseItem`) all live here. Don't read the whole file for a HUD tweak —
   `Grep` for the function name, then read that region with `Read`'s
   `offset`/`limit`.
-- Other large files: `js/world.js` (~1620), `js/ui.js` (~890), `js/car.js`
+- Other large files: `js/world.js` (~1690), `js/ui.js` (~890), `js/car.js`
   (~750). Same rule.
+- Insides of houses live in `js/interior.js` (~310) and `js/furniture.js`
+  (~290), and should keep living there. `main.js` holds the mode wiring and
+  nothing else about them.
 - For "where is X handled" questions that need scanning many files, delegate to
   the Explore subagent instead of grepping in the main thread.
 
@@ -63,6 +66,20 @@ These are the user's, not suggestions:
   (who walks and swims), `'land'` for wheels, `'water'` for a hull.
 - **Cover is never solid.** You walk into a bush and it is drawn over you. A
   piece of cover you bounce off is a bug.
+- **Nothing indoors is solid either** — not the bed, not the rug, not a chair
+  he has placed. Only the walls. Getting wedged behind furniture in a room
+  with one way out is the worst thing that can happen in there, and it is
+  worth more than a realistically solid table.
+- **Generation order is now load-bearing for his SAVE, not just the map.**
+  `building.seed` is the order houses are made in, and his furniture is stored
+  under it. Reorder `_buildBuildings` and every child's furniture moves house.
+  Appending is safe; inserting, removing or resorting is not.
+- **A child must always be able to get out of whatever he is in.** Three bugs
+  of exactly this shape turned up while interiors were built: a room taller
+  than the phone screen with its only exit below the bottom edge, a picker
+  whose close button fell off an iPhone SE, and a house with no home button.
+  Anything new that fills the screen needs checking at 568×320 and 740×280,
+  not just on a desktop.
 - **Other players are never solid.** They push apart instead, and only the one
   who is walking pushes. Making them solid sticks two children together — this
   has been tried and reverted.

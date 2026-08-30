@@ -324,6 +324,16 @@ export class World {
     }
   }
 
+  /**
+   * The houses, in rows, block by block.
+   *
+   * DO NOT REORDER THIS. Each building's `seed` is simply the order it was
+   * made in, and since interiors arrived that number is no longer only about
+   * how the town looks — it is the key his furniture is saved under. Change
+   * the order houses are generated in and every child's chairs and tables
+   * move into somebody else's house. Adding houses at the END is safe;
+   * inserting, removing or resorting is not.
+   */
   _buildBuildings() {
     const tile = this.tile;
     let i = 0;
