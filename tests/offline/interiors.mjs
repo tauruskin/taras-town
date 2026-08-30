@@ -181,5 +181,74 @@ let drewFurniture = 0;
 for (const f of FURNITURE) { drawFurniture(ctx, f.id, 40); drewFurniture++; }
 check(`drew all ${drewFurniture} pieces with no NaN`, drewFurniture === FURNITURE.length);
 
+// --- the save shape --------------------------------------------------------
+const { defaultSaveForTests } = await import('../../js/save.js');
+console.log('\nsaving');
+
+const fresh = defaultSaveForTests();
+check('a new save has an empty set of rooms',
+  fresh.rooms && typeof fresh.rooms === 'object' && Object.keys(fresh.rooms).length === 0,
+  'save.rooms is missing or not empty');
+check('a new save has an empty furniture unlock list',
+  Array.isArray(fresh.unlocked.furniture) && fresh.unlocked.furniture.length === 0,
+  'save.unlocked.furniture is missing or not empty');
+
+// Loading has to survive two things: a save written before any of this
+// existed, and a save somebody has edited by hand. The shop already holds
+// itself to that standard and rooms are no different — except that a room
+// that throws while drawing takes the whole game with it, where a bad shop
+// entry only spoils a hat.
+const { loadGame } = await import('../../js/save.js');
+
+const store = {};
+globalThis.localStorage = {
+  getItem: (k) => (k in store ? store[k] : null),
+  setItem: (k, v) => { store[k] = String(v); },
+  removeItem: (k) => { delete store[k]; },
+};
+const loadWith = (obj) => {
+  store['tarasTown.save.v1'] = JSON.stringify(obj);
+  return loadGame();
+};
+
+// A save from before interiors existed: no rooms, no furniture list.
+const old = loadWith({ version: 1, coins: 40, hat: 1, unlocked: { hat: [1], shirt: [], car: [], vehicle: [] } });
+check('a save from before interiors still loads',
+  old.coins === 40 && old.hat === 1, 'the old fields were lost');
+check('...and gains the new fields rather than undefined',
+  Array.isArray(old.unlocked.furniture) && old.unlocked.furniture.length === 0 &&
+  old.rooms && Object.keys(old.rooms).length === 0,
+  'an old save comes back without rooms or a furniture list, which would' +
+  ' throw the first time he buys anything');
+
+// Now the hand-edited ones. None of these may throw, and none may leave a
+// shape the game will trip over later.
+const nonsense = [
+  { rooms: 'banana' },
+  { rooms: [1, 2, 3] },
+  { rooms: { 4: 'not-an-object' } },
+  { rooms: { 4: { 0: 12345 } } },
+  { rooms: { 4: { notANumber: 'chair' } } },
+  { unlocked: { furniture: 'chair' } },
+  { unlocked: { furniture: [1, 2, 3] } },
+];
+let survived = 0;
+for (const bad of nonsense) {
+  try {
+    const s = loadWith({ version: 1, ...bad });
+    const roomsOk = s.rooms && typeof s.rooms === 'object' && !Array.isArray(s.rooms) &&
+      Object.values(s.rooms).every((r) => r && typeof r === 'object' &&
+        Object.values(r).every((id) => typeof id === 'string'));
+    const furnOk = Array.isArray(s.unlocked.furniture) &&
+      s.unlocked.furniture.every((id) => typeof id === 'string');
+    if (roomsOk && furnOk) survived++;
+  } catch (err) { /* counted as a failure below */ }
+}
+check(`a hand-edited save cannot crash a room (${survived}/${nonsense.length} cleaned)`,
+  survived === nonsense.length,
+  `${nonsense.length - survived} corrupt saves came back in a shape that would throw`);
+
+delete globalThis.localStorage;
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL INTERIOR CHECKS PASSED');
 process.exit(fail ? 1 : 0);
