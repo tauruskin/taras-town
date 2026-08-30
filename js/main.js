@@ -873,6 +873,11 @@ function updateGhosts(dt) {
 
 function drawGhosts(ctx, view) {
   for (const g of ghosts.values()) {
+    // Somebody who has gone indoors is not on the street. Drawing them at the
+    // last position they sent leaves a friend standing frozen on a doorstep
+    // for as long as they are in there.
+    if (g.mode === INSIDE) continue;
+
     if (g.x < view.x - 120 || g.x > view.x + view.w + 120) continue;
     if (g.y < view.y - 120 || g.y > view.y + view.h + 120) continue;
 
@@ -928,6 +933,9 @@ function drawNameplates(view) {
   // Everybody else first, so that where two players stand on the same spot our
   // own name ends up on top and he can always find himself.
   for (const g of ghosts.values()) {
+    // Indoors, so not drawn — and a name with nobody under it is worse than
+    // no name, because it says somebody is standing there.
+    if (g.mode === INSIDE) continue;
     plate(g.x, g.y, g.mode === DRIVING ? g.car.length / 2 + 18 : 38, g.name);
   }
 
@@ -983,6 +991,10 @@ function separateIfInsideSomebody(dt) {
 
   for (const g of ghosts.values()) {
     if (g.mode === DRIVING) continue;
+    // Nor by somebody indoors. Being shoved aside on an empty pavement by a
+    // friend who is in the house beside you would be baffling — and there is
+    // nobody there to shove out into the open, which is what this is for.
+    if (g.mode === INSIDE) continue;
 
     const dx = player.x - g.x;
     const dy = player.y - g.y;
