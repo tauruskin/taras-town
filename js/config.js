@@ -35,6 +35,11 @@ export const CONFIG = {
     EDGE: 16,
   },
 
+  // Everything about the insides of houses.
+  INTERIOR: {
+    DOOR_STEP: 26,     // how far outside the front wall the doorstep sits
+  },
+
   PLAYER: {
     SPEED: 175,        // pixels per second at full joystick push
     SWIM_SPEED: 0.62,  // how much of that speed he manages in the water

@@ -351,6 +351,15 @@ export class World {
               roof: CONFIG.ROOF_PALETTE[slot],
               // Roughly one in five is a shop, which gets a sign over the door.
               shop: hash(tx + 13, ty + 29) < 0.2,
+              // Where the door is, in world pixels. Jobs deliver to it and
+              // interiors are entered through it, so it is stored once here
+              // rather than recomputed by each of them — two copies of this
+              // number is how a delivery ends up at a different door from the
+              // one you can walk through.
+              door: {
+                x: tx * tile + (tw * tile) / 2,
+                y: ty * tile + 3 * tile + CONFIG.INTERIOR.DOOR_STEP,
+              },
               seed: i,
             });
             i++;
