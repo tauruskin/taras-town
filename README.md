@@ -53,7 +53,7 @@ and four things in the corners.
 |---|---|
 | Bottom right | The action button — get in and out of a car or boat, take a job. |
 | Top right | Four round buttons: a house (back to the opening screen), a **note** (music), a **speaker** (sound effects), and a palette (the shop). |
-| Below those | The map of the town. Tap it to see the whole thing. |
+| Below those | A round map of where you are. Tap it for the whole town. |
 | Top left | How many coins you have. |
 
 **The speaker and the note are two separate switches.** The speaker silences
@@ -367,18 +367,32 @@ against the old code.
 
 ## The map
 
-The town is about forty screens across, which is easy to get lost in. The map
-never changes, so it is painted **once** into an offscreen canvas and stamped
-into the corner each frame — redrawing nine thousand tiles every frame to fill a
-hundred pixels would be a silly way to spend a phone's battery.
+There are two, and they answer different questions.
 
-Two things are drawn on it: **a dot for you**, and **a frame around whatever is
-currently on screen**. The frame is the useful half. A dot says where you are
-but nothing about how much of the town you can see, and on a map this size that
-is impossible to guess.
+**The round one in the corner is ZOOMED IN**, and that is the whole point of it.
+The first version showed the entire town shrunk into ninety pixels, which looked
+tidy and told you nothing — at that size a street is one pixel wide and one
+green smudge is much like another. It now shows the ground immediately around
+the player, about two screens across, at a size where a road looks like a road.
+You are always in the middle of it, and **north stays up**: rotating the map to
+face the way he is walking is a common trick and the wrong one here, because a
+child reading a map that spins has to work out which way is which every time he
+turns round.
 
-**Tapping the corner map opens the whole town**, filling the screen with the
-game dimmed behind it. Tapping *anywhere at all* closes it again — a child
+It is a **circle**. A round map has no corners to misread, it sits under the row
+of round buttons as though it belongs with them, and being round is itself a
+reminder that what it shows is "near you" rather than "the town".
+
+On it: **a dot for you**, always centred, and **a frame around whatever is
+currently on screen**, which is what makes the zoom legible without any words.
+
+The town never changes, so it is painted **once** into an offscreen canvas —
+four pixels per map square, which is what stops the zoomed view being a mess of
+enormous blocks — and then stamped out each frame. Redrawing nine thousand
+tiles every frame would be a silly way to spend a phone's battery.
+
+**Tapping the circle opens the whole town**, filling the screen with the game
+dimmed behind it. Tapping *anywhere at all* closes it again — a child
 should never have to find a particular spot to get back to the game — and the
 joystick does nothing while it is up, so nobody comes back to find themselves
 in the river. That last part is checked by `tests/browser/map.mjs`.

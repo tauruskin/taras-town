@@ -204,8 +204,19 @@ check('arriving pays out', biggestJump >= 5, 'biggest single jump was ' + bigges
 await shoot('3-celebration');
 
 // --- and the neighbour offers again ---------------------------------------
-await walkTo(NPC.x, NPC.y - 60, 40);
-check('the neighbour has another job afterwards', (await btnState()) === 'JOB', await btnState());
+//
+// This is a walk right back across town after the teddy hunt, and one attempt
+// is not always enough: the walker gives up after a fixed number of steps, and
+// on a slow run it can stop just outside the 92px at which a job is offered.
+// Keep going until the offer appears rather than assuming one trip does it.
+let offeringAgain = 'none';
+for (let attempt = 0; attempt < 4; attempt++) {
+  await walkTo(NPC.x, NPC.y, 60);
+  await sleep(300);
+  offeringAgain = await btnState();
+  if (offeringAgain === 'JOB') break;
+}
+check('the neighbour has another job afterwards', offeringAgain === 'JOB', offeringAgain);
 
 // --- a far-away job should raise the edge arrow ---------------------------
 await ev('window.__realRandom = Math.random; Math.random = () => 0.99;');

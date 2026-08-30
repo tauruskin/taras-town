@@ -1103,10 +1103,9 @@ function refreshButtons() {
     list.push({ id: 'action', x: b.x, y: b.y, r: b.r });
   }
 
-  // The map is a rectangle rather than a circle, which is why the input layer
-  // understands both.
-  const m = Minimap.rect(w, h, world);
-  list.push({ id: 'minimap', x: m.x + m.w / 2, y: m.y + m.h / 2, w: m.w, h: m.h });
+  // The corner map is round, like the buttons above it.
+  const m = Minimap.circle(w, h);
+  list.push({ id: 'minimap', x: m.x, y: m.y, r: m.r });
 
   input.setButtons(list);
 }

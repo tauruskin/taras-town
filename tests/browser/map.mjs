@@ -13,9 +13,7 @@ const TAG = process.argv[3] || 'map';
 const W = 844, H = 390;
 
 const { Minimap: _Minimap } = await import('../../js/minimap.js');
-const { World: _World } = await import('../../js/world.js');
-const _world = new _World();
-const MAP = _Minimap.rect(W, H, _world);
+const MAP = _Minimap.circle(W, H);
 
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
 const ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
@@ -88,10 +86,12 @@ const brightness = (x, y, w, h) => ev(`(() => {
 
 // --- 1. the corner map is small and out of the way ------------------------
 console.log('');
-check('the corner map is small', MAP.w <= W * 0.14, Math.round(MAP.w) + 'px wide on a ' + W + 'px screen');
-check('and clear of the buttons above it', MAP.y > 50, 'top edge at y=' + Math.round(MAP.y));
-check('and does not reach the bottom of the screen', MAP.y + MAP.h < H * 0.6,
-      'bottom edge at y=' + Math.round(MAP.y + MAP.h));
+check('the corner map is small', MAP.r * 2 <= W * 0.14,
+      Math.round(MAP.r * 2) + 'px across on a ' + W + 'px screen');
+check('and clear of the buttons above it', MAP.y - MAP.r > 50,
+      'top edge at y=' + Math.round(MAP.y - MAP.r));
+check('and does not reach the bottom of the screen', MAP.y + MAP.r < H * 0.6,
+      'bottom edge at y=' + Math.round(MAP.y + MAP.r));
 await shoot('1-corner-map');
 
 // --- 2. it shows the view frame -------------------------------------------
@@ -99,7 +99,7 @@ await shoot('1-corner-map');
 // The frame is white, so the corner map should be measurably brighter than the
 // same map drawn without one. Checked by comparing against the dark card the
 // map sits on, which is the only reference available from outside the game.
-const onMap = await brightness(MAP.x + 2, MAP.y + 2, MAP.w - 4, MAP.h - 4);
+const onMap = await brightness(MAP.x - MAP.r * 0.6, MAP.y - MAP.r * 0.6, MAP.r * 1.2, MAP.r * 1.2);
 check('the corner map is drawn at all', onMap > 40, 'average brightness ' + onMap);
 
 // --- 3. tapping it opens the whole town -----------------------------------
@@ -112,7 +112,7 @@ check('the corner map is drawn at all', onMap > 40, 'average brightness ' + onMa
 const edge = () => brightness(8, H / 2 - 50, 60, 100);
 
 const edgeBefore = await edge();
-await tap(MAP.x + MAP.w / 2, MAP.y + MAP.h / 2);
+await tap(MAP.x, MAP.y);
 const edgeAfter = await edge();
 
 check('tapping the corner map dims the town behind it',

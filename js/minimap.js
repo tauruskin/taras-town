@@ -1,14 +1,24 @@
 /**
- * minimap.js — A little picture of the whole town, in the corner.
+ * minimap.js — Two maps: a round one in the corner, and the whole town.
  *
- * The town is 6144x4608 and a phone shows about a fortieth of it at a time,
- * which is easy to get lost in. This draws the lot, small, with a dot for
- * where you are.
+ * THE CORNER ONE IS ZOOMED IN, and that is the whole point of it. The first
+ * version showed the entire town shrunk into ninety pixels, which looked tidy
+ * and told you nothing — at that size the streets are a pixel wide and one
+ * green smudge is much like another. It now shows the ground immediately
+ * around the player, at a size where a road looks like a road, and you are
+ * always in the middle of it.
  *
- * The map itself never changes — it is generated from a fixed seed — so it is
- * painted ONCE into an offscreen canvas and then simply stamped into the
- * corner each frame. Redrawing nine thousand tiles every frame to fill a
- * hundred pixels would be a silly way to spend a phone's battery.
+ * It is a CIRCLE. A round map has no corners to misread, it sits under the row
+ * of round buttons as though it belongs with them, and being round is itself a
+ * reminder that what it shows is "near you" rather than "the town".
+ *
+ * THE WHOLE TOWN is still there, and still useful — it is what you get by
+ * tapping the circle, and it fills the screen.
+ *
+ * The map never changes, being generated from a fixed seed, so it is painted
+ * ONCE into an offscreen canvas and then simply stamped out each frame.
+ * Redrawing nine thousand tiles every frame would be a silly way to spend a
+ * phone's battery.
  *
  * ONLY YOU ARE SHOWN ON IT. Not the other players — this game is mostly used
  * for hide-and-seek, and a map with everybody's position on it would end that
@@ -19,10 +29,28 @@ import { CONFIG } from './config.js';
 import { T } from './world.js';
 import { roundRect } from './world.js';
 
-/** How wide the minimap is, as a fraction of the screen, and its limits. */
+/** How wide the corner map is, as a fraction of the screen, and its limits. */
 const WIDTH_FRACTION = 0.12;
 const MIN_WIDTH = 53;
 const MAX_WIDTH = 92;
+
+/**
+ * How much ground the corner map shows, in map squares across.
+ *
+ * About two screens' worth. Enough to see the next junction and which way the
+ * water is, without shrinking back into the unreadable smudge the whole-town
+ * version was.
+ */
+const TILES_ACROSS = 26;
+
+/**
+ * How big the offscreen copy of the town is, in pixels per map square.
+ *
+ * One pixel per square was enough when the whole town was squeezed into the
+ * corner. Zoomed in, one pixel per square is a mess of enormous blocks, so the
+ * copy is drawn four times finer. It costs a 384x288 canvas, which is nothing.
+ */
+const TOWN_PX = 4;
 
 export class Minimap {
   constructor(world) {
@@ -42,9 +70,12 @@ export class Minimap {
 
     // OffscreenCanvas is not on older iOS Safari, so fall back to a plain
     // detached <canvas>, which works everywhere and costs nothing here.
+    const pw = w.cols * TOWN_PX;
+    const ph = w.rows * TOWN_PX;
+
     this.canvas = typeof OffscreenCanvas !== 'undefined'
-      ? new OffscreenCanvas(w.cols, w.rows)
-      : Object.assign(document.createElement('canvas'), { width: w.cols, height: w.rows });
+      ? new OffscreenCanvas(pw, ph)
+      : Object.assign(document.createElement('canvas'), { width: pw, height: ph });
 
     const ctx = this.canvas.getContext('2d');
     const C = CONFIG.COLORS;
@@ -63,29 +94,35 @@ export class Minimap {
     for (let r = 0; r < w.rows; r++) {
       for (let c = 0; c < w.cols; c++) {
         ctx.fillStyle = colourOf(w.grid[r][c]);
-        ctx.fillRect(c, r, 1, 1);
+        ctx.fillRect(c * TOWN_PX, r * TOWN_PX, TOWN_PX, TOWN_PX);
       }
     }
 
     // Buildings, so the town reads as streets of houses rather than a grid of
     // coloured squares.
+    const k = TOWN_PX / w.tile;
     for (const b of w.buildings) {
       ctx.fillStyle = b.roof;
-      ctx.fillRect(b.x / w.tile, b.y / w.tile, b.w / w.tile, b.h / w.tile);
+      ctx.fillRect(b.x * k, b.y * k, b.w * k, b.h * k);
     }
   }
 
-  /** Where the minimap sits on screen, in screen pixels. */
-  static rect(w, h, world) {
-    const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, w * WIDTH_FRACTION));
-    const height = width * (world.height / world.width);
-    const corner = CONFIG.UI.EDGE + CONFIG.UI.BUTTON_R * 2;
+  /**
+   * Where the corner map sits, as a circle: middle and radius.
+   *
+   * Tucked under the row of round buttons, lined up with the one in the very
+   * corner so the whole group reads as one column of controls.
+   */
+  static circle(w, h) {
+    const size = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, w * WIDTH_FRACTION));
+    const r = size / 2;
+    // Positioned by ITS OWN radius, not the buttons'. Lining the middle up
+    // with the button above it hung the circle nine pixels off the side of
+    // the screen, because it is more than twice as wide as a button.
     return {
-      // Tucked under the row of round buttons in the top corner.
-      x: w - width - CONFIG.UI.EDGE,
-      y: corner + 14,
-      w: width,
-      h: height,
+      x: w - CONFIG.UI.EDGE - r,
+      y: CONFIG.UI.EDGE + CONFIG.UI.BUTTON_R * 2 + 16 + r,
+      r,
     };
   }
 
@@ -179,22 +216,81 @@ export class Minimap {
   }
 
   /**
-   * @param at      where the player is, in world coordinates
-   * @param driving whether they are in a vehicle, which changes the marker
-   * @param view    the visible world rectangle, drawn as a frame
+   * The round map in the corner: the ground around the player, zoomed in.
+   *
+   * North stays up. Rotating the map to face the way he is walking is a common
+   * trick and the wrong one here — a 6-year-old reading a map that spins has
+   * to work out which way is which every time he turns round.
+   *
+   * @param at    where the player is, in world coordinates
+   * @param view  the visible world rectangle, drawn as a frame
    */
   draw(ctx, w, h, at, driving, view) {
     const world = this.world;
-    const r = Minimap.rect(w, h, world);
+    const c = Minimap.circle(w, h);
+
+    // How much ground fits across the circle, and how many offscreen pixels
+    // that is.
+    const worldAcross = TILES_ACROSS * world.tile;
+    const srcSize = TILES_ACROSS * TOWN_PX;
+    const perWorld = (c.r * 2) / worldAcross;      // screen px per world px
 
     ctx.save();
 
-    // A soft dark card behind it, so the map reads against a bright town.
+    // The dark ring it sits on, drawn slightly larger so the map has an edge.
     ctx.fillStyle = 'rgba(20,24,34,0.55)';
-    roundRect(ctx, r.x - 4, r.y - 4, r.w + 8, r.h + 8, 10);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r + 4, 0, Math.PI * 2);
     ctx.fill();
 
-    this._paintInto(ctx, r, at, driving, view);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Beyond the edge of the world there is nothing to draw, so fill first —
+    // otherwise the last row of the town smears outwards, which reads as land
+    // that is not there.
+    ctx.fillStyle = 'rgba(30,40,54,0.95)';
+    ctx.fillRect(c.x - c.r, c.y - c.r, c.r * 2, c.r * 2);
+
+    // The window of the town around the player.
+    const k = TOWN_PX / world.tile;
+    const sx = at.x * k - srcSize / 2;
+    const sy = at.y * k - srcSize / 2;
+
+    ctx.imageSmoothingEnabled = false;   // crisp streets, not a blur
+    ctx.drawImage(this.canvas, sx, sy, srcSize, srcSize,
+                  c.x - c.r, c.y - c.r, c.r * 2, c.r * 2);
+
+    // A frame around what is actually on screen, so the zoom is legible: it
+    // says "this much of what you can see" without needing any words.
+    if (view) {
+      const vw = view.w * perWorld;
+      const vh = view.h * perWorld;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(c.x - vw / 2, c.y - vh / 2, vw, vh);
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // You, always in the middle. A white ring round a coloured dot, which
+    // stays visible over green park, grey road and blue water alike.
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = driving ? '#FF9F45' : '#E5484D';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.restore();
   }
 }

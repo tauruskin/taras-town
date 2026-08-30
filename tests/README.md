@@ -70,7 +70,7 @@ game.**
 | `shop` | A locked colour cannot be worn while broke, coins are collected off the street, buying deducts the right amount and survives a reload. |
 | `vehicle-shop` | Buying a vehicle: the right price comes out, an unaffordable one stays locked, an owned one is free to re-select, it survives a reload — and the bus bought actually appears on the road. |
 | `sound` | The speaker toggles, looks different in each state, is remembered across a reload, and works from inside the menu — **and the music button is a genuinely separate switch**, which a single button wired to both settings would otherwise pass. |
-| `map` | The corner map is small and clear of the buttons; tapping it opens the whole town and dims the game; the joystick is dead while it is up; tapping anywhere closes it and play resumes. |
+| `map` | The round corner map is small, on screen, and clear of the buttons; tapping it opens the whole town and dims the game; the joystick is dead while it is up; tapping anywhere closes it and play resumes. |
 | `getting-out-live` | Drives hard into scenery until the vehicle really is wedged, then gets out and checks the player can walk. A smoke test, not the regression test — see the note below. |
 | `main-menu-button` | The house button is drawn on the playing screen and in the menu, leaves the shared game, returns to the opening screen with both choices offered, and loses nothing from the save. |
 | `multiplayer` | Two browsers, a real connection: they find each other and moving one moves the other's view of them. |
