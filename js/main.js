@@ -346,7 +346,14 @@ function update(dt) {
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       player.angle += diff * Math.min(1, CONFIG.PLAYER.TURN_SPEED * dt);
+      player.walkPhase += dt * CONFIG.PLAYER.BOB_SPEED * stick.mag;
     }
+
+    // The arm and leg swing, smoothed the same way Player.update smooths it.
+    // Without this he slides around the room like a chess piece — the walk is
+    // most of what makes him look like a person rather than a sprite.
+    player.speed01 += (stick.mag - player.speed01) * Math.min(1, 12 * dt);
+    if (player.speed01 < 0.02) player.speed01 = 0;
   } else if (mode === DRIVING) {
     drivenCar.update(dt, input.vector, cars.filter((c) => c !== drivenCar));
   } else {
@@ -416,7 +423,7 @@ function update(dt) {
 
 function render() {
   if (mode === INSIDE) {
-    // Drawn centred on screen rather than through the camera. A room is four
+    // Drawn centred on screen rather than through the camera. A room is three
     // squares deep and fits on the screen whole — a camera that scrolled it
     // would be motion for nothing, and it would hide the spot he is walking
     // towards.
