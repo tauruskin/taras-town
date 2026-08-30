@@ -38,6 +38,7 @@ const PRECACHE = [
   './js/main.js',
   './js/config.js',
   './js/world.js',
+  './js/interior.js',
   './js/camera.js',
   './js/input.js',
   './js/player.js',

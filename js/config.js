@@ -38,6 +38,18 @@ export const CONFIG = {
   // Everything about the insides of houses.
   INTERIOR: {
     DOOR_STEP: 26,     // how far outside the front wall the doorstep sits
+
+    TILE: 96,          // one floor square inside a house
+    ROWS: 4,           // how deep every room is, in floor squares
+    WALL: 30,          // the band of wall drawn across the back
+    MAT: { w: 84, h: 34 },   // the way out, on the front wall
+    SPOT_R: 26,        // a decorating spot's radius
+
+    MIN_SPOTS: 4,
+    MAX_SPOTS: 6,
+
+    // Floors, picked per house. Warm and domestic — nothing gloomy.
+    FLOORS: ['#C9A227', '#B98A5A', '#9FB07A', '#C08A7A', '#8FA9B8'],
   },
 
   PLAYER: {
