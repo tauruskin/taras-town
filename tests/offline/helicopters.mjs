@@ -88,5 +88,40 @@ check('placement is deterministic',
   JSON.stringify(helis.map((c) => [c.x, c.y])),
   'two runs put the helicopters in different places');
 
+// --- drawing ----------------------------------------------------------
+console.log('\ndrawing');
+
+let calls = 0;
+const ctx = new Proxy({}, {
+  get(_, prop) {
+    if (prop === 'canvas') return { width: 800, height: 460 };
+    return (...args) => {
+      calls++;
+      for (const a of args) {
+        if (typeof a === 'number' && !Number.isFinite(a)) {
+          throw new Error(`Non-finite number passed to ctx.${String(prop)}: ${args}`);
+        }
+      }
+    };
+  },
+  set() { return true; },
+});
+
+let drew = 0;
+for (const c of helis) {
+  c.draw(ctx);
+  c.angle += 1.1;      // rotors and a body at a few different headings
+  c.draw(ctx);
+  drew++;
+}
+check(`drew all ${drew} helicopters with no NaN (${calls} canvas calls)`,
+  drew === helis.length);
+
+// The shop preview is a different code path from the one in the world.
+const { drawVehiclePicture } = await import('../../js/ui.js');
+const heliIndex = CONFIG.VEHICLES.findIndex((v) => v.air);
+drawVehiclePicture(ctx, heliIndex, 34, 0);
+check('the shop can draw a helicopter too', true);
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL HELICOPTER CHECKS PASSED');
 process.exit(fail ? 1 : 0);

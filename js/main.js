@@ -17,7 +17,7 @@
 import { CONFIG } from './config.js';
 import { World } from './world.js';
 import { Player } from './player.js';
-import { Car, createCars, vehicleIndexOf } from './car.js';
+import { Car, createCars, vehicleIndexOf, drawHelipad } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawMusicButton, drawNameplate } from './ui.js';
@@ -502,6 +502,14 @@ function render() {
 
   // A ring under the car you are about to get into, so it is obvious which.
   if (nearbyCar) drawHighlight(nearbyCar);
+
+  // The pads go on the ground, under the helicopters standing on them.
+  for (const car of cars) {
+    if (!car.air) continue;
+    if (car.x < view.x - 120 || car.x > view.x + view.w + 120) continue;
+    if (car.y < view.y - 120 || car.y > view.y + view.h + 120) continue;
+    drawHelipad(ctx, car.home.x, car.home.y);
+  }
 
   for (const car of cars) {
     if (car.x < view.x - 90 || car.x > view.x + view.w + 90) continue;
