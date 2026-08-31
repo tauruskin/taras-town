@@ -33,6 +33,22 @@ export function vehicleByIndex(i) {
   return CONFIG.VEHICLES[i] || CONFIG.VEHICLES[0];
 }
 
+/**
+ * Which vehicle to tell everybody else you are in.
+ *
+ * The wire carries a position in CONFIG.VEHICLES, and the obvious thing to
+ * send — `save.vehicle` — is wrong the moment you get into a boat. A chosen
+ * boat is kept in `save.boat`, deliberately apart from the car, so sending
+ * `save.vehicle` while out on the river showed everyone else a hatchback
+ * sailing down the middle of it.
+ *
+ * So this is asked of the thing actually being driven, not of the save.
+ */
+export function vehicleIndexOf(id) {
+  const i = CONFIG.VEHICLES.findIndex((v) => v.id === id);
+  return i < 0 ? 0 : i;
+}
+
 export class Car {
   /**
    * @param style { body, roof, type } — `type` is a vehicle id, e.g. 'bus'

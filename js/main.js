@@ -17,7 +17,7 @@
 import { CONFIG } from './config.js';
 import { World } from './world.js';
 import { Player } from './player.js';
-import { Car, createCars } from './car.js';
+import { Car, createCars, vehicleIndexOf } from './car.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawMusicButton, drawNameplate } from './ui.js';
@@ -401,7 +401,16 @@ function update(dt) {
       hat: save.hat,
       shirt: save.shirt,
       car: save.car,
-      vehicle: save.vehicle,
+      // What he is ACTUALLY in, not what he has chosen.
+      //
+      // A chosen boat lives in save.boat, kept apart from save.vehicle so that
+      // buying a speedboat does not turn the car at the kerb into one — which
+      // means save.vehicle is his car even while he is half way across the
+      // river, and sending it showed everybody else a hatchback sailing down
+      // the middle of the water.
+      vehicle: mode === DRIVING
+        ? vehicleIndexOf(drivenCar.spec.id)
+        : save.vehicle,
       name: save.name || '',
     });
     updateGhosts(dt);

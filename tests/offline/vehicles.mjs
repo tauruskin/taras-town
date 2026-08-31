@@ -238,5 +238,43 @@ for (let i = 0; i < CONFIG.VEHICLES.length; i++) {
 console.log('');
 console.log('5. drawing every vehicle: ' + calls + ' canvas calls, no NaN');
 
+// --- 6. what the other players are told you are driving -------------------
+//
+// The wire carries a position in CONFIG.VEHICLES, and everyone else builds a
+// stand-in from it with setVehicleVisual. Send the wrong number and they see
+// the wrong vehicle — which is exactly what happened to boats: a chosen boat
+// lives in save.boat, kept apart from save.vehicle on purpose, so sending
+// save.vehicle while out on the river showed everybody a hatchback sailing
+// down the middle of it.
+console.log('');
+console.log('6. what other players are told you are driving');
+
+const { vehicleIndexOf } = await import('../../js/car.js');
+
+check('every vehicle can be found by its own id',
+  CONFIG.VEHICLES.every((v, i) => vehicleIndexOf(v.id) === i),
+  CONFIG.VEHICLES.filter((v, i) => vehicleIndexOf(v.id) !== i).map((v) => v.id).join(', '));
+
+check('an unknown id falls back to the ordinary car rather than breaking',
+  vehicleIndexOf('nonsense') === 0);
+
+// The real thing. Take each vehicle, do to a stand-in exactly what
+// updateGhosts does with the number off the wire, and see what floats.
+const ghost = new Car(world, 500, 500, 0, { body: '#FFF', roof: '#EEE', type: 'car' });
+const wrong = CONFIG.VEHICLES.filter((v) => {
+  ghost.setVehicleVisual(vehicleIndexOf(v.id));
+  return ghost.water !== !!v.water;
+});
+check('a boat is shown as a boat and a car as a car',
+  wrong.length === 0,
+  wrong.map((v) => v.id).join(', '));
+
+// And the bug itself, stated as a rule: the number sent for a boat must never
+// be one that describes something with wheels.
+const boats = CONFIG.VEHICLES.filter((v) => v.water);
+check(`all ${boats.length} boats send an index that really is a boat`,
+  boats.every((b) => CONFIG.VEHICLES[vehicleIndexOf(b.id)].water === true),
+  boats.filter((b) => !CONFIG.VEHICLES[vehicleIndexOf(b.id)].water).map((b) => b.id).join(', '));
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL VEHICLE CHECKS PASSED');
 process.exit(fail ? 1 : 0);
