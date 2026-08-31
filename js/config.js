@@ -210,6 +210,21 @@ export const CONFIG = {
       MAX_SPEED: 300, ACCEL: 250, TURN_RATE: 1.7,
       wheel: 0,
     },
+    {
+      // The most expensive thing in the game, and the last thing he will own.
+      //
+      // `air` is the sibling of `water`: it decides what stops the thing.
+      // Nothing does, up there. It is quick, and it turns on the spot — a
+      // TURN_MIN of nearly 1 means it steers just as well hovering as at
+      // speed, which is what makes looking around from up there possible.
+      // A bus is the opposite and deliberately so.
+      //
+      // Friendly and bright. A sightseeing helicopter, never a military one.
+      id: 'helicopter', price: 1000, shape: 'helicopter', air: true,
+      LENGTH: 76, WIDTH: 34,
+      MAX_SPEED: 420, ACCEL: 400, TURN_RATE: 3.4, TURN_MIN: 0.95,
+      wheel: 0,
+    },
   ],
 
   CAR_BODY_PALETTE: [

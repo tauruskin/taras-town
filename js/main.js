@@ -1084,11 +1084,13 @@ function separateIfInsideSomebody(dt) {
  * so that buying a speedboat does not turn the car on the road into one.
  */
 function chooseItem(rowId, i) {
-  if (rowId === 'vehicle' && CONFIG.VEHICLES[i] && CONFIG.VEHICLES[i].water) {
-    save.boat = i;
-  } else {
-    save[rowId] = i;
-  }
+  const v = rowId === 'vehicle' ? CONFIG.VEHICLES[i] : null;
+  // Three slots, not one. What floats, what flies and what drives are chosen
+  // separately, so buying a speedboat does not turn the car at the kerb into
+  // one — and neither does buying a helicopter.
+  if (v && v.air) save.heli = i;
+  else if (v && v.water) save.boat = i;
+  else save[rowId] = i;
 }
 
 function findCarToEnter() {

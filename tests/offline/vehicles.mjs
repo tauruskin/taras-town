@@ -36,11 +36,11 @@ check('prices climb as you go along the row', ascending,
       CONFIG.VEHICLES.map((v) => v.price).join(' -> '));
 
 for (const v of CONFIG.VEHICLES) {
-  // A boat has no wheels, so `wheel` is 0 for one and must be positive for
-  // anything that rolls.
+  // A boat has no wheels, and neither does a helicopter, so `wheel` is 0 for
+  // either and must be positive for anything that actually rolls.
   const sane = v.LENGTH > 20 && v.WIDTH > 15 && v.MAX_SPEED > 50 &&
                v.ACCEL > 50 && v.TURN_RATE > 0.5 &&
-               (v.water ? v.wheel === 0 : v.wheel > 0);
+               ((v.water || v.air) ? v.wheel === 0 : v.wheel > 0);
   check(v.id + ': the numbers are sane', sane,
         v.LENGTH + 'x' + v.WIDTH + ' speed ' + v.MAX_SPEED + ' turn ' + v.TURN_RATE);
 
