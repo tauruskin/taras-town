@@ -117,6 +117,49 @@ for (const c of helis) {
 check(`drew all ${drew} helicopters with no NaN (${calls} canvas calls)`,
   drew === helis.length);
 
+// A helicopter must actually be DRAWN as one.
+//
+// The NaN check above cannot tell: a vehicle with no shape case of its own
+// falls through to the plain car drawing, which emits perfectly finite
+// numbers and passes happily.
+//
+// Comparing the whole trace against a car's does not work either -- that was
+// tried, and it passes even with the shape case deleted, because the ROTOR is
+// drawn separately and makes the two differ on its own. So this asks about
+// the body specifically: the cabin and the nose window are ellipses, and no
+// land vehicle in this game draws one. Delete the shape case and this goes
+// red, which was verified by actually deleting it.
+//
+// If the cabin is ever redrawn as something other than an ellipse, this line
+// needs updating -- it is standing in for "the body is not a car's body".
+const countCalls = (type) => {
+  const seen = {};
+  const rec = new Proxy({}, {
+    get(_, prop) {
+      if (prop === 'canvas') return { width: 800, height: 460 };
+      return () => { seen[String(prop)] = (seen[String(prop)] || 0) + 1; };
+    },
+    set() { return true; },
+  });
+  const { Car: C } = carModule;
+  new C(world, 500, 500, 0, { body: '#fff', roof: '#eee', type }).draw(rec);
+  return seen;
+};
+const carModule = await import('../../js/car.js');
+const heliCalls = countCalls('helicopter');
+const carCalls = countCalls('car');
+
+check('a helicopter is drawn with its own shape, not the car one',
+  (heliCalls.ellipse || 0) > 0 && (carCalls.ellipse || 0) === 0,
+  `helicopter drew ${heliCalls.ellipse || 0} ellipses and a car drew ` +
+  `${carCalls.ellipse || 0}; if those match, the helicopter is falling ` +
+  'through to the car drawing');
+
+// The rotor is drawn as lines over the top, and a car has none of those.
+check('and its rotor is drawn over it',
+  (heliCalls.stroke || 0) > 0 && (carCalls.stroke || 0) === 0,
+  'no rotor strokes -- a parked helicopter with still blades reads as scenery');
+
 // The shop preview is a different code path from the one in the world.
 const { drawVehiclePicture } = await import('../../js/ui.js');
 const heliIndex = CONFIG.VEHICLES.findIndex((v) => v.air);

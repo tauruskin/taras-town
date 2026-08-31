@@ -365,17 +365,19 @@ export class Car {
       ctx.save();
       ctx.translate(this.x, this.y);
 
-      ctx.strokeStyle = 'rgba(40,44,54,0.30)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(this.length * 0.10, 0, this.length * 0.52, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Two blades, turning, so the disc reads as something moving. Thin and
-      // faint rather than bold: at 4px and 55% opacity these first drew as a
-      // solid dark cross that buried the cabin under it -- the exact "car
-      // with a circle on it" failure this shape is meant to avoid.
-      ctx.strokeStyle = 'rgba(40,44,54,0.38)';
+      // Blades only, and no ring round them.
+      //
+      // A crisp outline was drawn round the disc at first, and standing on a
+      // pad that already has two white rings painted on it, the helicopter
+      // ended up as three circles stacked on each other with a small coloured
+      // shape lost in the middle. The tail boom -- the one part of the
+      // outline that actually says helicopter rather than car -- disappeared
+      // completely. A spinning rotor is a blur, not a drawn circle, so the
+      // blur is all that is left.
+      //
+      // Thin and faint rather than bold, too: at 4px and 55% opacity these
+      // first drew as a solid dark cross that buried the cabin under it.
+      ctx.strokeStyle = 'rgba(40,44,54,0.34)';
       ctx.lineWidth = 2;
       for (const off of [0, Math.PI / 2]) {
         const a = t * 14 + off;
