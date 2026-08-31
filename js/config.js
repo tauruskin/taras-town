@@ -78,6 +78,15 @@ export const CONFIG = {
     FLOORS: ['#C9A227', '#D9C9A8', '#9FB07A', '#CBA6B0', '#8FA9B8'],
   },
 
+  // Everything about flying.
+  HELI: {
+    COUNT: 4,          // how many stand on the map
+    SEPARATION: 1100,  // how far apart, so each is a journey not a corner
+    PAD_R: 46,         // the painted circle they stand on
+    ALTITUDE: 26,      // how far the body is drawn above its shadow
+    LIFT_SPEED: 2.2,   // how quickly it rises and settles, per second
+  },
+
   // What can be put in a room. Bought once, then placed as often as he likes
   // in as many houses as he likes — buying a chair means he owns chairs.
   // Paying per placement would make every tap a small risk, which is the

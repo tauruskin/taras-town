@@ -75,6 +75,9 @@ export class Car {
     // Floats. Decides which way round the terrain rule works, where the thing
     // is moored, and whether the boat you bought is the one you get into.
     this.water = !!spec.water;
+    // Flies. Its sibling — nothing stops it, and callers need to be able to
+    // tell a helicopter apart from everything else just as easily.
+    this.air = !!spec.air;
     this.style = { ...this.style, type: spec.id };
   }
 
@@ -658,7 +661,7 @@ export class Car {
  */
 /** The positions in CONFIG.VEHICLES of everything that has wheels. */
 const LAND_VEHICLES = CONFIG.VEHICLES
-  .map((v, i) => (v.water ? -1 : i))
+  .map((v, i) => (v.water || v.air ? -1 : i))
   .filter((i) => i >= 0);
 
 export function createCars(world) {
@@ -712,6 +715,9 @@ export function createCars(world) {
   // And the boats, moored out on the water.
   for (const boat of createBoats(world, cars)) cars.push(boat);
 
+  // And the helicopters, standing on open ground.
+  for (const heli of createHelicopters(world, cars)) cars.push(heli);
+
   return cars;
 }
 
@@ -758,4 +764,68 @@ export function createBoats(world, existing) {
   }
 
   return boats;
+}
+
+/**
+ * Stand the helicopters out on open ground.
+ *
+ * Like the boats, they are here from the first load whether or not one has
+ * been bought — seeing a helicopter on its pad is the reason to start saving
+ * the thousand coins. Walking up to one does nothing until it is owned.
+ *
+ * Far apart on purpose: four of them across a town this size means reaching
+ * one is a small journey rather than something you trip over.
+ */
+export function createHelicopters(world, existing) {
+  const spec = CONFIG.VEHICLES.find((v) => v.air);
+  if (!spec) return [];
+
+  // Room for the whole machine whichever way it is pointing, the same sum the
+  // boats use for their hulls.
+  const need = Math.max(spec.LENGTH, spec.WIDTH) / 2 + 6;
+
+  const spots = world.sweepSpots(
+    (kind) => kind === T.GRASS || kind === T.PARK,
+    CONFIG.HELI.SEPARATION,
+    0.6,       // properly open ground, not a gap between two trees
+    need,
+    2,
+  )
+    // Somewhere he can WALK to.
+    //
+    // Without this, three of the four landed across the river — on the far
+    // bank and the islands, because the town side is packed with buildings
+    // and roads and the biggest open grass is all over there. He can swim, so
+    // every existing test called them reachable and none of them complained.
+    // But the helicopter is the thing that makes crossing water easy, so
+    // having to swim a river to reach one is precisely the wrong way round.
+    .filter((s) => world.onMainland(s.x, s.y))
+    // And not on top of a neighbour. They want the parks too, and they chose
+    // first — for the same reason the parked cars give way to them, which is
+    // that a neighbour standing inside a vehicle is a job that cannot be
+    // taken. Two of the twelve ended up inside a helicopter the first time
+    // these were placed on open ground.
+    .filter((s) => !world.neighbourSpots.some(
+      (n) => Math.abs(n.x - s.x) < 90 && Math.abs(n.y - s.y) < 90));
+
+  const out = [];
+  for (const spot of spots) {
+    if (out.length >= CONFIG.HELI.COUNT) break;
+
+    const c = Math.floor(spot.x / world.tile);
+    const r = Math.floor(spot.y / world.tile);
+    const colour = Math.floor(hash(c + 31, r + 53) * CONFIG.CAR_BODY_PALETTE.length);
+
+    const heli = new Car(world, spot.x, spot.y, Math.PI / 2, {
+      body: CONFIG.CAR_BODY_PALETTE[colour],
+      roof: CONFIG.CAR_ROOF_PALETTE[colour],
+      type: spec.id,
+    });
+
+    if (world._overlaps(heli.x, heli.y, heli.half, heli.half,
+                        [...existing, ...out].map((k) => k.boundsBox()))) continue;
+    out.push(heli);
+  }
+
+  return out;
 }
