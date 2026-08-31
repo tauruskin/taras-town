@@ -25,7 +25,8 @@ import { createNpcs } from './npc.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
-import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied } from './audio.js';
+import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied,
+         playFootstep, playSwimStroke, loadSounds } from './audio.js';
 import { startMusic, stopMusic, setMusicMuted, updateMusic } from './music.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
@@ -181,6 +182,11 @@ function startGame(chosenRoom, chosenName) {
   // allow any sound at all, so it has to be started here rather than later.
   setMusicMuted(save.musicMuted);
   startMusic();
+
+  // The footsteps and the swimming, fetched now rather than at load: a phone
+  // gets a town it can walk around first and the sound of walking a moment
+  // later, which is the right way round.
+  loadSounds();
 
   // Both of these are unsupported on iPhone Safari and will simply do
   // nothing there, which is why the CSS "please rotate" screen also exists.
@@ -372,6 +378,8 @@ function update(dt) {
     player.update(dt, input.vector, blockers());
     separateIfInsideSomebody(dt);
   }
+
+  if (mode !== DRIVING) trackFootsteps();
 
   // --- jobs -------------------------------------------------------------
   // Checked against whatever is carrying the player, so a delivery can be
@@ -1156,6 +1164,43 @@ function exitCar() {
   drivenCar = null;
   mode = ON_FOOT;
   persist();
+}
+
+/**
+ * A footstep every half stride, and a stroke every half stroke in the water.
+ *
+ * Driven off `walkPhase` — the very same number that swings his legs — rather
+ * than off a timer. That is the whole trick: the sound lands exactly when the
+ * foot does, and it speeds up and slows down with him for free, because the
+ * phase only advances while he is actually moving and in proportion to how
+ * hard the stick is pushed.
+ */
+let lastStepPhase = 0;
+function trackFootsteps() {
+  // Barely moving: no steps, and forget where we were in the stride so that
+  // setting off again starts a fresh one rather than firing immediately.
+  if (player.speed01 < 0.18) {
+    lastStepPhase = player.walkPhase;
+    return;
+  }
+
+  // Swimming strokes are much further apart than paces.
+  //
+  // They were first set to overlap, on the theory that water is a continuous
+  // wash — but the recording does not fade away, it holds at about a quarter
+  // of its level right to the end, so each stroke landed on top of the one
+  // before and they piled into a busy scrubbing noise. At full pelt it was
+  // 156 strokes a minute, which is more than two a second and nothing like
+  // swimming. This is 66 a minute, and the strokes are separate.
+  const gap = player.swimming ? Math.PI * 3.2 : Math.PI;
+  if (player.walkPhase - lastStepPhase < gap) return;
+
+  // Catch up rather than queue up. Coming back from a paused tab with a big
+  // phase jump should make one noise, not thirty at once.
+  lastStepPhase += gap * Math.floor((player.walkPhase - lastStepPhase) / gap);
+
+  if (player.swimming) playSwimStroke(player.speed01);
+  else playFootstep(player.speed01);
 }
 
 function toggleSound() {

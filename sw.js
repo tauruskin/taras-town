@@ -59,6 +59,17 @@ const PRECACHE = [
   './js/vendor/peerjs.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
+
+  // The only recordings in the game. Precached like everything else, because
+  // the whole point of this file is that the town works in a car with no
+  // signal — music that only played when there was internet would be worse
+  // than no music at all.
+  './sounds/step1.m4a',
+  './sounds/step2.m4a',
+  './sounds/step3.m4a',
+  './sounds/step4.m4a',
+  './sounds/swim.m4a',
+  './sounds/music.m4a',
 ];
 
 self.addEventListener('install', (event) => {

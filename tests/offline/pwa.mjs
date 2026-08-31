@@ -101,6 +101,25 @@ if (match) {
   const realJs = readdirSync(path('js')).filter((f) => f.endsWith('.js')).map((f) => './js/' + f);
   const notListed = realJs.filter((f) => !files.includes(f));
   check('every js/*.js file is precached', notListed.length === 0, notListed.join(', '));
+
+  // The same rule for the recordings, and for the same reason: the game is
+  // meant to work in a car with no signal, and a sound that only plays when
+  // there is internet is worse than one that never plays at all, because it
+  // is the kind of fault nobody can reproduce.
+  const realSounds = readdirSync(path('sounds')).filter((f) => f.endsWith('.m4a')).map((f) => './sounds/' + f);
+  const soundsMissing = realSounds.filter((f) => !files.includes(f));
+  check(`all ${realSounds.length} recordings are precached`,
+    soundsMissing.length === 0, soundsMissing.join(', '));
+
+  // And they have to stay small. This is the one place the game keeps binary
+  // files, they are downloaded on install, and anything committed here is in
+  // git history for good — so the budget is checked rather than trusted.
+  const { statSync } = await import('node:fs');
+  const totalKb = realSounds.reduce((n, f) => n + statSync(path(f.replace(/^\.\//, ''))).size, 0) / 1024;
+  const BUDGET_KB = 1200;
+  check(`the recordings fit the budget (${Math.round(totalKb)}KB of ${BUDGET_KB}KB)`,
+    totalKb < BUDGET_KB,
+    'the sounds folder has grown; anything added here is downloaded on install and kept in git for ever');
 }
 
 check('only handles GET, and only same-origin',

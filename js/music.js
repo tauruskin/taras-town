@@ -1,16 +1,22 @@
 /**
- * music.js — Background music, made of notes rather than a recording.
+ * music.js — Background music.
  *
- * There is no music file. The whole tune is a few lines of note data played
- * through the same oscillators that make the game's other sounds, which means
- * it adds **nothing at all** to what the phone downloads, works with no
- * connection, and leaves nothing permanent in the repository. A recorded loop
- * would be a few hundred kilobytes downloaded on install and kept in git
- * history for ever, even if it were later removed.
+ * A recorded track, `sounds/music.m4a`, with a generated one behind it.
  *
- * If a real recording is ever wanted instead, this module is the only place
- * that would change: `startMusic` / `stopMusic` / `setMusicMuted` is the whole
- * of what the game knows about it.
+ * The tune below used to be the whole of it: note data played through the
+ * same oscillators as the game's other sounds, costing nothing to download.
+ * It was replaced on request — short effects synthesise convincingly, a
+ * melody does not, and this one was judged not good enough to keep. The file
+ * is 809KB, mono at 48kbps, which is the size that decision costs. It is
+ * committed once and deliberately not iterated on, because anything put in
+ * git stays in its history for ever whether or not it is later removed.
+ *
+ * The generated tune is kept, and still plays if the file cannot be fetched
+ * or decoded — a first run on a bad connection, or a browser that will not
+ * take AAC. It is a fallback now rather than the main event.
+ *
+ * `startMusic` / `stopMusic` / `setMusicMuted` is the whole of what the rest
+ * of the game knows about any of this.
  *
  * HOW IT IS MEANT TO SOUND. Quiet, slow and a bit dreamy — something to play
  * under a game for hours without anybody noticing it, which is the opposite of
@@ -127,6 +133,8 @@ export function updateMusic() {
   try {
     const ctx = audioContext();
     if (!ctx || !running) return;
+    // The recording plays itself; there is nothing to schedule.
+    if (!useGenerated) return;
 
     // A suspended context has a frozen clock, so anything scheduled now would
     // pile up and all play at once the moment it resumes. Safari in particular
@@ -156,6 +164,11 @@ export function updateMusic() {
  * Must be called from inside a real user gesture, or after one — phones
  * refuse to make any sound before the page has been touched.
  */
+const MUSIC_FILE = 'sounds/music.m4a';
+let trackBuffer = null;    // the decoded recording, once it has arrived
+let trackSource = null;    // it playing, on a loop
+let useGenerated = false;  // true once the file has been given up on
+
 export function startMusic() {
   try {
     const ctx = audioContext();
@@ -170,9 +183,44 @@ export function startMusic() {
 
     running = true;
     nextBarAt = ctx.currentTime + 0.3;
-    updateMusic();
+
+    if (useGenerated) { updateMusic(); return; }
+    if (trackBuffer) { playTrack(ctx); return; }
+
+    // Fetch it, and start when it arrives. Music appearing a second late on a
+    // first run is not worth noticing; after that the service worker has it
+    // and there is no wait at all. Relative path, like everything else here —
+    // GitHub Pages serves this game from a subfolder.
+    fetch(MUSIC_FILE)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then((data) => ctx.decodeAudioData(data))
+      .then((buf) => {
+        trackBuffer = buf;
+        if (running) playTrack(ctx);
+      })
+      .catch(() => {
+        // No file. Fall back to the tune this module used to be, rather than
+        // to silence.
+        useGenerated = true;
+        if (running) { nextBarAt = ctx.currentTime + 0.3; updateMusic(); }
+      });
   } catch (err) {
     running = false;
+  }
+}
+
+/** The recording, looping, under the same volume control as everything else. */
+function playTrack(ctx) {
+  try {
+    if (trackSource) return;
+    trackSource = ctx.createBufferSource();
+    trackSource.buffer = trackBuffer;
+    trackSource.loop = true;
+    trackSource.connect(master);
+    trackSource.start();
+  } catch (err) {
+    trackSource = null;
+    useGenerated = true;
   }
 }
 
@@ -180,6 +228,13 @@ export function startMusic() {
 export function stopMusic() {
   try {
     running = false;
+
+    // Let go of the recording, but keep the decoded buffer: starting again
+    // should not mean fetching and decoding 800KB a second time.
+    if (trackSource) {
+      try { trackSource.stop(); } catch (e) { /* already finished */ }
+      trackSource = null;
+    }
 
     const ctx = audioContext();
     if (ctx && master) {

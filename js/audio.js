@@ -80,6 +80,237 @@ function note(freq, start, dur, gain = 0.16, type = 'sine') {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Footsteps and swimming
+//
+// These two are different from everything above: they play over and over for
+// as long as he is moving, so they have to be quiet, and they have to vary.
+// A footstep played identically four times a second stops being a footstep
+// and becomes a rattle.
+//
+// They are noise through a filter rather than notes. A recording of a real
+// footstep was measured to build these: the attack is about a millisecond,
+// it is dead within ten, the energy sits low — about half of it under 500Hz —
+// and the bright part of the click sits around 2kHz. So each step is two
+// layers, a short bright tap over a softer low thump, which is what a shoe
+// on a pavement actually is.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Recorded sounds
+//
+// The footsteps and the swimming are the one place this game uses recordings
+// rather than generating the noise, because synthesised versions of both were
+// tried and rejected by ear. They are kept small on purpose: four footsteps
+// and one swimming stroke come to 24KB between them, cut out of longer takes
+// and levelled so they sit together.
+//
+// Four different footsteps rather than one, because a single step played over
+// and over is a rattle within four paces. They are dealt out in turn and each
+// is nudged slightly in pitch and volume on the way past.
+//
+// Everything here degrades to silence rather than to an error. If the files
+// have not arrived yet, or the browser will not decode them, the game plays
+// on without them — which is also what happens for the first second or two of
+// a very slow connection.
+// ---------------------------------------------------------------------------
+
+const SOUND_FILES = {
+  step1: 'sounds/step1.m4a',
+  step2: 'sounds/step2.m4a',
+  step3: 'sounds/step3.m4a',
+  step4: 'sounds/step4.m4a',
+  swim: 'sounds/swim.m4a',
+};
+
+const buffers = {};      // name -> AudioBuffer, once it has arrived
+
+/**
+ * Fetch and decode the recorded effects.
+ *
+ * Called after the game has started rather than at load, so a slow phone gets
+ * a playable town first and its footsteps a moment later.
+ */
+export function loadSounds() {
+  if (!ctx) return;
+  for (const [name, url] of Object.entries(SOUND_FILES)) {
+    if (buffers[name]) continue;
+    // Relative, like everything else here: GitHub Pages serves this game from
+    // a subfolder, and a leading slash would look for it at the top of the
+    // whole site and quietly find nothing.
+    fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then((data) => ctx.decodeAudioData(data))
+      .then((buf) => { buffers[name] = buf; })
+      .catch(() => { /* no sound is fine; a broken game is not */ });
+  }
+}
+
+/** Play a decoded sound, or do nothing if it has not arrived. */
+function sample(name, { gain = 1, rate = 1 } = {}) {
+  if (!ctx || muted || !buffers[name]) return false;
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = buffers[name];
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g);
+    g.connect(ctx.destination);
+    src.start();
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+let noiseBuffer = null;
+
+/**
+ * A source of white noise. One buffer, made once and looped, because
+ * generating a fresh second of random numbers per footstep would be a lot of
+ * work several times a second for no audible difference.
+ */
+function noise() {
+  if (!ctx) return null;
+  if (!noiseBuffer) {
+    const len = Math.floor(ctx.sampleRate * 0.5);
+    noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer;
+  src.loop = true;
+  // Start somewhere different each time, so repeated steps are not the same
+  // slice of noise over and over.
+  return src;
+}
+
+/** One layer of filtered noise with its own envelope. */
+function burst(t, { filter, freq, q, peak, attack, decay, stop }) {
+  const src = noise();
+  if (!src) return;
+  const f = ctx.createBiquadFilter();
+  f.type = filter;
+  f.frequency.setValueAtTime(freq, t);
+  if (q != null) f.Q.setValueAtTime(q, t);
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(peak, t + attack);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+
+  src.connect(f);
+  f.connect(env);
+  env.connect(ctx.destination);
+  src.start(t, Math.random() * 0.4);
+  src.stop(t + stop);
+  return f;
+}
+
+/**
+ * One footstep.
+ *
+ * @param strength 0..1, how hard he is walking. Quieter when he is barely
+ *                 moving, so easing the stick does not produce full stamps.
+ */
+let stepTurn = 0;
+
+export function playFootstep(strength = 1) {
+  if (!ctx || muted) return;
+  const level = Math.min(1, Math.max(0.25, strength));
+
+  // The recordings, dealt out in turn so the same foot never lands twice
+  // running, with a little pitch and volume wander on top of that.
+  stepTurn = (stepTurn + 1) % 4;
+  if (sample(`step${stepTurn + 1}`, {
+    gain: 0.5 * level * (0.85 + Math.random() * 0.3),
+    rate: 0.94 + Math.random() * 0.12,
+  })) return;
+
+  // Not arrived yet, or the browser would not decode them. Fall back to the
+  // synthesised version rather than to silence — it is the difference between
+  // a quiet first few seconds and a game that never has footsteps at all.
+  try {
+    const t = ctx.currentTime;
+    // No two steps quite alike. Without this it is a machine gun within
+    // about four paces.
+    const v = 0.85 + Math.random() * 0.3;
+
+    // The tap of the shoe: bright, and gone almost immediately.
+    burst(t, {
+      filter: 'bandpass', freq: 2100 * v, q: 0.8,
+      peak: 0.035 * level, attack: 0.001, decay: 0.035, stop: 0.05,
+    });
+
+    // The body of the step under it, where most of the weight is.
+    burst(t, {
+      filter: 'lowpass', freq: 360 * v, q: 0.7,
+      peak: 0.055 * level, attack: 0.001, decay: 0.075, stop: 0.09,
+    });
+  } catch (err) {
+    // Never let a sound take the game down.
+  }
+}
+
+/**
+ * Water moving as he swims through it.
+ *
+ * The first attempt at this was guessed rather than measured, and it was
+ * wrong in a way the recording made obvious. Water here has almost NO bottom
+ * end — one per cent of it below 500Hz — and no hiss on top either. Three
+ * quarters of it sits between 500Hz and 2kHz, and it is resonant rather than
+ * hissy, so it wants a narrow filter rather than a wide one. The first
+ * version had its filter down at 520Hz with a fizz at 3kHz on top, which is
+ * why it sounded like static instead of like water.
+ *
+ * It is also a continuous wash, not a series of separate splashes: each one
+ * runs long enough to overlap the next, which is what stops it sounding like
+ * somebody slapping the surface.
+ */
+export function playSwimStroke(strength = 1) {
+  if (!ctx || muted) return;
+  const level = Math.min(1, Math.max(0.25, strength));
+
+  // Only one swimming recording, so the variation has to come from the pitch
+  // and the level — a wider wander than the footsteps get, since there is no
+  // second take to alternate with.
+  if (sample('swim', {
+    gain: 0.42 * level * (0.8 + Math.random() * 0.4),
+    // Slightly under speed on average, which lengthens each stroke as well as
+    // dropping it in pitch — an unhurried arm rather than a splash.
+    rate: 0.84 + Math.random() * 0.2,
+  })) return;
+
+  try {
+    const t = ctx.currentTime;
+    const v = 0.88 + Math.random() * 0.24;
+
+    // The body of it, where three quarters of the energy is. Narrow, because
+    // the recording is resonant rather than hissy.
+    const f = burst(t, {
+      filter: 'bandpass', freq: 900 * v, q: 2.2,
+      peak: 0.065 * level, attack: 0.055, decay: 0.30, stop: 0.36,
+    });
+    // Rolling up and back down as he pulls through.
+    if (f) {
+      f.frequency.exponentialRampToValueAtTime(1550 * v, t + 0.13);
+      f.frequency.exponentialRampToValueAtTime(820 * v, t + 0.30);
+    }
+
+    // A quieter wash above it, filling out the 2-4kHz shoulder. Nothing
+    // higher: there is no content above 8kHz in the recording at all, and
+    // adding any reads as radio static rather than as water.
+    burst(t, {
+      filter: 'bandpass', freq: 2500 * v, q: 1.4,
+      peak: 0.022 * level, attack: 0.07, decay: 0.26, stop: 0.32,
+    });
+  } catch (err) {
+    // Never let a sound take the game down.
+  }
+}
+
 /** A short pip — picking something up, pressing a button. */
 export function playPickup() {
   note(880, 0, 0.10, 0.14, 'triangle');

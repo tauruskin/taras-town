@@ -1,9 +1,16 @@
 // Background music.
 //
-// There is no music file — the tune is note data played through oscillators,
-// which is why it adds nothing to what the phone downloads. That makes it
-// awkward to test by listening, so this counts the notes instead: it wraps
-// `createOscillator` before the game starts and watches how many are made.
+// The music is a recording now, `sounds/music.m4a`, looping — with the tune
+// this module used to be kept behind it as a fallback for when the file
+// cannot be fetched or decoded. Both paths have to work.
+//
+// Audio is awkward to test by listening, so this watches what the page ASKS
+// the audio hardware for: a looping buffer source means the recording is
+// playing, and oscillators mean the fallback tune is. Either counts as music;
+// neither means silence.
+//
+// This used to count only oscillators, and went red the day the recording
+// landed — it was measuring the old implementation rather than the promise.
 //
 // Nothing test-only ships in the game for this. The counter lives in the page,
 // injected by the test, and the game knows nothing about it.
@@ -78,6 +85,23 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
       window.__ctx = this;
       return real.apply(this, arguments);
     };
+
+    // And the recording. A LOOPING buffer source is the music specifically —
+    // the footsteps and the swimming are buffer sources too, but they play
+    // once. Checked when it is started rather than when it is made, because
+    // the loop flag is set in between.
+    window.__loops = 0;
+    const realBuf = AC.prototype.createBufferSource;
+    AC.prototype.createBufferSource = function () {
+      window.__ctx = this;
+      const node = realBuf.apply(this, arguments);
+      const realStart = node.start.bind(node);
+      node.start = function () {
+        if (node.loop) window.__loops++;
+        return realStart.apply(null, arguments);
+      };
+      return node;
+    };
   })()`,
 });
 
@@ -87,18 +111,33 @@ await sleep(2200);
 // --- 1. nothing before the tap -------------------------------------------
 //
 // Phones refuse sound until the page is touched, so the game must not even try.
-check('silent before the game starts', (await ev('window.__notes')) === 0,
-      (await ev('window.__notes')) + ' notes');
+check('silent before the game starts',
+      (await ev('window.__notes')) === 0 && (await ev('window.__loops')) === 0,
+      (await ev('window.__notes')) + ' notes, ' + (await ev('window.__loops')) + ' loops');
 
 await ev(`document.getElementById('start-button').click()`);
 await sleep(2500);
 
 // --- 2. music plays on its own, with nobody touching anything ------------
 const after = await ev('window.__notes');
-// A bar is always at least four notes — three of chord and one of bass — and
-// the melody over the top is deliberately sparse, so some bars have nothing
-// else in them at all. Four is the floor, not a typical number.
-check('music starts playing by itself', after >= 4, after + ' notes so far');
+const loops = await ev('window.__loops');
+
+// Either path is music. The recording is one looping source; the fallback
+// tune is at least four notes a bar — three of chord and one of bass, with
+// the melody deliberately sparse on top.
+check('music starts playing by itself', loops >= 1 || after >= 4,
+      loops + ' looping tracks, ' + after + ' notes');
+
+// Which one actually happened? Not a pass or a fail on its own, but the
+// single most useful line in this output when something is wrong.
+console.log('  --    playing ' + (loops >= 1 ? 'the recording' : after >= 4 ? 'the generated fallback' : 'NOTHING'));
+
+// The recording has to be the thing that plays under normal conditions. If
+// this ever flips to the fallback, the file is missing, unfetchable, or the
+// browser will not decode it — the game would still make a noise, so nothing
+// else here would notice.
+check('and it is the recording, not the fallback', loops >= 1,
+      loops >= 1 ? '' : 'fell back to the generated tune: sounds/music.m4a did not load or decode');
 
 // Does this browser actually have a running audio clock? Notes are scheduled
 // against `currentTime`, so a frozen clock means one burst and then silence
@@ -125,9 +164,19 @@ const clockB = await ev('window.__ctx ? window.__ctx.currentTime : -1');
 const clockRuns = clockB > clockA + 0.5;
 if (clockRuns) {
   const frames = await ev('window.__frames');
-  check('and keeps playing', later > after + 3,
-        after + ' -> ' + later + ' notes, ' + frames + ' frames drawn, clock ' +
-        clockA.toFixed(1) + ' -> ' + clockB.toFixed(1) + 's');
+  // A looping recording schedules nothing as it goes — it was started once and
+  // the hardware carries it — so "still playing" for that path means the node
+  // is still there and the clock is still running, not that new notes appeared.
+  if (loops >= 1) {
+    const alive = await ev('window.__loops');
+    check('and keeps playing', alive >= 1 && clockRuns,
+          alive + ' looping tracks, ' + frames + ' frames drawn, clock ' +
+          clockA.toFixed(1) + ' -> ' + clockB.toFixed(1) + 's');
+  } else {
+    check('and keeps playing', later > after + 3,
+          after + ' -> ' + later + ' notes, ' + frames + ' frames drawn, clock ' +
+          clockA.toFixed(1) + ' -> ' + clockB.toFixed(1) + 's');
+  }
 } else {
   console.log('  --    no running audio clock in this browser (' +
               clockA.toFixed(2) + ' -> ' + clockB.toFixed(2) + 's); skipping the rest');
@@ -146,11 +195,15 @@ await ev(`(() => {
 })()`);
 await sleep(2600);
 
-const atHide = await ev('window.__notes');
+// Measured as "notes plus started tracks", so this reads the same whichever
+// path is playing. Counting notes alone was vacuously true once the music
+// became a recording: it is always nought, hidden or not.
+const sound = () => ev('window.__notes + window.__loops * 100');
+const atHide = await sound();
 await sleep(3000);
-const whileHidden = await ev('window.__notes');
+const whileHidden = await sound();
 check('music stops while the game is hidden', whileHidden <= atHide + 1,
-      atHide + ' -> ' + whileHidden + ' notes');
+      atHide + ' -> ' + whileHidden + ' (notes + tracks x100)');
 
 // --- 4. and comes back ----------------------------------------------------
 await ev(`(() => {
@@ -160,9 +213,11 @@ await ev(`(() => {
   document.dispatchEvent(new Event('visibilitychange'));
 })()`);
 await sleep(3000);
-const back = await ev('window.__notes');
+const back = await sound();
+// Coming back starts a fresh looping source (+100) or resumes scheduling
+// notes (+several); either is a real restart.
 check('and starts again when it comes back', back > whileHidden + 2,
-      whileHidden + ' -> ' + back + ' notes');
+      whileHidden + ' -> ' + back + ' (notes + tracks x100)');
 
 console.log('');
 console.log('problems: ' + (problems.length ? problems.join('; ') : 'NONE'));
