@@ -18,6 +18,7 @@ import { CONFIG } from './config.js';
 import { World } from './world.js';
 import { Player } from './player.js';
 import { Car, createCars, vehicleIndexOf, drawHelipad } from './car.js';
+import { liftToward, canLandAt, drawFlyingShadow, drawFlyingBody } from './flight.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawMusicButton, drawNameplate } from './ui.js';
@@ -101,6 +102,10 @@ let pickingSpot = null;
 let dpr = 1;       // device pixel ratio, capped for performance
 let scale = 1;     // world pixels -> screen pixels
 let viewHeight = CONFIG.CAMERA.VIEW_HEIGHT;   // eases when getting in/out
+
+// How far off the ground the helicopter is drawn, 0 to 1. A drawing value,
+// not a position: the vehicle's x and y stay on the ground the whole time.
+let lift = 0;
 let running = false;
 let lastFrame = 0;
 let clock = 0;     // total seconds elapsed, used for water sparkle etc.
@@ -381,6 +386,8 @@ function update(dt) {
 
   if (mode !== DRIVING) trackFootsteps();
 
+  lift = liftToward(lift, isFlying(), dt);
+
   // --- jobs -------------------------------------------------------------
   // Checked against whatever is carrying the player, so a delivery can be
   // finished by driving up to the door as well as by walking to it.
@@ -433,9 +440,11 @@ function update(dt) {
   // --- camera -----------------------------------------------------------
   // Ease the zoom rather than jumping, so getting in a car feels like the
   // view pulling back rather than a cut.
-  const wantHeight = mode === DRIVING
-    ? CONFIG.CAMERA.VIEW_HEIGHT_CAR
-    : CONFIG.CAMERA.VIEW_HEIGHT;
+  const wantHeight = isFlying()
+    ? CONFIG.CAMERA.VIEW_HEIGHT_AIR
+    : mode === DRIVING
+      ? CONFIG.CAMERA.VIEW_HEIGHT_CAR
+      : CONFIG.CAMERA.VIEW_HEIGHT;
   viewHeight += (wantHeight - viewHeight) * Math.min(1, CONFIG.CAMERA.ZOOM_LERP * dt);
   scale = canvas.clientHeight / viewHeight;
 
@@ -512,10 +521,16 @@ function render() {
   }
 
   for (const car of cars) {
+    // The one being flown is drawn later, above the canopies. Down here it
+    // would have leaves drawn over the top of it.
+    if (car === drivenCar && isFlying()) continue;
     if (car.x < view.x - 90 || car.x > view.x + view.w + 90) continue;
     if (car.y < view.y - 90 || car.y > view.y + view.h + 90) continue;
     car.draw(ctx);
   }
+
+  // Its shadow, though, belongs down here on the ground with everything else.
+  if (isFlying()) drawFlyingShadow(ctx, drivenCar, lift);
 
   // The beacon goes on the ground, under everyone standing on it.
   missions.drawTarget(ctx, clock);
@@ -539,6 +554,9 @@ function render() {
   missions.drawPassenger(ctx, mode === DRIVING ? drivenCar : player);
 
   world.drawCanopies(ctx, view);   // leaves overlap the player: instant depth
+
+  // The helicopter goes over the top of the trees it is flying above.
+  if (isFlying()) drawFlyingBody(ctx, drivenCar, lift);
 
   // Badges go on top of the leaves. They are the only sign that a job is on
   // offer here, so a tree must never be able to hide one.
@@ -1110,11 +1128,20 @@ function findCarToEnter() {
     // save up FOR — but until one has been bought they are scenery, and
     // walking up to one offers nothing.
     if (car.water && save.boat === null) continue;
+    // Same for the helicopters: they stand there from the first load so there
+    // is something to save a thousand coins FOR, but until one is bought they
+    // are scenery.
+    if (car.air && save.heli === null) continue;
 
     const d = Math.hypot(car.x - player.x, car.y - player.y);
     if (d < bestDist) { bestDist = d; best = car; }
   }
   return best;
+}
+
+/** Is he in the air right now? */
+function isFlying() {
+  return mode === DRIVING && drivenCar && drivenCar.air;
 }
 
 function enterHouse(building) {
@@ -1150,7 +1177,7 @@ function enterCar(car) {
   // Whatever he gets into becomes his chosen vehicle, in his chosen colour —
   // his chosen BOAT if the thing floats, which is a different slot.
   car.repaint(save.car);
-  car.setVehicle(car.water ? save.boat : save.vehicle, cars);
+  car.setVehicle(car.air ? save.heli : car.water ? save.boat : save.vehicle, cars);
 }
 
 function exitCar() {

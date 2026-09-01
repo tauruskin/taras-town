@@ -166,5 +166,51 @@ const heliIndex = CONFIG.VEHICLES.findIndex((v) => v.air);
 drawVehiclePicture(ctx, heliIndex, 34, 0);
 check('the shop can draw a helicopter too', true);
 
+// --- flying ---------------------------------------------------------------
+const { liftToward } = await import('../../js/flight.js');
+console.log('\nflying');
+
+// Nothing up there stops it. Fly a helicopter straight at a building at full
+// speed and it should sail over the top.
+const flier = helis[0];
+const before = { x: flier.x, y: flier.y };
+flier.angle = 0;
+for (let i = 0; i < 240; i++) {
+  flier.update(1 / 60, { x: 1, y: 0, mag: 1 }, all.filter((c) => c !== flier));
+}
+check('a helicopter is not stopped by the town',
+  flier.x - before.x > 400,
+  `only travelled ${(flier.x - before.x).toFixed(0)}px in 4 seconds`);
+
+check('and it stays on the map',
+  flier.x >= 0 && flier.x <= world.width && flier.y >= 0 && flier.y <= world.height,
+  'it flew off the edge of the world');
+
+// Fly it into the far edge and make sure it stops there rather than leaving.
+for (let i = 0; i < 3000; i++) {
+  flier.update(1 / 60, { x: 1, y: 0, mag: 1 }, []);
+}
+check('the edge of the map still stops it',
+  flier.x <= world.width && flier.x > world.width - 200,
+  `ended at x=${flier.x.toFixed(0)} of ${world.width}`);
+
+// A car in the same place is stopped by the same building.
+const car = all.find((c) => !c.air && !c.water);
+const carStart = { x: car.x, y: car.y };
+car.angle = 0;
+for (let i = 0; i < 240; i++) {
+  car.update(1 / 60, { x: 1, y: 0, mag: 1 }, all.filter((c) => c !== car));
+}
+check('a car, unlike it, is still stopped by things',
+  Math.hypot(car.x - carStart.x, car.y - carStart.y) < 2000,
+  'the car went as far as the helicopter, so nothing is being collided with');
+
+// The height easing: up when flying, back down when not.
+let lift = 0;
+for (let i = 0; i < 120; i++) lift = liftToward(lift, true, 1 / 60);
+check('it rises when flown', lift > 0.95, `lift reached only ${lift.toFixed(2)}`);
+for (let i = 0; i < 120; i++) lift = liftToward(lift, false, 1 / 60);
+check('and settles back down', lift < 0.05, `lift stayed at ${lift.toFixed(2)}`);
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL HELICOPTER CHECKS PASSED');
 process.exit(fail ? 1 : 0);

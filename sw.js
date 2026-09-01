@@ -44,6 +44,7 @@ const PRECACHE = [
   './js/input.js',
   './js/player.js',
   './js/car.js',
+  './js/flight.js',
   './js/npc.js',
   './js/missions.js',
   './js/ui.js',

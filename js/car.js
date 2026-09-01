@@ -160,6 +160,7 @@ export class Car {
       MAX_SPEED: this.spec.MAX_SPEED,
       ACCEL: this.spec.ACCEL,
       TURN_RATE: this.spec.TURN_RATE,
+      TURN_MIN: this.spec.TURN_MIN ?? CONFIG.CAR.TURN_MIN,
     };
     const throttle = stick.mag;
 
@@ -196,6 +197,17 @@ export class Car {
     const dist = this.speed * dt;
     const dx = Math.cos(this.angle) * dist;
     const dy = Math.sin(this.angle) * dist;
+
+    if (this.air) {
+      // Nothing up here to hit. Not the buildings, not the trees, not the
+      // river, not the other traffic — the edge of the map is the only thing
+      // that stops a helicopter, and it stops it by simply not letting it
+      // leave rather than by bumping.
+      const h = this.half;
+      this.x = Math.min(Math.max(this.x + dx, h), this.world.width - h);
+      this.y = Math.min(Math.max(this.y + dy, h), this.world.height - h);
+      return;
+    }
 
     const blockers = otherCars.map((c) => c.boundsBox());
     // Wheels are stopped by water; a hull is stopped by land.

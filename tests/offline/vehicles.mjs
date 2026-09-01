@@ -113,7 +113,13 @@ for (let i = 0; i < CONFIG.VEHICLES.length; i++) {
     top = Math.max(top, Math.abs(car.speed));
     if (!Number.isFinite(car.x) || !Number.isFinite(car.y)) { embedded = true; break; }
     if (car.x < 0 || car.y < 0 || car.x > world.width || car.y > world.height) { escaped = true; break; }
-    if (world._overlaps(car.x, car.y, car.half, car.half, others.map((c) => c.boundsBox()))) { embedded = true; break; }
+    // A helicopter is SUPPOSED to pass straight over another vehicle parked
+    // beneath it — that is the entire feature — so this overlap check, which
+    // exists to catch a grounded car wedging into one, does not apply to it.
+    if (!v.air &&
+        world._overlaps(car.x, car.y, car.half, car.half, others.map((c) => c.boundsBox()))) {
+      embedded = true; break;
+    }
 
     const moved = Math.hypot(car.x - prev.x, car.y - prev.y);
     if (mag > 0 && moved < 0.01) stuck++; else stuck = 0;

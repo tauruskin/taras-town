@@ -314,6 +314,9 @@ export const CONFIG = {
     VIEW_HEIGHT: 380,
     // Driving pulls the camera back so there is time to see a corner coming.
     VIEW_HEIGHT_CAR: 445,
+    // Flying pulls back further still. Most of the point of being up there is
+    // seeing where you are going.
+    VIEW_HEIGHT_AIR: 560,
     // How quickly the view changes between those two when getting in or out.
     ZOOM_LERP: 3.5,
   },
