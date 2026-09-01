@@ -97,12 +97,24 @@ const tap = async (x, y) => {
   await sleep(360);
 };
 
-// Mirrors ui.js. The vehicle row's buttons are bigger than the colour dots.
-const R = Math.min(26, H * 0.072);
-const FIRST = W * 0.175;
-const GAP = ((W - R - 20) - FIRST) / 7;
-const ROW_Y = [H * 0.30, H * 0.465, H * 0.63, H * 0.795];
-const vehicleDot = (i) => ({ x: FIRST + i * GAP, y: ROW_Y[3] });
+// Where the swatches actually are, asked of the Menu rather than worked out
+// again here.
+//
+// These used to recompute ui.js's layout by hand, with the row spacing divided
+// by a hardcoded 7 -- "the widest row (8)", minus one. Adding a ninth vehicle
+// made the real spacing /8, every computed x drifted, and the taps landed on
+// the swatch NEXT to the intended one: this suite bought a speedboat for 500
+// while asserting it had bought a bus for 400. It fails quietly and for a
+// reason that looks nothing like the cause, which is exactly why CLAUDE.md
+// says the tests must read positions from ui.js and never write them down.
+const _menuForLayout = new _Menu();
+const _dots = _menuForLayout.buttons(W, H);
+const dotAt = (row, i) => {
+  const b = _dots.find((d) => d.id === row + ':' + i);
+  if (!b) throw new Error('no swatch ' + row + ':' + i + ' at ' + W + 'x' + H);
+  return { x: b.x, y: b.y };
+};
+const vehicleDot = (i) => dotAt('vehicle', i);
 const OPENER = _Menu.openerPos(W, H);
 
 let fail = 0;

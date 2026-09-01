@@ -59,11 +59,25 @@ const opener = _Menu.openerPos(W, H);
 // Layout mirrors ui.js
 // Mirrors ui.js. Four rows now that vehicles are for sale, so the dots are
 // smaller and sit differently than they did with three.
-const R = Math.min(26, H * 0.072);
-const FIRST = W * 0.175;
-const GAP = ((W - R - 20) - FIRST) / 7;   // spacing comes from the widest row (8)
-const ROW_Y = [H * 0.30, H * 0.465, H * 0.63, H * 0.795];
-const swatch = (row, i) => ({ x: FIRST + i * GAP, y: ROW_Y[row] });
+// Where the swatches actually are, asked of the Menu rather than worked out
+// again here.
+//
+// These used to recompute ui.js's layout by hand, with the row spacing divided
+// by a hardcoded 7 -- "the widest row (8)", minus one. Adding a ninth vehicle
+// made the real spacing /8, every computed x drifted, and the taps landed on
+// the swatch NEXT to the intended one: this suite bought a speedboat for 500
+// while asserting it had bought a bus for 400. It fails quietly and for a
+// reason that looks nothing like the cause, which is exactly why CLAUDE.md
+// says the tests must read positions from ui.js and never write them down.
+const _menuForLayout = new _Menu();
+const _dots = _menuForLayout.buttons(W, H);
+const dotAt = (row, i) => {
+  const b = _dots.find((d) => d.id === row + ':' + i);
+  if (!b) throw new Error('no swatch ' + row + ':' + i + ' at ' + W + 'x' + H);
+  return { x: b.x, y: b.y };
+};
+const ROWS = ['hat', 'shirt', 'car', 'vehicle'];
+const swatch = (row, i) => dotAt(ROWS[row], i);
 
 // --- open the menu ---------------------------------------------------------
 await tap(opener.x, opener.y);
@@ -101,12 +115,30 @@ await shoot('3-closed');
 // --- the town really is paused while the menu is open ----------------------
 await tap(opener.x, opener.y);       // open again
 const p1 = (await saved()).lastPos;
-// Drag well below the bottom row of dots, so this really is testing the
-// joystick and not quietly landing on a swatch.
+// Drag clear of the swatches, so this really is testing the joystick and not
+// quietly landing on a dot.
+//
+// It used to run from x=120 to x=190, which sits right on top of the first
+// vehicle swatch -- so this check was passing because the drag pressed a
+// button instead of moving anybody, not because the town was paused. The
+// guard below never caught it: it compared against a hand-copied car-row Y
+// with the colour dots' radius, and the vehicle row is lower and bigger.
 const DRAG_Y = H - 20;
-if (Math.abs(DRAG_Y - ROW_Y[2]) < R + 12) throw new Error('drag point overlaps a swatch; move it');
-await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 120, y: DRAG_Y, id: 1 }] });
-await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 190, y: DRAG_Y, id: 1 }] });
+const DRAG_FROM = 36, DRAG_TO = 92;
+// Asked of the real buttons rather than of a copy of the layout, for the same
+// reason the swatch positions are: a stale copy fails quietly and blames the
+// wrong thing.
+// Asked of the real buttons rather than of a copy of the layout, and asked in
+// both axes: the drag runs from x=120 to x=190, so being level with the bottom
+// row is fine as long as no swatch is actually under it. The old version
+// compared against a hand-copied ROW_Y[2] -- the wrong row -- and passed by
+// luck.
+const _hits = (x, y) => _dots.some((d) => Math.hypot(d.x - x, d.y - y) < d.r + 12);
+if (_hits(DRAG_FROM, DRAG_Y) || _hits(DRAG_TO, DRAG_Y)) {
+  throw new Error('drag point overlaps a swatch; move it');
+}
+await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: DRAG_FROM, y: DRAG_Y, id: 1 }] });
+await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: DRAG_TO, y: DRAG_Y, id: 1 }] });
 await sleep(900);
 await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 await ev(`window.dispatchEvent(new Event('pagehide'))`);
