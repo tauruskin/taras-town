@@ -27,3 +27,10 @@ build/
 
 # Test output: screenshots and throwaway browser profiles
 tests/screenshots/
+
+# Local-only test helpers, served alongside the game so they share its origin
+# (localStorage is per-origin, so a page that seeds a save has to come from the
+# same port). These must never ship: what is in this repo is exactly what
+# GitHub Pages serves, and a page that hands out 2000 coins is not the game.
+test-setup.html
+*-check.html
