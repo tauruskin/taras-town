@@ -336,7 +336,9 @@ function update(dt) {
 
   // --- act on a button press ------------------------------------------
   if (input.consumePress('action') && action) {
-    if (action.kind === 'exit') exitCar();
+    // Landing is getting out, and exitCar already finds a spot beside the
+    // vehicle and refuses politely when there is none.
+    if (action.kind === 'exit' || action.kind === 'land') exitCar();
     else if (action.kind === 'enter') enterCar(action.car);
     else if (action.kind === 'job') takeJob(action.npc);
     else if (action.kind === 'enter-house') enterHouse(action.building);
@@ -787,7 +789,20 @@ function drawCoinCounter(w, h) {
  * between a neighbour and a car, whichever is nearer wins.
  */
 function findAction() {
-  if (mode === DRIVING) return { kind: 'exit' };
+  if (mode === DRIVING) {
+    // In the air the one button is the way down, and it is only offered where
+    // he could actually get out afterwards. Over the river, over a roof, or
+    // anywhere the machine itself will not fit, the button shows nothing at
+    // all rather than promising something it will then refuse.
+    //
+    // So he can always keep flying, and flying is always safe. The worst
+    // thing available is having to move somewhere else before landing, which
+    // is a thing he can see out of the window.
+    if (drivenCar.air) {
+      return canLandAt(world, drivenCar, cars) ? { kind: 'land' } : null;
+    }
+    return { kind: 'exit' };
+  }
 
   // Inside, the one button is the way out — and only when he is on the mat,
   // so it cannot be pressed by accident from across the room.
@@ -1569,7 +1584,8 @@ function drawActionButton() {
 
   // A colour per job, so the button's meaning is readable at a glance even
   // before you look at the picture on it.
-  const colour = action.kind === 'exit' || action.kind === 'leave-house' ? '#FF9F45'
+  const colour = action.kind === 'exit' || action.kind === 'leave-house' ||
+                 action.kind === 'land' ? '#FF9F45'
                : action.kind === 'enter' || action.kind === 'enter-house' ? '#5AC85A'
                : '#4EA8FF';
 
@@ -1591,7 +1607,12 @@ function drawActionButton() {
   ctx.stroke();
 
   ctx.translate(b.x, b.y);
-  if (action.kind === 'exit' || action.kind === 'leave-house') drawPersonIcon();
+  // 'land' is named here rather than left to fall through: the final else
+  // reads action.npc.mission, and a kind with no npc crashed the render loop
+  // the day the house actions were added. Same orange and same person as
+  // getting out of a car, because it means the same thing to him.
+  if (action.kind === 'exit' || action.kind === 'leave-house' ||
+      action.kind === 'land') drawPersonIcon();
   else if (action.kind === 'enter') drawCarIcon(colour);
   else if (action.kind === 'enter-house') drawDoorIcon();
   else drawMissionIcon(ctx, action.npc.mission, 22);

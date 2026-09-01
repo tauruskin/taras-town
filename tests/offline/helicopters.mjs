@@ -212,5 +212,57 @@ check('it rises when flown', lift > 0.95, `lift reached only ${lift.toFixed(2)}`
 for (let i = 0; i < 120; i++) lift = liftToward(lift, false, 1 / 60);
 check('and settles back down', lift < 0.05, `lift stayed at ${lift.toFixed(2)}`);
 
+// --- landing, and refusing to ---------------------------------------------
+//
+// The strictest rule in this feature. A child must always be able to get out
+// of whatever he is in, and three bugs of exactly that shape turned up while
+// the insides of houses were built.
+const { canLandAt } = await import('../../js/flight.js');
+console.log('\nlanding');
+
+const lander = helis[1];
+const home = { x: lander.x, y: lander.y };
+
+check('it can land where it started', canLandAt(world, lander, all),
+  'a helicopter cannot be put down on its own pad');
+
+// Out over the water.
+let water = null;
+for (let y = 100; y < world.height - 100 && !water; y += 40) {
+  for (let x = 100; x < world.width - 100; x += 40) {
+    if (world.isWaterAt(x, y)) { water = { x, y }; break; }
+  }
+}
+lander.x = water.x; lander.y = water.y;
+check('it refuses to land on the water', !canLandAt(world, lander, all),
+  'it would have set down in the river');
+
+// Inside a building.
+const b = world.buildings[0];
+lander.x = b.x + b.w / 2; lander.y = b.y + b.h / 2;
+check('it refuses to land inside a building', !canLandAt(world, lander, all),
+  'it would have set down inside somebody\'s house');
+
+lander.x = home.x; lander.y = home.y;
+check('and it can land again once it is back over open ground',
+  canLandAt(world, lander, all));
+
+// The whole point: wherever it WILL land, he can get out.
+let tried = 0, landable = 0, stranded = 0;
+for (let y = 200; y < world.height - 200; y += 260) {
+  for (let x = 200; x < world.width - 200; x += 260) {
+    lander.x = x; lander.y = y;
+    tried++;
+    if (!canLandAt(world, lander, all)) continue;
+    landable++;
+    if (lander.exitSpot(all) === null) stranded++;
+  }
+}
+lander.x = home.x; lander.y = home.y;
+check(`nowhere it agrees to land strands him (${landable} of ${tried} spots)`,
+  stranded === 0, `${stranded} landing spots have no way out`);
+check('and it will land in a decent number of places', landable > tried * 0.15,
+  `only ${landable} of ${tried} spots are landable, which would be frustrating`);
+
 console.log(fail ? '\n' + fail + ' FAILURE(S)' : '\nALL HELICOPTER CHECKS PASSED');
 process.exit(fail ? 1 : 0);
