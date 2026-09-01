@@ -27,7 +27,8 @@ import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied,
-         playFootstep, playSwimStroke, loadSounds } from './audio.js';
+         playFootstep, playSwimStroke, loadSounds,
+         startRotor, stopRotor } from './audio.js';
 import { startMusic, stopMusic, setMusicMuted, updateMusic } from './music.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
@@ -389,6 +390,9 @@ function update(dt) {
   if (mode !== DRIVING) trackFootsteps();
 
   lift = liftToward(lift, isFlying(), dt);
+  // The rotor runs for as long as he is up there. Both of these are safe
+  // to call every frame; they do nothing if they are already in that state.
+  if (isFlying()) startRotor(); else stopRotor();
 
   // --- jobs -------------------------------------------------------------
   // Checked against whatever is carrying the player, so a delivery can be
@@ -955,7 +959,19 @@ function drawGhosts(ctx, view) {
 
     if (g.mode === DRIVING) {
       g.car.x = g.x; g.car.y = g.y; g.car.angle = g.angle;
-      g.car.draw(ctx);
+      // A friend in a helicopter is in the air, and the wire already said so
+      // by naming the vehicle -- no extra message was needed for it. Their
+      // shadow goes on the ground and their body goes up, the same as ours.
+      //
+      // Their lift is 1 rather than eased: nobody is watching their take-off
+      // frame by frame, and easing it would mean putting the height on the
+      // wire for no gain at all.
+      if (g.car.air) {
+        drawFlyingShadow(ctx, g.car, 1);
+        drawFlyingBody(ctx, g.car, 1);
+      } else {
+        g.car.draw(ctx);
+      }
     } else {
       g.player.x = g.x; g.player.y = g.y; g.player.angle = g.angle;
       // Always mid-stride, so a distant friend reads as somebody walking
