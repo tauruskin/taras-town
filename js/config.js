@@ -78,6 +78,18 @@ export const CONFIG = {
     FLOORS: ['#C9A227', '#D9C9A8', '#9FB07A', '#CBA6B0', '#8FA9B8'],
   },
 
+  // Everything about flying.
+  HELI: {
+    COUNT: 4,          // how many stand on the map
+    SEPARATION: 1100,  // how far apart, so each is a journey not a corner
+    PAD_R: 46,         // the painted circle they stand on
+    // How far the body is drawn above its shadow. This one number is the
+    // whole illusion of height, so it is worth more than it looks: at 26 he
+    // read as hovering just off the grass rather than flying over the town.
+    ALTITUDE: 44,
+    LIFT_SPEED: 2.2,   // how quickly it rises and settles, per second
+  },
+
   // What can be put in a room. Bought once, then placed as often as he likes
   // in as many houses as he likes — buying a chair means he owns chairs.
   // Paying per placement would make every tap a small risk, which is the
@@ -210,6 +222,21 @@ export const CONFIG = {
       MAX_SPEED: 300, ACCEL: 250, TURN_RATE: 1.7,
       wheel: 0,
     },
+    {
+      // The most expensive thing in the game, and the last thing he will own.
+      //
+      // `air` is the sibling of `water`: it decides what stops the thing.
+      // Nothing does, up there. It is quick, and it turns on the spot — a
+      // TURN_MIN of nearly 1 means it steers just as well hovering as at
+      // speed, which is what makes looking around from up there possible.
+      // A bus is the opposite and deliberately so.
+      //
+      // Friendly and bright. A sightseeing helicopter, never a military one.
+      id: 'helicopter', price: 1000, shape: 'helicopter', air: true,
+      LENGTH: 76, WIDTH: 34,
+      MAX_SPEED: 420, ACCEL: 400, TURN_RATE: 3.4, TURN_MIN: 0.95,
+      wheel: 0,
+    },
   ],
 
   CAR_BODY_PALETTE: [
@@ -290,6 +317,9 @@ export const CONFIG = {
     VIEW_HEIGHT: 380,
     // Driving pulls the camera back so there is time to see a corner coming.
     VIEW_HEIGHT_CAR: 445,
+    // Flying pulls back further still. Most of the point of being up there is
+    // seeing where you are going.
+    VIEW_HEIGHT_AIR: 560,
     // How quickly the view changes between those two when getting in or out.
     ZOOM_LERP: 3.5,
   },

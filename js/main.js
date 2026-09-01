@@ -17,7 +17,8 @@
 import { CONFIG } from './config.js';
 import { World } from './world.js';
 import { Player } from './player.js';
-import { Car, createCars, vehicleIndexOf } from './car.js';
+import { Car, createCars, vehicleIndexOf, drawHelipad } from './car.js';
+import { liftToward, canLandAt, drawFlyingShadow, drawFlyingBody } from './flight.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawMusicButton, drawNameplate } from './ui.js';
@@ -26,7 +27,8 @@ import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied,
-         playFootstep, playSwimStroke, loadSounds } from './audio.js';
+         playFootstep, playSwimStroke, loadSounds,
+         startRotor, stopRotor } from './audio.js';
 import { startMusic, stopMusic, setMusicMuted, updateMusic } from './music.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
@@ -101,6 +103,10 @@ let pickingSpot = null;
 let dpr = 1;       // device pixel ratio, capped for performance
 let scale = 1;     // world pixels -> screen pixels
 let viewHeight = CONFIG.CAMERA.VIEW_HEIGHT;   // eases when getting in/out
+
+// How far off the ground the helicopter is drawn, 0 to 1. A drawing value,
+// not a position: the vehicle's x and y stay on the ground the whole time.
+let lift = 0;
 let running = false;
 let lastFrame = 0;
 let clock = 0;     // total seconds elapsed, used for water sparkle etc.
@@ -331,7 +337,9 @@ function update(dt) {
 
   // --- act on a button press ------------------------------------------
   if (input.consumePress('action') && action) {
-    if (action.kind === 'exit') exitCar();
+    // Landing is getting out, and exitCar already finds a spot beside the
+    // vehicle and refuses politely when there is none.
+    if (action.kind === 'exit' || action.kind === 'land') exitCar();
     else if (action.kind === 'enter') enterCar(action.car);
     else if (action.kind === 'job') takeJob(action.npc);
     else if (action.kind === 'enter-house') enterHouse(action.building);
@@ -380,6 +388,11 @@ function update(dt) {
   }
 
   if (mode !== DRIVING) trackFootsteps();
+
+  lift = liftToward(lift, isFlying(), dt);
+  // The rotor runs for as long as he is up there. Both of these are safe
+  // to call every frame; they do nothing if they are already in that state.
+  if (isFlying()) startRotor(); else stopRotor();
 
   // --- jobs -------------------------------------------------------------
   // Checked against whatever is carrying the player, so a delivery can be
@@ -433,9 +446,11 @@ function update(dt) {
   // --- camera -----------------------------------------------------------
   // Ease the zoom rather than jumping, so getting in a car feels like the
   // view pulling back rather than a cut.
-  const wantHeight = mode === DRIVING
-    ? CONFIG.CAMERA.VIEW_HEIGHT_CAR
-    : CONFIG.CAMERA.VIEW_HEIGHT;
+  const wantHeight = isFlying()
+    ? CONFIG.CAMERA.VIEW_HEIGHT_AIR
+    : mode === DRIVING
+      ? CONFIG.CAMERA.VIEW_HEIGHT_CAR
+      : CONFIG.CAMERA.VIEW_HEIGHT;
   viewHeight += (wantHeight - viewHeight) * Math.min(1, CONFIG.CAMERA.ZOOM_LERP * dt);
   scale = canvas.clientHeight / viewHeight;
 
@@ -503,11 +518,25 @@ function render() {
   // A ring under the car you are about to get into, so it is obvious which.
   if (nearbyCar) drawHighlight(nearbyCar);
 
+  // The pads go on the ground, under the helicopters standing on them.
   for (const car of cars) {
+    if (!car.air) continue;
+    if (car.x < view.x - 120 || car.x > view.x + view.w + 120) continue;
+    if (car.y < view.y - 120 || car.y > view.y + view.h + 120) continue;
+    drawHelipad(ctx, car.home.x, car.home.y);
+  }
+
+  for (const car of cars) {
+    // The one being flown is drawn later, above the canopies. Down here it
+    // would have leaves drawn over the top of it.
+    if (car === drivenCar && isFlying()) continue;
     if (car.x < view.x - 90 || car.x > view.x + view.w + 90) continue;
     if (car.y < view.y - 90 || car.y > view.y + view.h + 90) continue;
     car.draw(ctx);
   }
+
+  // Its shadow, though, belongs down here on the ground with everything else.
+  if (isFlying()) drawFlyingShadow(ctx, drivenCar, lift);
 
   // The beacon goes on the ground, under everyone standing on it.
   missions.drawTarget(ctx, clock);
@@ -531,6 +560,9 @@ function render() {
   missions.drawPassenger(ctx, mode === DRIVING ? drivenCar : player);
 
   world.drawCanopies(ctx, view);   // leaves overlap the player: instant depth
+
+  // The helicopter goes over the top of the trees it is flying above.
+  if (isFlying()) drawFlyingBody(ctx, drivenCar, lift);
 
   // Badges go on top of the leaves. They are the only sign that a job is on
   // offer here, so a tree must never be able to hide one.
@@ -761,7 +793,20 @@ function drawCoinCounter(w, h) {
  * between a neighbour and a car, whichever is nearer wins.
  */
 function findAction() {
-  if (mode === DRIVING) return { kind: 'exit' };
+  if (mode === DRIVING) {
+    // In the air the one button is the way down, and it is only offered where
+    // he could actually get out afterwards. Over the river, over a roof, or
+    // anywhere the machine itself will not fit, the button shows nothing at
+    // all rather than promising something it will then refuse.
+    //
+    // So he can always keep flying, and flying is always safe. The worst
+    // thing available is having to move somewhere else before landing, which
+    // is a thing he can see out of the window.
+    if (drivenCar.air) {
+      return canLandAt(world, drivenCar, cars) ? { kind: 'land' } : null;
+    }
+    return { kind: 'exit' };
+  }
 
   // Inside, the one button is the way out — and only when he is on the mat,
   // so it cannot be pressed by accident from across the room.
@@ -914,7 +959,19 @@ function drawGhosts(ctx, view) {
 
     if (g.mode === DRIVING) {
       g.car.x = g.x; g.car.y = g.y; g.car.angle = g.angle;
-      g.car.draw(ctx);
+      // A friend in a helicopter is in the air, and the wire already said so
+      // by naming the vehicle -- no extra message was needed for it. Their
+      // shadow goes on the ground and their body goes up, the same as ours.
+      //
+      // Their lift is 1 rather than eased: nobody is watching their take-off
+      // frame by frame, and easing it would mean putting the height on the
+      // wire for no gain at all.
+      if (g.car.air) {
+        drawFlyingShadow(ctx, g.car, 1);
+        drawFlyingBody(ctx, g.car, 1);
+      } else {
+        g.car.draw(ctx);
+      }
     } else {
       g.player.x = g.x; g.player.y = g.y; g.player.angle = g.angle;
       // Always mid-stride, so a distant friend reads as somebody walking
@@ -1084,11 +1141,13 @@ function separateIfInsideSomebody(dt) {
  * so that buying a speedboat does not turn the car on the road into one.
  */
 function chooseItem(rowId, i) {
-  if (rowId === 'vehicle' && CONFIG.VEHICLES[i] && CONFIG.VEHICLES[i].water) {
-    save.boat = i;
-  } else {
-    save[rowId] = i;
-  }
+  const v = rowId === 'vehicle' ? CONFIG.VEHICLES[i] : null;
+  // Three slots, not one. What floats, what flies and what drives are chosen
+  // separately, so buying a speedboat does not turn the car at the kerb into
+  // one — and neither does buying a helicopter.
+  if (v && v.air) save.heli = i;
+  else if (v && v.water) save.boat = i;
+  else save[rowId] = i;
 }
 
 function findCarToEnter() {
@@ -1100,11 +1159,20 @@ function findCarToEnter() {
     // save up FOR — but until one has been bought they are scenery, and
     // walking up to one offers nothing.
     if (car.water && save.boat === null) continue;
+    // Same for the helicopters: they stand there from the first load so there
+    // is something to save a thousand coins FOR, but until one is bought they
+    // are scenery.
+    if (car.air && save.heli === null) continue;
 
     const d = Math.hypot(car.x - player.x, car.y - player.y);
     if (d < bestDist) { bestDist = d; best = car; }
   }
   return best;
+}
+
+/** Is he in the air right now? */
+function isFlying() {
+  return mode === DRIVING && drivenCar && drivenCar.air;
 }
 
 function enterHouse(building) {
@@ -1140,7 +1208,7 @@ function enterCar(car) {
   // Whatever he gets into becomes his chosen vehicle, in his chosen colour —
   // his chosen BOAT if the thing floats, which is a different slot.
   car.repaint(save.car);
-  car.setVehicle(car.water ? save.boat : save.vehicle, cars);
+  car.setVehicle(car.air ? save.heli : car.water ? save.boat : save.vehicle, cars);
 }
 
 function exitCar() {
@@ -1532,7 +1600,8 @@ function drawActionButton() {
 
   // A colour per job, so the button's meaning is readable at a glance even
   // before you look at the picture on it.
-  const colour = action.kind === 'exit' || action.kind === 'leave-house' ? '#FF9F45'
+  const colour = action.kind === 'exit' || action.kind === 'leave-house' ||
+                 action.kind === 'land' ? '#FF9F45'
                : action.kind === 'enter' || action.kind === 'enter-house' ? '#5AC85A'
                : '#4EA8FF';
 
@@ -1554,7 +1623,12 @@ function drawActionButton() {
   ctx.stroke();
 
   ctx.translate(b.x, b.y);
-  if (action.kind === 'exit' || action.kind === 'leave-house') drawPersonIcon();
+  // 'land' is named here rather than left to fall through: the final else
+  // reads action.npc.mission, and a kind with no npc crashed the render loop
+  // the day the house actions were added. Same orange and same person as
+  // getting out of a car, because it means the same thing to him.
+  if (action.kind === 'exit' || action.kind === 'leave-house' ||
+      action.kind === 'land') drawPersonIcon();
   else if (action.kind === 'enter') drawCarIcon(colour);
   else if (action.kind === 'enter-house') drawDoorIcon();
   else drawMissionIcon(ctx, action.npc.mission, 22);

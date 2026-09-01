@@ -44,6 +44,7 @@ const PRECACHE = [
   './js/input.js',
   './js/player.js',
   './js/car.js',
+  './js/flight.js',
   './js/npc.js',
   './js/missions.js',
   './js/ui.js',
@@ -69,6 +70,7 @@ const PRECACHE = [
   './sounds/step3.m4a',
   './sounds/step4.m4a',
   './sounds/swim.m4a',
+  './sounds/heli.m4a',
   './sounds/music.m4a',
 ];
 

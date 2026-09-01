@@ -29,10 +29,10 @@ These are the user's, not suggestions:
 - **Nothing is drawn from a file.** Every tree, house, boat and character is
   drawn with shapes by the code, and every *effect* except two is generated.
   Never add an image.
-- **Audio is the one exception, and it is a closed list.** `sounds/` holds six
-  recordings — four footsteps, one swimming stroke, one music track, 831KB in
-  total — added deliberately in Aug 2026 after the synthesised music and
-  swimming were judged not good enough. `tests/offline/pwa.mjs` enforces a
+- **Audio is the one exception, and it is a closed list.** `sounds/` holds seven
+  recordings — four footsteps, a swimming stroke, a rotor loop and one music
+  track, 850KB in total — added deliberately in Aug 2026 after the synthesised
+  music and swimming were judged not good enough by ear. `tests/offline/pwa.mjs` enforces a
   1200KB budget for that folder and that every file in it is precached.
   **Do not iterate on these files in git.** Anything committed there is in the
   history for ever whether or not it is later deleted, so a swap costs the
@@ -45,7 +45,7 @@ These are the user's, not suggestions:
 
 ## Before reading files
 
-- `js/main.js` (~1370 lines) is the game loop *and* a dumping ground: HUD
+- `js/main.js` (~1800 lines) is the game loop *and* a dumping ground: HUD
   drawing (`drawSound`, `drawMusic`, `drawHome`, `drawCoinCounter`,
   `drawJoystick`, `drawActionButton`, `drawWaypointArrow`, `roundRectPath`),
   the other players (`updateGhosts`, `drawGhosts`, `drawNameplates`,
@@ -55,6 +55,7 @@ These are the user's, not suggestions:
   `offset`/`limit`.
 - Other large files: `js/world.js` (~1690), `js/ui.js` (~890), `js/car.js`
   (~750). Same rule.
+- Flight lives in `js/flight.js` (~90), and should keep living there.
 - Insides of houses live in `js/interior.js` (~310) and `js/furniture.js`
   (~290), and should keep living there. `main.js` holds the mode wiring and
   nothing else about them.
@@ -113,6 +114,16 @@ These are the user's, not suggestions:
 - **Two maps.** The corner one is a zoomed circle showing the ground around the
   player; tapping it opens the whole town. `js/minimap.js` holds both, and the
   town is pre-rendered once at 4px per tile.
+- **Flying is `mode === DRIVING` with an `air` vehicle, NOT a mode of its own.**
+  `mode` goes over the wire, so a fourth value would mean a peer could not draw
+  a flying friend and every `mode === DRIVING` check would need auditing.
+  Getting into a helicopter takes off; getting out lands. `js/flight.js` holds
+  the rules, and **height is a drawing offset, never a coordinate** — the
+  machine's x and y stay on the ground, which is what makes the shadow free and
+  the minimap right for nothing.
+- **A helicopter only lands where he can also get out.** Not on water, not
+  where it will not fit, not where there is no spot to step onto. Where it
+  cannot, the button offers nothing rather than promising and refusing.
 - **Boats are the opposite of cars.** `moveBox`'s terrain argument decides
   which: `'land'` is stopped by water, `'water'` by land. A chosen boat is
   `save.boat`, kept apart from `save.vehicle` so buying a speedboat does not

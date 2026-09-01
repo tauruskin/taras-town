@@ -469,6 +469,21 @@ export function drawVehiclePicture(ctx, index, size, colourIndex = 0) {
     roundRect(ctx, -L * 0.42, W / 2 - 3.5, L * 0.84, 2, 1); ctx.fill();
   } else if (v.shape === 'monster') {
     roundRect(ctx, -L * 0.20, -W * 0.36, L * 0.32, W * 0.72, 2); ctx.fill();
+  } else if (v.shape === 'helicopter') {
+    // A rotor line across the whole thing, which at this size is the one
+    // mark that says helicopter rather than car.
+    ctx.strokeStyle = roof;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.10, -W * 0.95);
+    ctx.lineTo(-L * 0.10, W * 0.95);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-L * 0.10, 0, W * 0.95, 0, Math.PI * 2);
+    ctx.stroke();
+    // And the cabin window, so the front is obvious.
+    ctx.fillStyle = '#BFE3F5';
+    roundRect(ctx, L * 0.10, -W * 0.26, L * 0.22, W * 0.52, 2); ctx.fill();
   } else {
     roundRect(ctx, -L * 0.24, -W / 2 + 2, L * 0.34, W - 4, 2); ctx.fill();
   }

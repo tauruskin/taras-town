@@ -125,8 +125,10 @@ console.log('4. vehicles stay on the road');
 
 // Only the ones with wheels. Putting a boat on the bank and finding it never
 // reaches the water would prove nothing — it cannot move on land at all, so
-// the check would pass for entirely the wrong reason.
-const wheeled = CONFIG.VEHICLES.filter((v) => !v.water);
+// the check would pass for entirely the wrong reason. A helicopter has no
+// wheels either, and flying straight over the river on purpose is the whole
+// point of it, so it belongs with the boats here, not the cars.
+const wheeled = CONFIG.VEHICLES.filter((v) => !v.water && !v.air);
 let drovein = 0;
 for (const v of wheeled) {
   const car = new Car(world, bank.x, bank.y, 0, { body: '#fff', roof: '#fff', type: v.id });

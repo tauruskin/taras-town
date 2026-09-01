@@ -36,11 +36,11 @@ check('prices climb as you go along the row', ascending,
       CONFIG.VEHICLES.map((v) => v.price).join(' -> '));
 
 for (const v of CONFIG.VEHICLES) {
-  // A boat has no wheels, so `wheel` is 0 for one and must be positive for
-  // anything that rolls.
+  // A boat has no wheels, and neither does a helicopter, so `wheel` is 0 for
+  // either and must be positive for anything that actually rolls.
   const sane = v.LENGTH > 20 && v.WIDTH > 15 && v.MAX_SPEED > 50 &&
                v.ACCEL > 50 && v.TURN_RATE > 0.5 &&
-               (v.water ? v.wheel === 0 : v.wheel > 0);
+               ((v.water || v.air) ? v.wheel === 0 : v.wheel > 0);
   check(v.id + ': the numbers are sane', sane,
         v.LENGTH + 'x' + v.WIDTH + ' speed ' + v.MAX_SPEED + ' turn ' + v.TURN_RATE);
 
@@ -113,7 +113,13 @@ for (let i = 0; i < CONFIG.VEHICLES.length; i++) {
     top = Math.max(top, Math.abs(car.speed));
     if (!Number.isFinite(car.x) || !Number.isFinite(car.y)) { embedded = true; break; }
     if (car.x < 0 || car.y < 0 || car.x > world.width || car.y > world.height) { escaped = true; break; }
-    if (world._overlaps(car.x, car.y, car.half, car.half, others.map((c) => c.boundsBox()))) { embedded = true; break; }
+    // A helicopter is SUPPOSED to pass straight over another vehicle parked
+    // beneath it — that is the entire feature — so this overlap check, which
+    // exists to catch a grounded car wedging into one, does not apply to it.
+    if (!v.air &&
+        world._overlaps(car.x, car.y, car.half, car.half, others.map((c) => c.boundsBox()))) {
+      embedded = true; break;
+    }
 
     const moved = Math.hypot(car.x - prev.x, car.y - prev.y);
     if (mag > 0 && moved < 0.01) stuck++; else stuck = 0;

@@ -26,6 +26,23 @@ cars.forEach((car, i) => {
   if (car.water) {
     if (kind !== T.WATER) fail(`boat ${i} is moored on ${kindName}, not water`);
     if (world.blocksBoat(car.x, car.y, car.half, car.half)) fail(`boat ${i} is aground`);
+
+  // Helicopters stand on open ground, neither moored nor parked at a kerb.
+  // This branch exists because without it every correctly placed helicopter
+  // failed the pavement rule below — that rule was written when there were
+  // only two kinds of vehicle and quietly assumed anything not a boat was a
+  // car at a kerb.
+  } else if (car.air) {
+    if (kind !== T.GRASS && kind !== T.PARK) {
+      fail(`helicopter ${i} is standing on ${kindName}, not open ground`);
+    }
+    // And he must be able to walk to it rather than swim. Placed on the
+    // biggest open grass, three of four landed across the river, which for
+    // the one vehicle that makes water easy is exactly backwards.
+    if (!world.onMainland(car.x, car.y)) {
+      fail(`helicopter ${i} can only be reached by swimming`);
+    }
+
   } else {
     if (kind !== T.SIDEWALK) {
       fail(`car ${i} is parked on ${kindName}, not the pavement`);

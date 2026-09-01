@@ -1,8 +1,12 @@
 /**
- * audio.js — Little sounds, generated on the fly.
+ * audio.js — The game's sound effects.
  *
- * There are no sound files. Every noise here is a plain oscillator, which
- * keeps the repository tiny and means there is nothing to fail to download.
+ * Most of it is generated on the fly out of plain oscillators, which costs
+ * nothing to download and cannot fail to arrive. The exceptions are the
+ * footsteps, the swimming and the rotor, which are short recordings in
+ * `sounds/` — synthesised versions of those were built first and rejected by
+ * ear. The generated ones are still here and still run when a file cannot be
+ * fetched or decoded.
  *
  * Phones refuse to make any sound until the user has touched the page, which
  * is one of the reasons the game starts with a "tap to play" screen — that
@@ -121,6 +125,7 @@ const SOUND_FILES = {
   step3: 'sounds/step3.m4a',
   step4: 'sounds/step4.m4a',
   swim: 'sounds/swim.m4a',
+  heli: 'sounds/heli.m4a',
 };
 
 const buffers = {};      // name -> AudioBuffer, once it has arrived
@@ -161,6 +166,59 @@ function sample(name, { gain = 1, rate = 1 } = {}) {
     return true;
   } catch (err) {
     return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The rotor
+//
+// Unlike everything else in this file this one runs for as long as he is in
+// the air, so it is started and stopped rather than fired. It fades in and out
+// rather than snapping, because a loop that begins at full volume sounds like
+// a fault.
+// ---------------------------------------------------------------------------
+
+let rotorSource = null;
+let rotorGain = null;
+
+/** Start the rotor if it is not already going. Safe to call every frame. */
+export function startRotor() {
+  if (!ctx || muted || rotorSource || !buffers.heli) return;
+  try {
+    rotorSource = ctx.createBufferSource();
+    rotorSource.buffer = buffers.heli;
+    rotorSource.loop = true;
+
+    rotorGain = ctx.createGain();
+    rotorGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    rotorGain.gain.exponentialRampToValueAtTime(0.30, ctx.currentTime + 0.5);
+
+    rotorSource.connect(rotorGain);
+    rotorGain.connect(ctx.destination);
+    rotorSource.start();
+  } catch (err) {
+    rotorSource = null;
+    rotorGain = null;
+  }
+}
+
+/** Stop it, fading down rather than cutting off. Safe to call every frame. */
+export function stopRotor() {
+  if (!rotorSource) return;
+  try {
+    const src = rotorSource;
+    const g = rotorGain;
+    rotorSource = null;
+    rotorGain = null;
+    if (g && ctx) {
+      g.gain.cancelScheduledValues(ctx.currentTime);
+      g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+    }
+    setTimeout(() => { try { src.stop(); } catch (e) { /* already done */ } }, 600);
+  } catch (err) {
+    rotorSource = null;
+    rotorGain = null;
   }
 }
 

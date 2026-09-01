@@ -47,6 +47,10 @@ const ROAD_EVERY_COLS = 13;
 // floating on it are cover in their own right.
 const RIVER_TILES = 42;
 
+// How coarse the walkable-land map is, in pixels. Fine enough to tell an
+// island from the mainland, coarse enough that building it is instant.
+const MAINLAND_STEP = 16;
+
 /** How many islands are dropped into the river. */
 const ISLANDS = 9;
 
@@ -146,6 +150,85 @@ export class World {
     // round moved a neighbour behind a hedge and quietly cost a job.
     this.neighbourSpots = this._findNeighbourSpots();
     this.parking = this._findParking();
+
+    // Which parts of the town he can WALK to, without swimming for it.
+    this._mainland = this._findMainland();
+  }
+
+  /**
+   * Everywhere he can get to on dry land, starting from the spawn.
+   *
+   * A grid rather than a list, because the question it answers is "is this
+   * spot walkable-to" and that gets asked about arbitrary points.
+   *
+   * This exists because of the helicopters. Placed on the biggest open
+   * stretches of grass, three of the four landed across the river — on the far
+   * bank and the islands, since the town side is packed with buildings, roads
+   * and pavements and has very little open ground. He can swim, so they were
+   * reachable in the strict sense, and every existing test said so. But a
+   * helicopter is the thing that makes crossing water easy: needing to swim a
+   * river to reach one is the wrong way round.
+   */
+  _findMainland() {
+    const S = MAINLAND_STEP;
+    const half = CONFIG.PLAYER.HITBOX / 2;
+    const cols = Math.ceil(this.width / S);
+    const rows = Math.ceil(this.height / S);
+
+    const walkable = new Uint8Array(cols * rows);
+    for (let gy = 0; gy < rows; gy++) {
+      for (let gx = 0; gx < cols; gx++) {
+        const x = gx * S + S / 2;
+        const y = gy * S + S / 2;
+        if (x < half || y < half || x > this.width - half || y > this.height - half) continue;
+        // Dry land only. Water is walkable in the sense that he swims it, and
+        // that is exactly the thing being excluded here.
+        if (this.isWaterAt(x, y)) continue;
+        if (this._overlaps(x, y, half, half)) continue;
+        walkable[gy * cols + gx] = 1;
+      }
+    }
+
+    const seen = new Uint8Array(cols * rows);
+    const start = Math.floor(this.spawn.y / S) * cols + Math.floor(this.spawn.x / S);
+    const queue = [start];
+    seen[start] = 1;
+
+    while (queue.length) {
+      const i = queue.pop();
+      const gx = i % cols;
+      const gy = (i / cols) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = gx + dx, ny = gy + dy;
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        const ni = ny * cols + nx;
+        if (seen[ni] || !walkable[ni]) continue;
+        seen[ni] = 1;
+        queue.push(ni);
+      }
+    }
+
+    return { seen, cols, rows };
+  }
+
+  /**
+   * Can he walk to this spot from where the game starts, without swimming?
+   *
+   * Generous by a few squares, because the grid is coarse and the question is
+   * "could he get to roughly here", not "is this exact pixel dry".
+   */
+  onMainland(x, y) {
+    const { seen, cols, rows } = this._mainland;
+    const gx = Math.round(x / MAINLAND_STEP);
+    const gy = Math.round(y / MAINLAND_STEP);
+    for (let oy = -4; oy <= 4; oy++) {
+      for (let ox = -4; ox <= 4; ox++) {
+        const nx = gx + ox, ny = gy + oy;
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        if (seen[ny * cols + nx]) return true;
+      }
+    }
+    return false;
   }
 
   /**
