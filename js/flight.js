@@ -64,8 +64,11 @@ export function drawFlyingShadow(ctx, heli, lift) {
   ctx.globalAlpha = 0.28 * lift;
   ctx.fillStyle = '#000000';
   ctx.beginPath();
-  // Shrinking as it rises, which is most of what says "this is high up".
-  const k = 1 - 0.25 * lift;
+  // Shrinking as it rises, which is most of what says "this is high up" --
+  // the gap alone reads as ambiguous, and could just as easily be a machine
+  // drawn slightly off centre. The shadow getting smaller is the half of it
+  // that says the distance is vertical.
+  const k = 1 - 0.34 * lift;
   ctx.ellipse(heli.x, heli.y, heli.length * 0.42 * k, heli.width * 0.55 * k, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();

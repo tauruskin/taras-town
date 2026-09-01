@@ -83,7 +83,10 @@ export const CONFIG = {
     COUNT: 4,          // how many stand on the map
     SEPARATION: 1100,  // how far apart, so each is a journey not a corner
     PAD_R: 46,         // the painted circle they stand on
-    ALTITUDE: 26,      // how far the body is drawn above its shadow
+    // How far the body is drawn above its shadow. This one number is the
+    // whole illusion of height, so it is worth more than it looks: at 26 he
+    // read as hovering just off the grass rather than flying over the town.
+    ALTITUDE: 44,
     LIFT_SPEED: 2.2,   // how quickly it rises and settles, per second
   },
 
