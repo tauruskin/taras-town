@@ -31,7 +31,7 @@ These are the user's, not suggestions:
   Never add an image.
 - **Audio is the one exception, and it is a closed list.** `sounds/` holds seven
   recordings — four footsteps, a swimming stroke, a rotor loop and one music
-  track, 850KB in total — added deliberately in Aug 2026 after the synthesised
+  track, 252KB in total — added deliberately in Aug 2026 after the synthesised
   music and swimming were judged not good enough by ear. `tests/offline/pwa.mjs` enforces a
   1200KB budget for that folder and that every file in it is precached.
   **Do not iterate on these files in git.** Anything committed there is in the
