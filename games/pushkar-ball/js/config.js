@@ -1,0 +1,107 @@
+/**
+ * config.js — Every tunable number and colour in Pushkar Ball lives here.
+ *
+ * If the roll feels too slow, the jump too floaty, the stop too sudden or a
+ * colour wrong, this is the ONLY file you need to open. Nothing here imports
+ * anything, so any value can be changed and the page reloaded.
+ *
+ * The physics numbers below are a STARTING POINT, not a result. They were
+ * chosen so the arithmetic comes out sane — the jump clears 131px, a 200px gap
+ * is comfortable at speed — and they are expected to change once someone has
+ * played it with a thumb rather than reasoned about it.
+ */
+export const CONFIG = {
+  // ---------------------------------------------------------------------
+  // Time
+  // ---------------------------------------------------------------------
+  // The simulation runs at a fixed rate and the drawing at whatever the screen
+  // offers. Fixed-step is what makes the physics identical on a 60Hz phone and
+  // a 144Hz monitor, and what makes it reproducible in node — which is how it
+  // gets tested at all.
+  STEP: 1 / 120,
+  // A backgrounded tab hands back one enormous delta on return. Without this
+  // clamp the world fast-forwards, usually straight through a floor.
+  MAX_FRAME: 0.25,
+
+  // ---------------------------------------------------------------------
+  // What the player can see
+  // ---------------------------------------------------------------------
+  // World units visible vertically, on every screen. A small phone therefore
+  // sees a little less HORIZONTALLY than a wide desktop, rather than seeing
+  // less of the level — a platformer where the small screen shows less is
+  // secretly harder on the small screen, which is not a difficulty anyone chose.
+  VIEW_H: 540,
+
+  // ---------------------------------------------------------------------
+  // The ball
+  // ---------------------------------------------------------------------
+  BALL: { R: 20 },
+
+  GRAVITY: 2200,        // px/s²
+  ACCEL: 1600,          // px/s², rolling on the ground
+  AIR_ACCEL: 0.45,      // multiplier on ACCEL while airborne — you can steer in
+                        // the air, but far less than on the ground
+  MAX_SPEED: 420,       // px/s horizontal
+  GROUND_FRICTION: 6.0, // per second; how fast an unpushed ball rolls to a stop
+  RESTITUTION: 0.18,    // how much of an impact comes back. A ball bounces a
+                        // little; a ball that bounces a lot is a nuisance.
+  REST_EPS: 40,         // px/s below which an impact is absorbed rather than
+                        // returned, so a resting ball actually rests
+  JUMP_V: 760,          // px/s upward impulse — clears 131px
+  COYOTE: 0.10,         // s after leaving the ground that a jump still works
+  BUFFER: 0.12,         // s before landing that a jump press is remembered
+  GROUND_NY: -0.6,      // a contact normal at least this far up counts as ground
+
+  // ---------------------------------------------------------------------
+  // The camera
+  // ---------------------------------------------------------------------
+  CAMERA: {
+    LERP: 8,            // horizontal follow, per second
+    LERP_Y: 2.5,        // vertical follow, much slower on purpose: a camera
+                        // that tracks every jump exactly is nauseating
+    DEADZONE_Y: 90,     // world units of vertical slack before it follows at all
+    LOOKAHEAD: 0.35,    // seconds of vx to look ahead, so a fast ball can see
+                        // what it is about to hit
+  },
+
+  // ---------------------------------------------------------------------
+  // The controls on screen
+  // ---------------------------------------------------------------------
+  UI: {
+    BUTTON_R: 40,       // the two move buttons
+    JUMP_R: 52,         // the jump button, deliberately the biggest thing there
+    EDGE: 20,           // gap from the screen edge
+    GAP: 14,            // gap between the two move buttons
+    HIT: 1.3,           // hit radius as a multiple of the drawn one. A thumb is
+                        // not a mouse pointer, and a jump that did not happen
+                        // because the press was four pixels low is
+                        // indistinguishable from a bug.
+  },
+
+  // ---------------------------------------------------------------------
+  // Colours
+  // ---------------------------------------------------------------------
+  // The ball is the only RED thing anywhere, on purpose: the browser suites
+  // find it by the colour of its pixels, since the game carries no test-only
+  // code. Adding anything red to the world will break them, loudly.
+  COLOURS: {
+    SKY_TOP: '#4FC3F7',
+    SKY_LOW: '#B3E5FC',
+    HILL_FAR: '#8ED6A0',
+    HILL_NEAR: '#63BE7B',
+    GROUND: '#7ED957',
+    GROUND_EDGE: '#4E9E38',
+    CRATE: '#C98A4B',
+    CRATE_LINE: '#9C6631',
+    PLATFORM: '#B0BEC5',
+    PLATFORM_EDGE: '#78909C',
+    BALL: '#E8402A',
+    BALL_LIGHT: '#FF8A72',
+    BALL_MARK: '#A32615',
+    FLAG_POLE: '#EFEFEF',
+    FLAG: '#FFC93C',
+    BUTTON: 'rgba(255,255,255,0.30)',
+    BUTTON_HELD: 'rgba(255,255,255,0.58)',
+    BUTTON_MARK: '#FFFFFF',
+  },
+};
