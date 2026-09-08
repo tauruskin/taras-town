@@ -25,8 +25,12 @@ build/
 # Local Claude Code settings — not part of the game
 .claude/
 
-# Test output: screenshots and throwaway browser profiles
-tests/screenshots/
+# Test output: screenshots and throwaway browser profiles. A middle slash
+# anchors a gitignore pattern to the directory the file is in (the repo
+# root here), so a bare "tests/screenshots/" stopped matching once tests
+# moved to games/taras-town/tests/screenshots/ — "**/" matches it (and any
+# other game's) at any depth instead.
+**/tests/screenshots/
 
 # Local-only test helpers, served alongside the game so they share its origin
 # (localStorage is per-origin, so a page that seeds a save has to come from the
