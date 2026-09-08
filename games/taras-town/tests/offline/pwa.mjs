@@ -5,12 +5,21 @@
 // a manifest pointing at an icon that was never generated, an icon that is
 // not actually the size it claims to be, a precache list that has drifted
 // from the files that exist.
-import { readFileSync, existsSync } from 'node:fs';
+//
+// The installable app is the HUB, two levels above this game (this file
+// lives at games/taras-town/tests/offline/pwa.mjs, so games/taras-town is
+// two ../ up from here, and the repo root is two more beyond that):
+// manifest.json, sw.js and icons/ all live at the repository root. js/*.js
+// and sounds/*.m4a still live alongside this game, so two roots are tracked
+// here.
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const path = (...p) => join(ROOT, ...p);
+const GAME_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const HUB_ROOT = join(GAME_ROOT, '..', '..');
+const path = (...p) => join(HUB_ROOT, ...p);
+const gamePath = (...p) => join(GAME_ROOT, ...p);
 
 let fail = 0;
 const check = (l, ok, d) => { if (!ok) fail++; console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + l + (d ? ': ' + d : '')); };
@@ -69,7 +78,7 @@ for (const icon of manifest?.icons || []) {
 check('the apple touch icon exists and is 180x180', existsSync(path('icons/apple-touch-icon.png')) &&
       pngSize(path('icons/apple-touch-icon.png')).w === 180);
 
-// --- 3. index.html actually links to all of this ---------------------------
+// --- 3. the hub's index.html actually links to all of this -----------------
 console.log('');
 console.log('3. index.html');
 const html = readFileSync(path('index.html'), 'utf-8');
@@ -97,8 +106,7 @@ if (match) {
 
   // And the reverse: every game .js file should be listed, or it will only
   // ever load online and quietly stop working the moment the phone is offline.
-  const { readdirSync } = await import('node:fs');
-  const realJs = readdirSync(path('js')).filter((f) => f.endsWith('.js')).map((f) => './js/' + f);
+  const realJs = readdirSync(gamePath('js')).filter((f) => f.endsWith('.js')).map((f) => './games/taras-town/js/' + f);
   const notListed = realJs.filter((f) => !files.includes(f));
   check('every js/*.js file is precached', notListed.length === 0, notListed.join(', '));
 
@@ -106,7 +114,7 @@ if (match) {
   // meant to work in a car with no signal, and a sound that only plays when
   // there is internet is worse than one that never plays at all, because it
   // is the kind of fault nobody can reproduce.
-  const realSounds = readdirSync(path('sounds')).filter((f) => f.endsWith('.m4a')).map((f) => './sounds/' + f);
+  const realSounds = readdirSync(gamePath('sounds')).filter((f) => f.endsWith('.m4a')).map((f) => './games/taras-town/sounds/' + f);
   const soundsMissing = realSounds.filter((f) => !files.includes(f));
   check(`all ${realSounds.length} recordings are precached`,
     soundsMissing.length === 0, soundsMissing.join(', '));
@@ -114,7 +122,6 @@ if (match) {
   // And they have to stay small. This is the one place the game keeps binary
   // files, they are downloaded on install, and anything committed here is in
   // git history for good — so the budget is checked rather than trusted.
-  const { statSync } = await import('node:fs');
   const totalKb = realSounds.reduce((n, f) => n + statSync(path(f.replace(/^\.\//, ''))).size, 0) / 1024;
   const BUDGET_KB = 1200;
   check(`the recordings fit the budget (${Math.round(totalKb)}KB of ${BUDGET_KB}KB)`,

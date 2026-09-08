@@ -1,8 +1,10 @@
-// The one test that actually proves this: load the game once online so the
-// service worker can install and cache everything, then cut the network off
-// entirely and load it again as a fresh navigation — not a reload of an
-// already-running page, an actual new visit — and confirm the game still
-// boots and plays.
+// The one test that actually proves this: load the HUB once online so the
+// service worker can install and cache everything (only the hub registers
+// it — see js/hub.js), tap through into the game while still online, then
+// cut the network off entirely and load the game again as a fresh
+// navigation — not a reload of an already-running page, an actual new visit
+// — and confirm it still boots and plays, controlled by a service worker it
+// never registered itself.
 //
 // Anything short of that is just checking that some files exist; a browser
 // can be surprisingly willing to half-load a broken offline page and this is
@@ -10,7 +12,8 @@
 import { writeFileSync } from 'node:fs';
 
 const PORT = 9333;
-const URL = process.argv[2] || 'http://127.0.0.1:8777/index.html';
+const GAME_URL = process.argv[2] || 'http://127.0.0.1:8777/games/taras-town/index.html';
+const HUB_URL = GAME_URL.replace(/\/games\/taras-town\/index\.html$/, '/index.html');
 const TAG = process.argv[3] || 'pwa';
 
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
@@ -51,7 +54,7 @@ await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints
 await send('Page.navigate', { url: 'about:blank' });
 await sleep(300);
 await send('Storage.clearDataForOrigin', {
-  origin: URL.split('/').slice(0, 3).join('/'),
+  origin: HUB_URL.split('/').slice(0, 3).join('/'),
   storageTypes: 'local_storage,cache_storage,service_workers',
 });
 
@@ -63,14 +66,10 @@ const pixel = (x, y) => ev(
   " const dpr=c.width/parseFloat(c.style.width);" +
   " const d=g.getImageData(Math.round(" + x + "*dpr), Math.round(" + y + "*dpr),1,1).data;" +
   " return d[0]+','+d[1]+','+d[2]; })()");
-const tap = async (x, y) => {
-  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
-  await sleep(90);
-  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-};
 
-// --- 1. a normal, online visit, so the service worker gets a chance to install
-await send('Page.navigate', { url: URL });
+// --- 1. a normal, online visit to the HUB, so the service worker gets a
+//        chance to install --------------------------------------------------
+await send('Page.navigate', { url: HUB_URL });
 await sleep(2200);
 
 const swSupported = await ev('"serviceWorker" in navigator');
@@ -90,23 +89,32 @@ check('the service worker file lists files to precache', wantCount > 5, wantCoun
 
 let cached = 0;
 for (let i = 0; i < 20; i++) {
-  cached = await ev(`caches.open('taras-town-v1').then(c => c.keys()).then(k => k.length).catch(() => 0)`);
+  cached = await ev(`caches.open('pushkar-games-v1').then(c => c.keys()).then(k => k.length).catch(() => 0)`);
   if (cached >= wantCount) break;
   await sleep(500);
 }
 check('every precached file actually landed in the cache', cached >= wantCount, cached + '/' + wantCount);
 
 const swActive = await ev(`navigator.serviceWorker.getRegistration().then(r => !!(r && r.active))`);
-check('a service worker is active for this page', swActive);
+check('a service worker is active for the hub', swActive);
 
-// --- 2. cut the network off completely, then visit again as if for the first
-//        time today — not a reload of a live page, a fresh navigation ------
-console.log('  ... going offline and opening the game again');
+// --- 2. still online, tap through into the game, proving the hub actually
+//        leads there --------------------------------------------------------
+await ev("document.querySelector('.tile').click()");
+await sleep(1500);
+
+const onGamePage = await ev("!!document.getElementById('start-button')");
+check('tapping the tile opens the game', onGamePage);
+
+// --- 3. cut the network off completely, then visit the GAME's own URL again
+//        as if for the first time today — not a reload, an actual new
+//        navigation the hub's service worker never saw before ------------
+console.log('  ... going offline and opening the game again, directly');
 await send('Network.emulateNetworkConditions', {
   offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0,
 });
 
-await send('Page.navigate', { url: URL });
+await send('Page.navigate', { url: GAME_URL });
 await sleep(2000);
 
 const gotThePage = await ev("!!document.getElementById('start-button')");
@@ -134,7 +142,7 @@ if (gotThePage) {
   check('tapping play works offline too', started === true);
 }
 
-// --- 3. back online, to leave the browser in a normal state ---------------
+// --- 4. back online, to leave the browser in a normal state ---------------
 await send('Network.emulateNetworkConditions', {
   offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1,
 });

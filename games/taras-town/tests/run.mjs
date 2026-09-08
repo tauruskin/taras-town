@@ -25,8 +25,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SHOTS = join(HERE, 'screenshots');
 
 const SERVER_PORT = 8777;
-const LOCAL_URL = `http://127.0.0.1:${SERVER_PORT}/index.html`;
-const DEPLOYED_URL = 'https://tauruskin.github.io/taras-town/index.html';
+const LOCAL_URL = `http://127.0.0.1:${SERVER_PORT}/games/taras-town/index.html`;
+const DEPLOYED_URL = 'https://tauruskin.github.io/taras-town/games/taras-town/index.html';
 
 // Two browsers, not two tabs. Chrome throttles requestAnimationFrame in
 // background tabs, so with both players in one browser the host's game loop
@@ -109,8 +109,12 @@ async function main() {
   // --- the things the suites need ---------------------------------------
   if (needsBrowser && !useDeployed) {
     const py = process.platform === 'win32' ? 'python' : 'python3';
+    // Served from the repo root now, not this game's own folder — manifest.json,
+    // sw.js and icons/ moved two levels above tests/ (HERE is
+    // games/taras-town/tests, so three ../ reach the repo root), and pwa.mjs
+    // needs to reach both the hub and the game through the one server.
     children.push(spawn(py, ['-m', 'http.server', String(SERVER_PORT), '--bind', '127.0.0.1'], {
-      cwd: join(HERE, '..'), stdio: 'ignore',
+      cwd: join(HERE, '..', '..', '..'), stdio: 'ignore',
     }));
     const up = await waitFor(async () => (await fetch(LOCAL_URL)).ok, 'the web server');
     if (!up) process.exit(2);
