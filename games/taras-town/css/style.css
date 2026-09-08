@@ -155,6 +155,37 @@ html, body {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.16);
 }
 
+/* The way back to the hub's picker screen. Lives only on the first panel —
+   the one place with no "back" button of its own, since it's the root of
+   this game's own flow rather than a step inside it. Same corner and size as
+   `.back` so it reads as the same kind of control, but its own class: unlike
+   `.back`, it must never be swept up by the panel-switching click handler. */
+#start-screen .hub-link {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.16);
+}
+
+#start-screen .hub-link svg {
+  width: 24px;
+  height: 24px;
+  fill: #3A6B8A;
+}
+
+#start-screen .hub-link:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.16);
+}
+
 /* --------------------------------------------------------------------------
    The room code
 
