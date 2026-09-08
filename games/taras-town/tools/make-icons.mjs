@@ -12,7 +12,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(HERE, '..');
+// icons/ is a hub-level asset (only the root manifest.json references it),
+// two levels up from this file even though the tool itself lives with the
+// rest of this game's tooling.
+const ROOT = join(HERE, '..', '..');
 const PORT = 9333;
 
 const SIZES = [
