@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pushkar Games</title>
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#7ED957">
+
+  <!-- Same little sun as the games inside, inline so there is no extra file
+       to load. -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='9' fill='%23FFD93D'/></svg>">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <!-- All paths are relative (no leading slash) so the hub works from a
+       GitHub Pages sub-folder such as /taras-town/. -->
+  <link rel="stylesheet" href="css/hub.css">
+</head>
+<body>
+
+  <!--
+    The picker screen: one tile per game. No writing on any tile — Taras may
+    not read fluently, so every choice is a picture, the same rule the games
+    themselves follow. The one piece of text on the page is the app's own
+    name, exactly as "Taras Town" is shown on its own opening panel.
+  -->
+  <div id="hub-screen">
+    <div class="sun"></div>
+    <h1>Pushkar Games</h1>
+
+    <div class="tiles">
+      <a class="tile" href="games/taras-town/index.html" aria-label="Play Taras Town">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M6 24 L24 8 L42 24 L36 24 L36 40 L12 40 L12 24 Z"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Shown automatically by CSS whenever the phone is held upright, same as
+       every game inside — the hub is landscape-only too. -->
+  <div id="rotate-screen">
+    <div class="phone"></div>
+    <p>&#8635;</p>
+  </div>
+
+  <script type="module" src="js/hub.js"></script>
+</body>
+</html>
