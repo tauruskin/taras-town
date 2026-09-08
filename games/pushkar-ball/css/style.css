@@ -1,0 +1,116 @@
+/**
+ * style.css — Pushkar Ball's page, which is almost nothing: a canvas, an
+ * opening panel, and the portrait overlay.
+ *
+ * Landscape only, full bleed, and nothing selectable or zoomable — a stray
+ * long-press during a jump must not pop up a text selection, and a double-tap
+ * must not zoom.
+ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #4FC3F7;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+#game { display: block; width: 100%; height: 100%; }
+
+#start-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(#4FC3F7, #B3E5FC);
+}
+#start-screen.hidden { display: none; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Sized against the screen HEIGHT, not its width. A short landscape window is
+   the shape that breaks layouts here, and vh is the axis that is short. */
+.panel h1 {
+  font-size: clamp(20px, 7vh, 44px);
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, .18);
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+/* The hero, as a plain CSS circle in the same red the canvas draws it. */
+.ball {
+  width: clamp(38px, 12vh, 78px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #FF7A63, #E8402A 70%);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .22);
+}
+
+button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+button svg { width: 60%; height: 60%; fill: #fff; }
+
+.big {
+  width: clamp(52px, 16vh, 92px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .2);
+}
+/* Pressed state, so a tap is visibly heard. A button that does not react
+   leaves a player unsure whether the game heard them or is broken. */
+.big:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, .2); }
+.red { background: #E8402A; }
+
+/* Top-left, and kept clear of the notch. A way out of every screen is a rule
+   here, not a nicety. */
+.hub-link {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .28);
+}
+.hub-link svg { width: 68%; height: 68%; }
+
+/* Portrait: cover everything and ask for a turn, without a word. */
+#rotate-screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #2E3A46;
+  color: #fff;
+  z-index: 10;
+}
+#rotate-screen p { font-size: 46px; }
+#rotate-screen .phone {
+  width: 46px;
+  height: 78px;
+  border: 5px solid #fff;
+  border-radius: 9px;
+}
+@media (orientation: portrait) {
+  #rotate-screen { display: flex; }
+}

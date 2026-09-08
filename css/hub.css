@@ -92,6 +92,14 @@ html, body {
   fill: #fff;
 }
 
+/* A colour per game, not just a picture per game. Taras may not read the tiles,
+   so the more ways they differ the faster he finds the one he wants — and a
+   colour is recognised from further away than a shape. */
+#hub-screen .tile.ball {
+  background: #E8402A;
+  box-shadow: 0 8px 0 #A32615;
+}
+
 #hub-screen .tile:active {
   transform: translateY(6px);
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);

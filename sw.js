@@ -29,8 +29,13 @@
 // Bump this only when files this list references are renamed or removed —
 // otherwise the network-first strategy above already keeps everyone current,
 // and bumping it needlessly just forces a full re-download for no reason.
-// Bumped here because the hub/games split renamed almost everything below.
-const CACHE = 'pushkar-games-v1';
+// Bumped here because a second game, Pushkar Ball, was added to the list.
+//
+// Note that `install` below uses cache.addAll, which rejects WHOLESALE on a
+// single 404 — one missing path and the service worker fails to install, taking
+// offline support for the entire site with it. So a path only ever goes in this
+// list once the file behind it exists.
+const CACHE = 'pushkar-games-v2';
 
 const PRECACHE = [
   './',
@@ -77,6 +82,13 @@ const PRECACHE = [
   './games/taras-town/sounds/swim.m4a',
   './games/taras-town/sounds/heli.m4a',
   './games/taras-town/sounds/music.m4a',
+
+  // Pushkar Ball. Nothing but code: every shape is drawn and every sound is
+  // synthesised, so there is no folder of assets to list here and there is not
+  // going to be one.
+  './games/pushkar-ball/index.html',
+  './games/pushkar-ball/css/style.css',
+  './games/pushkar-ball/js/main.js',
 ];
 
 self.addEventListener('install', (event) => {
