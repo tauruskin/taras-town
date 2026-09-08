@@ -1,16 +1,17 @@
 /**
- * sw.js — Lets Taras Town be installed, and lets it open with no internet.
+ * sw.js — Lets Pushkar Games be installed, and lets it open with no internet.
  *
  * This has to sit at the repository root: a service worker can only ever
  * control pages inside the folder it is served from (its "scope"), and this
- * game is served from the site root.
+ * site is served from the site root. The hub registers it (see js/hub.js);
+ * once active its scope covers every game underneath it too.
  *
- * The strategy is NETWORK-FIRST for the game's own files, cache only as a
+ * The strategy is NETWORK-FIRST for the app's own files, cache only as a
  * fallback:
  *
- *   - Online:  always fetch fresh. Taras always gets whatever was pushed
+ *   - Online:  always fetch fresh. Players always get whatever was pushed
  *              most recently, the same as before this file existed.
- *   - Offline: serve the copy saved the last time the game was online.
+ *   - Offline: serve the copy saved the last time the app was online.
  *
  * A cache-FIRST design would be the wrong default for a project that gets
  * pushed to as often as this one does — it would happily keep serving a
@@ -28,50 +29,54 @@
 // Bump this only when files this list references are renamed or removed —
 // otherwise the network-first strategy above already keeps everyone current,
 // and bumping it needlessly just forces a full re-download for no reason.
-const CACHE = 'taras-town-v1';
+// Bumped here because the hub/games split renamed almost everything below.
+const CACHE = 'pushkar-games-v1';
 
 const PRECACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css',
-  './js/main.js',
-  './js/config.js',
-  './js/world.js',
-  './js/interior.js',
-  './js/furniture.js',
-  './js/camera.js',
-  './js/input.js',
-  './js/player.js',
-  './js/car.js',
-  './js/flight.js',
-  './js/npc.js',
-  './js/missions.js',
-  './js/ui.js',
-  './js/coins.js',
-  './js/effects.js',
-  './js/audio.js',
-  './js/save.js',
-  './js/net.js',
-  './js/pwa.js',
-  './js/startscreen.js',
-  './js/minimap.js',
-  './js/music.js',
-  './js/vendor/peerjs.min.js',
+  './css/hub.css',
+  './js/hub.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
+
+  './games/taras-town/index.html',
+  './games/taras-town/css/style.css',
+  './games/taras-town/js/main.js',
+  './games/taras-town/js/config.js',
+  './games/taras-town/js/world.js',
+  './games/taras-town/js/interior.js',
+  './games/taras-town/js/furniture.js',
+  './games/taras-town/js/camera.js',
+  './games/taras-town/js/input.js',
+  './games/taras-town/js/player.js',
+  './games/taras-town/js/car.js',
+  './games/taras-town/js/flight.js',
+  './games/taras-town/js/npc.js',
+  './games/taras-town/js/missions.js',
+  './games/taras-town/js/ui.js',
+  './games/taras-town/js/coins.js',
+  './games/taras-town/js/effects.js',
+  './games/taras-town/js/audio.js',
+  './games/taras-town/js/save.js',
+  './games/taras-town/js/net.js',
+  './games/taras-town/js/startscreen.js',
+  './games/taras-town/js/minimap.js',
+  './games/taras-town/js/music.js',
+  './games/taras-town/js/vendor/peerjs.min.js',
 
   // The only recordings in the game. Precached like everything else, because
   // the whole point of this file is that the town works in a car with no
   // signal — music that only played when there was internet would be worse
   // than no music at all.
-  './sounds/step1.m4a',
-  './sounds/step2.m4a',
-  './sounds/step3.m4a',
-  './sounds/step4.m4a',
-  './sounds/swim.m4a',
-  './sounds/heli.m4a',
-  './sounds/music.m4a',
+  './games/taras-town/sounds/step1.m4a',
+  './games/taras-town/sounds/step2.m4a',
+  './games/taras-town/sounds/step3.m4a',
+  './games/taras-town/sounds/step4.m4a',
+  './games/taras-town/sounds/swim.m4a',
+  './games/taras-town/sounds/heli.m4a',
+  './games/taras-town/sounds/music.m4a',
 ];
 
 self.addEventListener('install', (event) => {
@@ -79,8 +84,8 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE)
       .then((cache) => cache.addAll(PRECACHE))
       // Take over immediately rather than waiting for every open tab to
-      // close, so an update reaches Taras the next time he taps Play, not
-      // the next time the phone happens to be restarted.
+      // close, so an update reaches everyone the next time they tap a tile,
+      // not the next time the phone happens to be restarted.
       .then(() => self.skipWaiting()),
   );
 });

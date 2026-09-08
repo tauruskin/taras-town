@@ -1,7 +1,7 @@
 {
-  "name": "Taras Town",
-  "short_name": "Taras Town",
-  "description": "A friendly cartoon town to walk and drive around.",
+  "name": "Pushkar Games",
+  "short_name": "Pushkar Games",
+  "description": "A hub of friendly games, made for a 6-year-old.",
 
   "start_url": "./index.html",
   "scope": "./",
