@@ -5,7 +5,7 @@ Top-down view, touch controls, no violence, nothing scary — just a bright
 cartoon town with houses, shops, parks, a market, and a wide estuary you can
 swim in, with islands, boats to save up for, and quiet music playing.
 
-**Play:** https://tauruskin.github.io/taras-town/
+**Play:** https://tauruskin.github.io/taras-town/games/taras-town/ (or tap its tile from the hub at https://tauruskin.github.io/taras-town/)
 
 ---
 

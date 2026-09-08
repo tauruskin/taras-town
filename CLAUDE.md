@@ -1,13 +1,19 @@
-# Taras Town — working notes for Claude
+# Pushkar Games — working notes for Claude
 
-A game for a 6-year-old. Pure static site: HTML, CSS, vanilla JS (ES modules).
+This repo is a small hub of browser games made for a 6-year-old, picked from a
+tile screen at the root. Pure static site: HTML, CSS, vanilla JS (ES modules).
 No build step, no package manager, no dependencies. Whatever is in this repo is
 exactly what GitHub Pages serves — never introduce a bundler, transpiler, or npm
 package.
 
-Full documentation is in `README.md`; how the tests work is in
-`tests/README.md`. This file is only the things worth knowing *before* touching
-anything.
+The hub itself (`index.html`, `css/hub.css`, `js/hub.js`, `manifest.json`,
+`sw.js`, `icons/`) is deliberately tiny: it shows tiles and registers the one
+service worker for the whole site. Everything else below is about
+**Taras Town**, today's only game, which lives entirely under
+`games/taras-town/`. Full documentation for it is in
+`games/taras-town/README.md`; how its tests work is in
+`games/taras-town/tests/README.md`. This file is only the things worth
+knowing *before* touching anything.
 
 ## Rules that must not be relaxed
 
@@ -61,6 +67,10 @@ These are the user's, not suggestions:
   nothing else about them.
 - For "where is X handled" questions that need scanning many files, delegate to
   the Explore subagent instead of grepping in the main thread.
+- All of the paths above are relative to `games/taras-town/` — e.g.
+  `js/main.js` is really `games/taras-town/js/main.js`. The hub's own files
+  (`index.html`, `css/hub.css`, `js/hub.js` at the repo root) are a separate,
+  much smaller concern; see the top of this file.
 
 ## The shape of the thing
 
@@ -131,14 +141,16 @@ These are the user's, not suggestions:
 
 ## Tests — never run the full suite by default
 
-`tests/run.mjs` spawns two headless Chromes and produces a lot of output. Use
-the narrowest command that answers the question:
+`games/taras-town/tests/run.mjs` spawns two headless Chromes and produces a
+lot of output. Use the narrowest command that answers the question:
 
 - Logic-only change (world gen, jobs, coins, cars, net, swimming, hiding):
-  `node tests/run.mjs offline` — a few seconds, no browser.
-- One suite: `node tests/run.mjs <name-substring>`, e.g. `node tests/run.mjs jobs`.
-- Only run the full `node tests/run.mjs` (or `--live` against the deployed site)
-  right before a commit/deploy, not while iterating.
+  `node games/taras-town/tests/run.mjs offline` — a few seconds, no browser.
+- One suite: `node games/taras-town/tests/run.mjs <name-substring>`, e.g.
+  `node games/taras-town/tests/run.mjs jobs`.
+- Only run the full `node games/taras-town/tests/run.mjs` (or `--live`
+  against the deployed site) right before a commit/deploy, not while
+  iterating.
 - Pipe to `tail` if output must be inspected.
 
 The two-browser multiplayer suites are the slowest and the most sensitive to
