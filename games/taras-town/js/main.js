@@ -34,7 +34,6 @@ import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
 import { StartScreen, sanitizeName } from './startscreen.js';
 import { Minimap } from './minimap.js';
-import { registerServiceWorker } from './pwa.js';
 import { roomFor, drawRoom, drawSpots, clampToRoom, onMat, roomPlacement } from './interior.js';
 import { FURNITURE, priceOfFurniture, isFurnitureUnlocked,
          drawFurniture, drawPicker, pickerButtons } from './furniture.js';
@@ -111,8 +110,6 @@ let running = false;
 let lastFrame = 0;
 let clock = 0;     // total seconds elapsed, used for water sparkle etc.
 let saveTimer = 0;
-
-registerServiceWorker();
 
 resize();
 window.addEventListener('resize', resize);
