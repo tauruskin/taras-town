@@ -130,9 +130,13 @@ the old version after that, pull down to refresh the page.
 
 ## The files
 
+Everything below lives inside `games/taras-town/`. What makes the whole site
+installable and playable offline — `manifest.json`, `sw.js`, `icons/` — lives
+one level up, at the repo root; see the top-level README for that.
+
 | File | What it does |
 |---|---|
-| `index.html` | The page, and the opening screen's panels. Must stay at the repository root so GitHub Pages serves it with no configuration. |
+| `index.html` | The page, and the opening screen's panels. |
 | `css/style.css` | Full-screen layout, the opening screen, the "turn your phone" screen. |
 | `js/config.js` | **Every tunable number and colour.** Start here to change how anything feels. |
 | `js/main.js` | Starts the game, runs the loop, draws the on-screen controls, and holds the other players. |
@@ -157,8 +161,6 @@ the old version after that, pull down to refresh the page.
 | `js/furniture.js` | What can be put in a room, what each piece costs, how each is drawn, and the picker for choosing one. |
 | `js/vendor/` | The one piece of third-party code. See the README in there. |
 | `tests/` | Everything that checks the game still works. See the README in there. |
-| `manifest.json` / `sw.js` / `js/pwa.js` | What makes the game installable and playable offline. |
-| `icons/` | The home-screen icons. |
 | `sounds/` | The only recordings in the game — four footsteps, a swimming stroke, the music. 831KB, precached so the game still works with no signal. See the note in `CLAUDE.md` before changing anything here: git history is permanent. |
 | `tools/` | `map.html` draws the whole town on one page; `make-icons.mjs` generated the icons. Neither is part of the game. |
 
