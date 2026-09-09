@@ -35,7 +35,7 @@
 // single 404 — one missing path and the service worker fails to install, taking
 // offline support for the entire site with it. So a path only ever goes in this
 // list once the file behind it exists.
-const CACHE = 'pushkar-games-v2';
+const CACHE = 'pushkar-games-v3';
 
 const PRECACHE = [
   './',
@@ -95,6 +95,7 @@ const PRECACHE = [
   './games/pushkar-ball/js/player.js',
   './games/pushkar-ball/js/ui.js',
   './games/pushkar-ball/js/input.js',
+  './games/pushkar-ball/js/camera.js',
 ];
 
 self.addEventListener('install', (event) => {

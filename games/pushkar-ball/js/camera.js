@@ -1,0 +1,55 @@
+/**
+ * camera.js — what the player can see.
+ *
+ * Horizontally it follows closely, with a lookahead proportional to speed so a
+ * fast ball can see what it is about to hit. Vertically it follows slowly and
+ * only outside a deadzone: a camera that tracks every jump exactly is
+ * nauseating, and it also hides the jump, since the ball then never appears to
+ * leave the middle of the screen. That second half is not only feel — it is
+ * what lets a browser suite measure a jump by watching the ball rise on the
+ * screen, with no test-only code anywhere in the game.
+ *
+ * DOM-free, like config, physics, levels and player. It is handed the view size
+ * in world units rather than reading the window, which is what lets node ask it
+ * where it would point.
+ */
+import { CONFIG } from './config.js';
+
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+export class Camera {
+  constructor(level) {
+    this.level = level;
+    // Starting on the spawn rather than at the origin, or the first frame of
+    // every level is a swoop across the map.
+    this.x = level.spawn.x;
+    this.y = level.spawn.y;
+  }
+
+  /** @param viewW,viewH the visible world, in world units */
+  update(dt, ball, viewW, viewH) {
+    const C = CONFIG.CAMERA;
+
+    const tx = ball.x + ball.vx * C.LOOKAHEAD;
+    // Frame-rate-independent lerp. A plain `x += (t - x) * k` moves further
+    // per second at 120fps than at 30, which makes the camera's feel depend on
+    // the phone. This form does not, and it costs one exp() a step.
+    this.x += (tx - this.x) * (1 - Math.exp(-C.LERP * dt));
+
+    const dy = ball.y - this.y;
+    if (Math.abs(dy) > C.DEADZONE_Y) {
+      // Chase the edge of the deadzone, not the ball. Chasing the ball would
+      // make the camera jump the moment the deadzone was crossed.
+      const target = ball.y - Math.sign(dy) * C.DEADZONE_Y;
+      this.y += (target - this.y) * (1 - Math.exp(-C.LERP_Y * dt));
+    }
+
+    // Never show outside the level. When the level is smaller than the view in
+    // an axis — which a short window can manage — centre on it instead, or the
+    // clamp below would have its limits the wrong way round and would pin the
+    // camera to whichever bound it tested last.
+    const b = this.level.bounds;
+    this.x = b.w < viewW ? b.w / 2 : clamp(this.x, viewW / 2, b.w - viewW / 2);
+    this.y = b.h < viewH ? b.h / 2 : clamp(this.y, viewH / 2, b.h - viewH / 2);
+  }
+}

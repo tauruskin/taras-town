@@ -65,6 +65,24 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // The hills behind the level
+  // ---------------------------------------------------------------------
+  // Two bands, drawn in screen space with the camera folded into the phase, so
+  // they are endless and cost nothing at either end of a long level.
+  //
+  // SPAN is the sine's wavelength divided by 2*PI, in screen pixels, and it is
+  // the number that matters: the first pass at this used 520, which is a
+  // wavelength of 3267px, so on an 844px phone less than a sixth of a wave was
+  // ever on screen and both "hills" drew as flat washes tilted slightly. They
+  // only read as hills once a crest and a trough both fit. FACTOR is how much
+  // slower than the world the band moves, and TOP is where it sits as a
+  // fraction of screen height.
+  PARALLAX: [
+    { colour: 'HILL_FAR', factor: 0.25, top: 0.62, amp: 40, span: 140 },
+    { colour: 'HILL_NEAR', factor: 0.45, top: 0.74, amp: 30, span: 95 },
+  ],
+
+  // ---------------------------------------------------------------------
   // The controls on screen
   // ---------------------------------------------------------------------
   UI: {
