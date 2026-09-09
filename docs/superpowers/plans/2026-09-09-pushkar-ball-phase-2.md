@@ -1149,7 +1149,16 @@ radius, and the physics must not care what the drawing is doing."
 
 ---
 
-## Task 4: Spikes
+## Task 4: Spikes — DONE
+
+> Commits `cdd0e16`, `d056cdf`, `7d0af8e`. Spec review passed; code quality review passed on re-review, after withdrawing a Critical that turned out to be arithmetic error on the reviewer's side.
+>
+> **Three of my errors came out of this task, which is the most of any so far.** The stub world in Step 1 had no walls, so its ground simply ended — and with the hazard code deleted entirely the whole suite still passed, because checks 3 and 6 took their single death from the ball falling off the edge. My Step 9 instruction ("if check 5 fails, change `SPIKE.FORGIVE` or `SPIKE.H`, not the test") was wrong: check 5's bouncing ball *landed* on the patch, which no config value avoids, since a resting ball's bottom is on the ground the spikes stand on. And I assumed a patch narrower than twice the forgiveness would fail to kill; it over-kills, because a zero-width box is a line and a circle against a line still spans a ball diameter.
+>
+> **One thing worth carrying into every later suite.** Every check but one derives its numbers from `spikeBox`, which is right — but it means none of them can catch `spikeBox` itself. Mutating the box to `x: s.x + 25` **self-cancels**, because the checks recompute their bands from the same mutated function. Check 2 pins the box against literals and is the only thing that catches it. So the structure is: literals pinned once, everything else derived from the pinned thing. That is written into the suite, with a warning not to simplify the anchor away on the grounds that it is true by construction.
+>
+> **Still unrendered.** No level has spikes until Task 6, so `drawSpikes` has never drawn a pixel anybody has looked at. Given this repo's history, that is where the attention belongs.
+
 
 The first hazard, and the only one this phase builds. Saws and crushers belong to phase 3, with the levels that use them.
 
