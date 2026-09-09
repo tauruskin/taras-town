@@ -93,6 +93,8 @@ const PRECACHE = [
   './games/pushkar-ball/js/physics.js',
   './games/pushkar-ball/js/levels.js',
   './games/pushkar-ball/js/player.js',
+  './games/pushkar-ball/js/ui.js',
+  './games/pushkar-ball/js/input.js',
 ];
 
 self.addEventListener('install', (event) => {
