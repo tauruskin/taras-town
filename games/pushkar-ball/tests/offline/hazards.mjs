@@ -3,7 +3,7 @@
 const { CONFIG } = await import('../../js/config.js');
 const { Ball } = await import('../../js/player.js');
 const { loadLevel } = await import('../../js/levels.js');
-const { spikeBox } = await import('../../js/hazards.js');
+const { spikeBox, hitsSpikes } = await import('../../js/hazards.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -56,12 +56,22 @@ const world = (spikes) => loadLevel({
 
 // --- 2. the box is the picture, and the BALL is what shrinks --------------
 //
-// The contract, and it is the opposite way round from the obvious one. An
-// earlier draft inset the hazard's box by FORGIVE and tested the ball at its
-// full radius; that is the identical arithmetic on every edge, so the kill
-// zone still began BALL.R - FORGIVE outside the drawing while the number
-// claimed to be making the hazard smaller than it looked. So: the box is
-// exactly what is drawn, and forgiveness is taken off the ball.
+// The contract, and it is the opposite way round from the obvious one: the box
+// is exactly what is drawn, and forgiveness is taken off the ball. The reason
+// it is this way round is in config.js, next to FORGIVE itself.
+//
+// THIS CHECK IS THE ANCHOR OF THE WHOLE SUITE, and it looks more redundant
+// than it is. Every other check here derives its expectations from `spikeBox`,
+// which is the right way round — a band typed by hand is what let an earlier
+// draft through review. But it means those checks cannot catch `spikeBox`
+// itself being wrong: mutate it to `x: s.x + 25` and check 3 SELF-CANCELS,
+// because it recomputes its own band from the same mutated function and the
+// two errors agree. Check 2 is the only place literals appear at all, and so
+// the only place that failure has to surface.
+//
+// So: pin the numbers here, derive everything else from the pinned thing. Do
+// not "simplify away" the clauses below on the grounds that they must be true
+// by construction. Being true by construction is exactly what they check.
 {
   const s = { x: 800, y: 760, w: 120 };
   const box = spikeBox(s, CONFIG);
@@ -86,6 +96,38 @@ const world = (spikes) => loadLevel({
     fail(`FORGIVE ${CONFIG.SPIKE.FORGIVE} is not under H ${CONFIG.SPIKE.H}: a rolling ball steps over a patch`);
   }
   if (effR <= 0) fail(`the effective kill radius is ${effR}`);
+
+  // And the effective radius is not merely arithmetic on paper — `hitsSpikes`
+  // has to actually use it. Asked directly, with no simulation in the way, so
+  // that a failure here means the geometry is wrong and nothing else.
+  //
+  // First the obvious one: a ball resting on the floor in the middle of a
+  // patch is dead. This is the flush-foot invariant made concrete — it is only
+  // true while the box reaches down to the floor the ball is rolling on, which
+  // is why FORGIVE has to stay under H.
+  const restY = s.y - CONFIG.BALL.R;
+  const midX = box.x + box.w / 2;
+  if (!hitsSpikes({ x: midX, y: restY, r: CONFIG.BALL.R }, [s], CONFIG)) {
+    fail(`a ball resting at ${midX},${restY} in the middle of a patch was not hit at all`);
+  }
+
+  // Then the clause that actually pins the radius, which the one above cannot.
+  // H is 26 and BALL.R is 20, so a resting ball's centre sits INSIDE the box
+  // vertically — its closest point is itself, at distance zero, so the test
+  // above passes at any radius above zero at all. It survives an effective
+  // radius of 0.01. Only an edge does the pinning: a ball approaching from
+  // outside is hit exactly when its effective circle reaches the picture, so
+  // straddle that threshold from both sides. Half a pixel either way, which is
+  // finer than the 3.5px a ball covers in a step, so no simulation could ask
+  // this question.
+  const brink = box.x - effR;
+  if (!hitsSpikes({ x: brink + 0.5, y: restY, r: CONFIG.BALL.R }, [s], CONFIG)) {
+    fail(`a ball ${(0.5).toFixed(1)}px inside the kill threshold at ${brink} was not hit`);
+  }
+  if (hitsSpikes({ x: brink - 0.5, y: restY, r: CONFIG.BALL.R }, [s], CONFIG)) {
+    fail(`a ball 0.5px OUTSIDE the kill threshold at ${brink} was hit anyway`);
+  }
+  console.log(`   the kill threshold on the near edge is centre x=${brink}, straddled from both sides`);
 }
 
 // --- 3. rolling into them kills ------------------------------------------

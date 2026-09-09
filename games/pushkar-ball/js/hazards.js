@@ -19,15 +19,9 @@
  * The rectangle a spike patch occupies: exactly the one it is drawn in.
  *
  * Honest on purpose. Forgiveness is NOT carved out of this box — it is taken
- * off the BALL, in `hitsSpikes` below. Carving it out of the box here was the
- * first attempt and it was the same arithmetic wearing a disguise: the ball
- * was tested at its full radius against a box inset by `FORGIVE`, so the kill
- * zone still began `BALL.R - FORGIVE` outside the picture, and the config
- * comment promising a smaller-than-it-looks hazard was describing something
- * the code did not do. Shrinking the ball says the same thing truthfully and
- * survives a patch narrower than twice `FORGIVE`, which this could not: the
- * clamp to zero width turned such a patch into a vertical LINE, and a circle
- * against a line still kills across the full width of the circle.
+ * off the BALL, in `hitsSpikes` below; insetting the box instead was the first
+ * attempt and was rejected, for the reasons set out beside `SPIKE.FORGIVE` in
+ * config.js, which is where anyone changing the number will be looking.
  *
  * `s.y` is the ground the spikes stand on and they are drawn upward from it,
  * so the top is `s.y - SPIKE.H` and the bottom sits flush ON the ground.
@@ -65,10 +59,7 @@ function circleHitsBox(cx, cy, r, b) {
  *
  * Forgiveness lives here, and it is measured off the BALL: the circle tested
  * is `SPIKE.FORGIVE` smaller than the one drawn, so the ball may sink that far
- * into the picture before it counts. That is what the number in config.js
- * claims to mean, and doing it on this side is the only way it is true —
- * shrinking the hazard's box instead moves the kill zone by exactly the same
- * amount and leaves it just as far outside the drawing.
+ * into the picture before it counts.
  *
  * `FORGIVE` must stay below `BALL.R`, or the effective radius clamps to zero
  * and only a ball whose exact centre is inside the picture dies — which reads
