@@ -116,7 +116,7 @@ const run = (ball, level, input, seconds) => {
 // this check has teeth. A checkpoint's respawn sits CHECKPOINT.CLEARANCE above
 // the floor, which at GRAVITY is a fall of about 0.06s — comfortably inside
 // BUFFER's 0.12s, so a jump press that survived the deflate really does fire
-// the instant the ball lands. Homed at the SPAWN instead, the ball falls 200px,
+// the instant the ball lands. Homed at the SPAWN instead, the ball falls 140px,
 // takes far longer than BUFFER to arrive, and the stale press has quietly
 // expired before it could do any harm: the check still passes, but it passes
 // because the scenario cannot express the bug rather than because the bug is

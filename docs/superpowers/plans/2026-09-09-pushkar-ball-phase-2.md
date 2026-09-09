@@ -697,7 +697,12 @@ thing on screen of its hue, so a red flag would be measured as part of it."
 
 ---
 
-## Task 3: The deflate, and the re-inflate
+## Task 3: The deflate, and the re-inflate — DONE
+
+> Commits `b2374d3`, `6026c17`. Spec review passed; code quality review passed on re-review, every fix confirmed by the reviewer's own mutations.
+>
+> **Steps 3 and 4 were already done in Task 2**, so this task was the drawing and the suites. Three things worth carrying forward: the dim now lives in `ui.js` as a pure `Overlay.dim(ball)` plus a `drawDim`, because it is a screen-space overlay and `ui.js` owns that layer — Task 5's results panel draws into the same layer and should go there too, not into `main.js`. Offline check 4 was asserting a clause that could never fire, because a spawn-homed respawn leaves the ball 140px up and a stale jump decays before it lands; homed at *checkpoint* height the fall is 4px and the phantom jump is real, so the scenario was fixed rather than the clause removed. And the browser suite now asserts the settled ball is within 10% of its starting pixel count — under a mutation that left the hero permanently quarter-size, every other assertion in the suite was happy.
+
 
 Failing has to be visible and it has to be gentle. The ball squashes flat where it stood, the screen dims for a moment, and it re-inflates at home. No blood, no injury, no death imagery — this is what Red Ball itself did, and it is inside the hub's rules rather than an exception to them.
 
@@ -1514,7 +1519,7 @@ A fall-death happens off the bottom of the screen, so through Task 3 the squash 
 Add to the browser suite you write for spikes, a frame or two after a spike death:
 
 - The ball's bounding box is **wider than it is tall**. That is the squash and nothing else can satisfy it accidentally — a round ball is square-ish, and a ball that vanished has no box at all. `ballAt` already returns `pixels`; you will need the box as well, so extend the helper or read it in the suite.
-- **One sky pixel darkens.** Sample a pixel well clear of the world's geometry before the death and again mid-deflate, and assert it moved towards `COLOURS.DIM`. Task 3 measured the drop as roughly `79,195,247` to `61,151,193` at full dim, so the signal is large.
+- **One sky pixel darkens.** Sample a pixel well clear of the world's geometry before the death and again mid-deflate, and assert it moved towards `COLOURS.DIM`. At full `DIM` a sky of `79,195,247` composites to about `59,145,185`, so the signal is large — but treat that as arithmetic rather than a measurement, and assert the direction of the change rather than any particular value.
 
 Neither assertion needs a new number in the game, and both die honestly if the effect is removed.
 
