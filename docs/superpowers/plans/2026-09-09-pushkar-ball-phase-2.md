@@ -1603,6 +1603,14 @@ needs a level authored around it."
 
 The level ends at the flag. The flag animates, a panel says what happened, and then the next level starts on its own. Winning never sends the player back to a menu — a child who has just won should not have to navigate anything to keep playing.
 
+> **Ordering, found while reviewing Task 4.** The goal check must go **before**
+> the hazard check in `Ball.update`, not after it. A ball that reaches the flag
+> while overlapping a spike would otherwise die instead of winning, and which
+> of the two happened would depend on how a level was authored — so this task's
+> own `progress.mjs` check 4 ("dying does not un-win") would pass or fail
+> intermittently. Putting the goal first, or making `die()` a no-op once `won`
+> is latched, settles it. The goal is the reward; it outranks the hazard.
+>
 > **A freeze to avoid, found while reviewing Task 2.** `ball.dying` is decremented only inside `Ball.update`. The state machine below stops calling `ball.update` once `mode === 'won'`, so a flag touched while the ball is mid-deflate would leave `dying` positive for ever and the ball would never come back. Either keep updating the ball while `dying > 0`, or clear `dying` and `reviving` when the level is won and when `startLevel` runs. The same applies to any pause added later. `respawn()` clears both as of Task 2, so calling it is one safe way.
 
 **Files:**
@@ -2342,6 +2350,17 @@ In `games/pushkar-ball/tests/offline/levels.mjs`, add these checks inside the ex
   for (const [i, s] of level.spikes.entries()) {
     if (s.x < 0 || s.x + s.w > level.bounds.w) {
       fail(`level ${data.id}: spike patch ${i} runs from ${s.x} to ${s.x + s.w}, outside the level`);
+    }
+
+    // A lower bound as well as an upper one, and it is not fussiness. A patch
+    // narrower than one tooth draws as a single stretched needle taller than
+    // it is wide, and a patch with a negative width draws one tooth backwards
+    // while its hit box sits somewhere nothing is drawn at all. Both are
+    // authoring mistakes that look like nothing in the data and like a bug in
+    // the game.
+    if (s.w <= 0) fail(`level ${data.id}: spike patch ${i} has width ${s.w}`);
+    else if (s.w < CONFIG.SPIKE.TOOTH_W) {
+      fail(`level ${data.id}: spike patch ${i} is ${s.w}px wide, less than one ${CONFIG.SPIKE.TOOTH_W}px tooth — it draws as a single stretched needle`);
     }
     // A patch wider than the jump can clear cannot be got past at all.
     const reach = (CONFIG.JUMP_V ** 2) / (2 * CONFIG.GRAVITY);
