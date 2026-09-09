@@ -49,11 +49,18 @@ export class Camera {
     // the phone. This form does not, and it costs one exp() a step.
     this.x += (tx - this.x) * (1 - Math.exp(-C.LERP * dt));
 
-    const dy = ball.y - this.y;
+    // The camera wants to be BIAS_Y below the ball, and the deadzone is slack
+    // around that, not around the ball itself. Applying the deadzone to the
+    // ball's own y is what left a grounded ball a full deadzone low on screen:
+    // gravity always brings the ball down into the deadzone from above, so it
+    // always settled at its lower edge, which on a short phone is inside the
+    // band where the on-screen buttons are drawn.
+    const want = ball.y + C.BIAS_Y;
+    const dy = want - this.y;
     if (Math.abs(dy) > C.DEADZONE_Y) {
-      // Chase the edge of the deadzone, not the ball. Chasing the ball would
-      // make the camera jump the moment the deadzone was crossed.
-      const target = ball.y - Math.sign(dy) * C.DEADZONE_Y;
+      // Chase the edge of the deadzone, not the target. Chasing the target
+      // would make the camera lurch the moment the deadzone was crossed.
+      const target = want - Math.sign(dy) * C.DEADZONE_Y;
       this.y += (target - this.y) * (1 - Math.exp(-C.LERP_Y * dt));
     }
 

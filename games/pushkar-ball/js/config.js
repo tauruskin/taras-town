@@ -60,6 +60,21 @@ export const CONFIG = {
     LERP_Y: 2.5,        // vertical follow, much slower on purpose: a camera
                         // that tracks every jump exactly is nauseating
     DEADZONE_Y: 90,     // world units of vertical slack before it follows at all
+    // How far BELOW the ball the camera aims, in world units.
+    //
+    // Without this the camera aims straight at the ball, and because the
+    // deadzone stops it as soon as it is within DEADZONE_Y, a ball that
+    // settles from above — which is every ball, since gravity brings it down
+    // — comes to rest a whole deadzone below the middle of the screen. On a
+    // short phone that is inside the band where the buttons are drawn, so a
+    // thumb ends up resting on top of the hero.
+    //
+    // Slightly MORE than DEADZONE_Y, so a grounded ball settles a little
+    // above the middle rather than exactly on it. That is worth the small
+    // loss of view downwards: tests/offline/camera.mjs measures the daylight
+    // between the ball and the controls on the shortest screen, and exactly
+    // centred left only a few pixels of it.
+    BIAS_Y: 110,
     LOOKAHEAD: 0.35,    // seconds of vx to look ahead, so a fast ball can see
                         // what it is about to hit
   },
