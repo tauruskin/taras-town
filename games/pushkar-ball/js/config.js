@@ -194,13 +194,33 @@ export const CONFIG = {
   SPIKE: {
     H: 26,               // drawn height above the ground they stand on
     TOOTH_W: 20,         // one tooth, so a patch is drawn as w / TOOTH_W teeth
-    // How much smaller the hit box is than the picture, in world units, on
-    // every side. Forgiveness, deliberately: a hazard whose hit box matches
-    // its picture kills on a graze that looked like a miss, and a six-year-old
-    // cannot tell that apart from the game cheating. Being killed by
-    // something you clearly touched is fair; being killed by something you
-    // clearly missed is not, and only one of those two mistakes is worth
-    // risking.
+    // How far the ball may sink into a spike patch before it counts, in world
+    // units. Measured off the BALL'S RADIUS, not carved out of the hazard's
+    // box — `hitsSpikes` tests a circle this much smaller than the one drawn,
+    // against the rectangle the patch is actually drawn in.
+    //
+    // That distinction is the whole point and it was got wrong first time.
+    // Insetting the hazard's box instead is the identical arithmetic on every
+    // edge — the kill zone still begins `BALL.R - FORGIVE` outside the
+    // picture — so the number read as a promise the code was not keeping, and
+    // it also collapsed on a patch narrower than twice itself.
+    //
+    // Forgiveness, deliberately: a hazard whose hit box matches its picture
+    // kills on a graze that looked like a miss, and a six-year-old cannot tell
+    // that apart from the game cheating. Being killed by something you clearly
+    // touched is fair; being killed by something you clearly missed is not,
+    // and only one of those two mistakes is worth risking.
+    //
+    // Bounded on both sides. It must stay under BALL.R or the effective ball
+    // shrinks to a point and the spikes barely work; and under H, or a ball
+    // rolling along the floor steps straight over a patch. Both bounds are
+    // asserted in tests/offline/hazards.mjs.
+    //
+    // Its authority is limited whatever it is set to, because BALL.R is 20 and
+    // this can only ever be a fraction of it: a rolling ball's leading edge is
+    // always a good way in front of its centre. If the spikes still feel like
+    // they reach too far once a thumb has tried them, the honest lever is the
+    // ball's radius or the shape of the test, not this number.
     FORGIVE: 5,
   },
 

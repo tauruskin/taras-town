@@ -16,23 +16,40 @@
  */
 
 /**
- * The rectangle that actually kills, given a spike patch as authored.
+ * The rectangle a spike patch occupies: exactly the one it is drawn in.
  *
- * Smaller than the picture on every side by SPIKE.FORGIVE. See the note on
- * that number in config.js: being killed by something you clearly touched is
- * fair, being killed by something you clearly missed is not, and only one of
- * those two mistakes is worth risking with a six-year-old.
+ * Honest on purpose. Forgiveness is NOT carved out of this box — it is taken
+ * off the BALL, in `hitsSpikes` below. Carving it out of the box here was the
+ * first attempt and it was the same arithmetic wearing a disguise: the ball
+ * was tested at its full radius against a box inset by `FORGIVE`, so the kill
+ * zone still began `BALL.R - FORGIVE` outside the picture, and the config
+ * comment promising a smaller-than-it-looks hazard was describing something
+ * the code did not do. Shrinking the ball says the same thing truthfully and
+ * survives a patch narrower than twice `FORGIVE`, which this could not: the
+ * clamp to zero width turned such a patch into a vertical LINE, and a circle
+ * against a line still kills across the full width of the circle.
  *
- * `s.y` is the ground the spikes stand on, and they are drawn upward from it,
- * so the box's top is `s.y - SPIKE.H` and it never hangs below the ground.
+ * `s.y` is the ground the spikes stand on and they are drawn upward from it,
+ * so the top is `s.y - SPIKE.H` and the bottom sits flush ON the ground.
+ * Flush is deliberate and is the one place forgiveness must not reach: a ball
+ * rolling along the floor has to be caught, and it is only caught while the
+ * box still reaches down to the floor it is rolling on. That holds as long as
+ * `SPIKE.H > SPIKE.FORGIVE` — a shorter patch than the forgiveness allowance
+ * would be stepped over by a ball on the ground.
+ *
+ * A rectangle is not the SILHOUETTE, and nobody should read it as one. The
+ * teeth are triangles, so between two of them the drawn height falls to zero
+ * while this box stays full height, and a ball creeping into that notch is
+ * killed by something that looks like a gap. Do not try to fix that with
+ * geometry: whether it is even noticeable is a thumb question, and it belongs
+ * to Task 7 once there is something on a screen to look at.
  */
 export function spikeBox(s, cfg) {
-  const f = cfg.SPIKE.FORGIVE;
   return {
-    x: s.x + f,
-    y: s.y - cfg.SPIKE.H + f,
-    w: Math.max(0, s.w - f * 2),
-    h: Math.max(0, cfg.SPIKE.H - f),
+    x: s.x,
+    y: s.y - cfg.SPIKE.H,
+    w: s.w,
+    h: cfg.SPIKE.H,
   };
 }
 
@@ -43,10 +60,24 @@ function circleHitsBox(cx, cy, r, b) {
   return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r;
 }
 
-/** Is the ball in any of these spike patches? */
-export function hitsSpikes(ball, spikes, cfg) {
+/**
+ * Is the ball in any of these spike patches?
+ *
+ * Forgiveness lives here, and it is measured off the BALL: the circle tested
+ * is `SPIKE.FORGIVE` smaller than the one drawn, so the ball may sink that far
+ * into the picture before it counts. That is what the number in config.js
+ * claims to mean, and doing it on this side is the only way it is true —
+ * shrinking the hazard's box instead moves the kill zone by exactly the same
+ * amount and leaves it just as far outside the drawing.
+ *
+ * `FORGIVE` must stay below `BALL.R`, or the effective radius clamps to zero
+ * and only a ball whose exact centre is inside the picture dies — which reads
+ * as spikes that mostly do not work.
+ */
+export function hitsSpikes(body, spikes, cfg) {
+  const r = Math.max(0, body.r - cfg.SPIKE.FORGIVE);
   for (const s of spikes) {
-    if (circleHitsBox(ball.x, ball.y, ball.r, spikeBox(s, cfg))) return true;
+    if (circleHitsBox(body.x, body.y, r, spikeBox(s, cfg))) return true;
   }
   return false;
 }

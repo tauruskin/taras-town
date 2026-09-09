@@ -54,24 +54,46 @@ const world = (spikes) => loadLevel({
   if (level.spikes.length !== 1) fail(`expected 1 patch, got ${level.spikes.length}`);
 }
 
-// --- 2. the hit box is smaller than the drawing --------------------------
+// --- 2. the box is the picture, and the BALL is what shrinks --------------
 //
-// Forgiveness, deliberately. A hazard whose hit box matches its picture kills
-// on a graze that looked like a miss, and a six-year-old cannot tell the
-// difference between that and the game cheating.
+// The contract, and it is the opposite way round from the obvious one. An
+// earlier draft inset the hazard's box by FORGIVE and tested the ball at its
+// full radius; that is the identical arithmetic on every edge, so the kill
+// zone still began BALL.R - FORGIVE outside the drawing while the number
+// claimed to be making the hazard smaller than it looked. So: the box is
+// exactly what is drawn, and forgiveness is taken off the ball.
 {
   const s = { x: 800, y: 760, w: 120 };
   const box = spikeBox(s, CONFIG);
+  const effR = CONFIG.BALL.R - CONFIG.SPIKE.FORGIVE;
   console.log(`\n2. a ${s.w}px patch drawn ${CONFIG.SPIKE.H}px tall has a hit box ` +
-              `${box.w.toFixed(0)}x${box.h.toFixed(0)} at ${box.x.toFixed(0)},${box.y.toFixed(0)}`);
-  if (box.w >= s.w) fail(`the hit box is ${box.w} wide, not narrower than the ${s.w} drawn`);
-  if (box.h >= CONFIG.SPIKE.H) fail(`the hit box is ${box.h} tall, not shorter than the ${CONFIG.SPIKE.H} drawn`);
-  if (box.y + box.h > s.y + 0.001) fail('the hit box hangs below the ground the spikes stand on');
+              `${box.w.toFixed(0)}x${box.h.toFixed(0)} at ${box.x.toFixed(0)},${box.y.toFixed(0)},` +
+              ` and a ${CONFIG.BALL.R}px ball hits it as ${effR}px`);
+  if (box.x !== s.x || box.w !== s.w) fail(`the box is ${box.x}+${box.w}, not the ${s.x}+${s.w} drawn`);
+  if (box.h !== CONFIG.SPIKE.H) fail(`the box is ${box.h} tall, not the ${CONFIG.SPIKE.H} drawn`);
+  // Flush with the ground, and that is the one edge forgiveness must not
+  // reach: a ball rolling on the floor is only caught while the box still
+  // comes down to the floor it is rolling on.
+  if (box.y + box.h !== s.y) fail(`the box's foot is at ${box.y + box.h}, not on the ground at ${s.y}`);
+
+  // Both bounds on FORGIVE. Over BALL.R and the effective ball is a point, so
+  // the spikes barely work; over H and a ball on the floor steps over a patch
+  // entirely, because the whole height of the box is inside the allowance.
+  if (!(CONFIG.SPIKE.FORGIVE < CONFIG.BALL.R)) {
+    fail(`FORGIVE ${CONFIG.SPIKE.FORGIVE} is not under BALL.R ${CONFIG.BALL.R}: the effective ball is a point`);
+  }
+  if (!(CONFIG.SPIKE.FORGIVE < CONFIG.SPIKE.H)) {
+    fail(`FORGIVE ${CONFIG.SPIKE.FORGIVE} is not under H ${CONFIG.SPIKE.H}: a rolling ball steps over a patch`);
+  }
+  if (effR <= 0) fail(`the effective kill radius is ${effR}`);
 }
 
 // --- 3. rolling into them kills ------------------------------------------
 {
-  const level = world([{ x: 800, y: 760, w: 160 }]);
+  const patch = { x: 800, y: 760, w: 160 };
+  const box = spikeBox(patch, CONFIG);
+  const effR = CONFIG.BALL.R - CONFIG.SPIKE.FORGIVE;
+  const level = world([patch]);
   const input = stub();
   const ball = new Ball(level.spawn.x, level.spawn.y);
   run(ball, level, input, 1.0);
@@ -86,14 +108,34 @@ const world = (spikes) => loadLevel({
   }
   input.right = false;
 
-  console.log(`\n3. rolled into a spike patch and died after ${(steps * CONFIG.STEP).toFixed(2)}s at x=${ball.x.toFixed(0)}`);
+  console.log(`\n3. rolled into a spike patch and died after ${(steps * CONFIG.STEP).toFixed(2)}s at x=${ball.x.toFixed(2)};` +
+              ` its effective leading edge was at ${(ball.x + effR).toFixed(2)}, and the picture starts at ${box.x}`);
   if (ball.deaths !== 1) fail(`rolling into spikes gave ${ball.deaths} deaths, expected 1`);
-  // WHERE it died, on both sides. A lower bound alone is not enough: a ball
-  // that rolled clean through the patch and died of something else further
-  // along the level satisfies it, which is precisely how an earlier draft of
-  // this suite passed with the kill removed from player.js entirely.
-  if (ball.x < 700) fail(`died at x=${ball.x.toFixed(0)}, well before the spikes at 800 — something else killed it`);
-  if (ball.x > 1000) fail(`died at x=${ball.x.toFixed(0)}, past the patch's far side — something else killed it`);
+
+  // WHERE it died, derived from the box and the effective radius rather than
+  // typed. A hand-written band is how the inverted forgiveness got through
+  // review: `700 < x < 1000` around a patch spanning 800..960 tolerates a kill
+  // a hundred pixels early, which is most of a screen on a phone.
+  //
+  // This is the clause that states the design outright: the ball must not die
+  // before its effective leading edge has reached the picture at all. Under
+  // the inset-the-box version this held only by accident of the two
+  // formulations being the same arithmetic; stated here, it cannot drift.
+  if (ball.x + effR < box.x) {
+    fail(`killed at x=${ball.x.toFixed(2)} before touching the picture: its edge was at ` +
+         `${(ball.x + effR).toFixed(2)}, the patch starts at ${box.x}`);
+  }
+  // And not late either: a ball whose CENTRE is past the far side has rolled
+  // clean through, so something else killed it. That is exactly how an earlier
+  // draft of this suite passed with the kill deleted from player.js.
+  if (ball.x > box.x + box.w) {
+    fail(`died at x=${ball.x.toFixed(2)}, past the patch's far side at ${box.x + box.w} — something else killed it`);
+  }
+  // Nor may it survive deep into the patch: more than the effective radius in
+  // and the hazard is reacting too slowly to be the thing that killed it.
+  if (ball.x - effR > box.x) {
+    fail(`died at x=${ball.x.toFixed(2)}, already ${(ball.x - effR - box.x).toFixed(2)}px inside the picture`);
+  }
 }
 
 // --- 4. rolling past where they are NOT does not kill --------------------
@@ -177,9 +219,14 @@ const world = (spikes) => loadLevel({
   }
   input.right = false;
   // Where it died, so this check is known to be about a death ON the spikes
-  // and not about some other way of failing further along.
+  // and not about some other way of failing further along. Derived from the
+  // box and the effective radius, for the same reason check 3 is.
   const diedAt = ball.x;
-  if (diedAt < 700 || diedAt > 1000) fail(`died at x=${diedAt.toFixed(0)}, not on the patch at 800..960`);
+  const box6 = spikeBox({ x: 800, y: 760, w: 160 }, CONFIG);
+  const effR6 = CONFIG.BALL.R - CONFIG.SPIKE.FORGIVE;
+  if (diedAt + effR6 < box6.x || diedAt > box6.x + box6.w) {
+    fail(`died at x=${diedAt.toFixed(2)}, not on the patch at ${box6.x}..${box6.x + box6.w}`);
+  }
 
   run(ball, level, input, CONFIG.DEFLATE.TIME + CONFIG.DEFLATE.INFLATE + 1.0);
   console.log(`\n6. after dying on the spikes: deaths=${ball.deaths}, x=${ball.x.toFixed(0)}, home=${ball.home.x}`);

@@ -389,13 +389,17 @@ class Level {
   }
 
   /**
-   * Is the ball touching anything that should send it back?
+   * Is this body touching anything that should send it back?
    *
    * One question for the whole level, so that when saws and crushers arrive in
    * phase 3 the caller in player.js does not have to learn about them.
+   *
+   * `body` and not `ball`, because it need not be one: anything with an `x`, a
+   * `y` and an `r` can ask, and Task 6 asks on behalf of a candidate spot with
+   * a radius of its own to check that a level is authorable there.
    */
-  hitsHazard(ball) {
-    return hitsSpikes(ball, this.spikes, CONFIG);
+  hitsHazard(body) {
+    return hitsSpikes(body, this.spikes, CONFIG);
   }
 }
 
