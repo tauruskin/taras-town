@@ -33,10 +33,23 @@ export class Camera {
    * the start of the level is a long swoop across the scenery, during which the
    * ball is already rolling and already being steered from somewhere the player
    * cannot see.
+   *
+   * The vertical is NOT simply `ball.y`, and that is not an oversight to be
+   * tidied away. `update` aims BIAS_Y below the ball and stops as soon as it
+   * is within DEADZONE_Y of that, and gravity always brings a ball down into
+   * that slack from above — so a settled camera rests at
+   * `ball.y + BIAS_Y - DEADZONE_Y`, not on the ball. Snapping to `ball.y`
+   * would put the camera somewhere `update` immediately eases away from, so
+   * every respawn would end with a small glide: exactly the easing this
+   * function exists to avoid, and about to happen dozens of times a level
+   * once there are hazards to die on. Written as the expression rather than
+   * the number it currently comes to, so that retuning either value in
+   * config.js keeps snapping and settling in agreement.
    */
   snap(ball) {
+    const C = CONFIG.CAMERA;
     this.x = ball.x;
-    this.y = ball.y;
+    this.y = ball.y + C.BIAS_Y - C.DEADZONE_Y;
   }
 
   /** @param viewW,viewH the visible world, in world units */

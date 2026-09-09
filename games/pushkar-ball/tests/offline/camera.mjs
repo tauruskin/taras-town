@@ -65,6 +65,23 @@ for (const [w, h] of SCREENS) {
     fail(`on ${w}x${h} the ball clears the controls by only ${margin.toFixed(0)}px, less than half a ball`);
   }
 
+  // Snapping and settling must agree. `snap` is what a respawn uses, and it
+  // promises no easing at all — so if it puts the camera anywhere `update`
+  // then eases away from, every respawn ends with a small glide. That is what
+  // happened when the camera started aiming BIAS_Y below the ball and `snap`
+  // still snapped to the ball itself. The allowance is derived, not a literal:
+  // one step of the vertical lerp cannot move the camera further than this
+  // even from the very edge of the deadzone.
+  const before = camera.y;
+  camera.snap(ball);
+  camera.update(CONFIG.STEP, ball, viewW, viewH);
+  const drift = Math.abs(camera.y - before);
+  const allowed = CONFIG.CAMERA.DEADZONE_Y * CONFIG.CAMERA.LERP_Y * CONFIG.STEP;
+  if (drift > allowed) {
+    fail(`on ${w}x${h} snapping moved the camera ${drift.toFixed(1)} world units ` +
+         `from where it had settled — a respawn would glide`);
+  }
+
   // And it must not have gone the other way. A ball pinned to the top of the
   // screen cannot see what it is falling towards.
   if (screenY < h * 0.25) fail(`on ${w}x${h} the ball rides at ${screenY.toFixed(0)}, too high to see what is below it`);
