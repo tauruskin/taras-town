@@ -57,32 +57,37 @@ const doubled = await jumpHeight(2);
 console.log(`\n2. two taps raised it ${doubled.toFixed(0)} px`);
 if (doubled > single * 1.5) fail(`a second tap in mid-air added height: ${doubled.toFixed(0)} vs ${single.toFixed(0)} — that is a double jump`);
 
-// --- 3. driven right, the ball keeps going and stays in the world --------
+// --- 3. driven along the flat, the ball keeps going and stays in the world -
 //
-// The window this asserts over is derived from the level, not typed in. The
-// gap starts at `gapFrom`, so for the ball to fall into it the ball must first
-// travel gapFrom - spawn.x, and it cannot do that faster than MAX_SPEED — it
-// has a ramp to climb on the way, which only slows it down. So MAX_SPEED gives
-// a LOWER bound on the time before the gap can possibly be reached, and inside
-// that window a ball that vanishes has not fallen down a hole: it has tunnelled
-// through the ground, got wedged, or gone NaN. Four times in Taras Town a suite
-// failed because a fixed allowance met a world that had grown; asking the level
-// for the number instead means this reports the new truth rather than an old one.
+// The window is derived from the level, and the derivation matters, because the
+// obvious one is wrong. This used to run until just before the level's first
+// gap, on the reasoning that the ball cannot cover that distance faster than
+// MAX_SPEED. It can. MAX_SPEED only clamps the acceleration the player asks
+// for — a slope adds to vx underneath that clamp — so the ramp down towards
+// the gap throws the ball past 420px/s and it arrives EARLY. It then fell in
+// and respawned, and the last sample caught it back at the spawn, so a test of
+// "did the ball make progress" answered with about zero. It passed for two
+// phases on the timing of whichever machine ran it.
 //
-// No jumping during the window, and that is deliberate too. Hammering jump up
-// the ramp throws the ball clear off the TOP of the screen — the camera follows
-// vertically on purpose slowly — and ballAt cannot tell a ball that is above
-// the viewport from one that has left the world. Neither is a bug, so neither
+// So the window is the FLAT stretch only, where MAX_SPEED genuinely is the cap
+// because there is no slope to beat it. `flatEnd` is where the first polyline
+// stops being level, asked of the level rather than typed here.
+//
+// No jumping during it, and that is deliberate too. Hammering jump up the ramp
+// throws the ball clear off the TOP of the screen — the camera follows
+// vertically on purpose slowly — and ballAt cannot tell a ball above the
+// viewport from one that has left the world. Neither is a bug, so neither
 // belongs in an assertion.
 const g = LEVELS[0].ground;
 const gapFrom = g[0][g[0].length - 1][0];
 const gapTo = g[1][0][0];
-const preGap = (gapFrom - LEVELS[0].spawn.x) / CONFIG.MAX_SPEED;
-console.log(`\n3. the level's first gap is ${gapTo - gapFrom}px wide, and the ball` +
-            ` cannot reach it in under ${preGap.toFixed(1)}s`);
+const flatEnd = g[0][1][0];
+const onFlat = ((flatEnd - LEVELS[0].spawn.x) / CONFIG.MAX_SPEED) * 0.9;
+console.log(`\n3. the level's first gap is ${gapTo - gapFrom}px wide; the flat runs out at` +
+            ` ${flatEnd}, which at MAX_SPEED is ${(onFlat / 0.9).toFixed(2)}s away`);
 
 await sleep(1500);
-const samples = Math.floor((preGap * 0.95) * 1000 / 100);
+const samples = Math.max(6, Math.floor(onFlat * 1000 / 100));
 await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: RIGHT.x, y: RIGHT.y, id: 1 }] });
 let lost = 0, first = null, last = null;
 for (let i = 0; i < samples; i++) {
@@ -93,16 +98,23 @@ for (let i = 0; i < samples; i++) {
   last = b;
 }
 await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-if (lost) fail(`the ball vanished for ${lost} of ${samples} samples while being driven right, before the gap could possibly be reached`);
+if (lost) fail(`the ball vanished for ${lost} of ${samples} samples while being driven along flat ground`);
 else console.log(`   driven right for ${(samples / 10).toFixed(1)}s, visible in every one of ${samples} samples`);
 
-// And it must actually have gone somewhere. Wedged against the ramp is the
-// failure this catches, and it looks nothing like vanishing: the ball stays
-// perfectly visible and perfectly still.
-if (first && last && last.x - first.x < 40) {
+// And it must actually have gone somewhere.
+//
+// Measured across the SCREEN, which only says anything while the camera is
+// still pinned to the left edge of the level — once it starts following, the
+// ball sits near the middle by definition and its screen position stops
+// moving however fast it travels. That is fine here and only here: the camera
+// is clamped for the first two thirds of this window, so a ball that is
+// really rolling crosses about 270px of screen, and one that is wedged or
+// deaf to the button crosses none. Do not extend this window thinking it
+// makes the check stronger; past the clamp it measures nothing at all.
+if (first && last && last.x - first.x < 60) {
   fail(`driven right for ${(samples / 10).toFixed(1)}s and the ball only moved ${(last.x - first.x).toFixed(0)}px across the screen`);
 } else if (last) {
-  console.log(`   and travelled ${(last.x - first.x).toFixed(0)}px across the screen while the camera followed`);
+  console.log(`   and travelled ${(last.x - first.x).toFixed(0)}px across the screen before the camera took over`);
 }
 
 // --- 4. and it survives being driven right WHILE jumping -----------------
