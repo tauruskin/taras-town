@@ -351,17 +351,29 @@ class Level {
   }
 
   /**
-   * The checkpoint the ball is standing in, if any — and it is marked taken.
+   * The checkpoint a point is inside, if any — and it is marked taken.
    *
-   * Returns the checkpoint so the caller can move its home there. Already
-   * taken ones are skipped, which is what stops rolling back over an earlier
-   * checkpoint from dragging home backwards down the level.
+   * Takes a bare x and y rather than the ball, because that is all it looks
+   * at, and this file has no business knowing what a ball is.
+   *
+   * The capture region is a box the shape of the flag that is drawn: `R` to
+   * either side, and from the top of the pole down to `R` below its foot. A
+   * circle around the anchor was tried first and let a jump sail over the
+   * flag without arming, because a circle's window narrows to nothing exactly
+   * where the pole is tallest.
+   *
+   * It both marks and returns, deliberately: splitting the question from the
+   * arming invites a caller that asks and then forgets to arm.
+   *
+   * Already taken ones are skipped, which is what stops rolling back over an
+   * earlier checkpoint from dragging home backwards down the level.
    */
-  takeCheckpoint(ball) {
-    const r = CONFIG.CHECKPOINT.R;
+  takeCheckpoint(x, y) {
+    const K = CONFIG.CHECKPOINT;
     for (const c of this.checkpoints) {
       if (c.taken) continue;
-      if ((ball.x - c.x) ** 2 + (ball.y - c.y) ** 2 <= r * r) {
+      if (x >= c.x - K.R && x <= c.x + K.R &&
+          y >= c.y - K.POLE_H && y <= c.y + K.R) {
         c.taken = true;
         return c;
       }

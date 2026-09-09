@@ -270,15 +270,18 @@ function drawCrates() {
  */
 function drawCheckpoints() {
   const C = CONFIG.COLOURS;
-  const h = CONFIG.CHECKPOINT.POLE_H;
+  const K = CONFIG.CHECKPOINT;
+  const h = K.POLE_H;
   for (const c of level.checkpoints) {
-    ctx.fillStyle = C.WALL_EDGE;
-    ctx.fillRect(c.x - 2.5, c.y - h, 5, h);
+    // The flag's own pole colour, not a wall's. Borrowing WALL_EDGE meant
+    // retinting the scenery silently retinted every checkpoint with it.
+    ctx.fillStyle = C.FLAG_POLE;
+    ctx.fillRect(c.x - K.POLE_W2, c.y - h, K.POLE_W2 * 2, h);
 
     ctx.beginPath();
-    ctx.moveTo(c.x + 2.5, c.y - h);
-    ctx.lineTo(c.x + 38, c.y - h + 13);
-    ctx.lineTo(c.x + 2.5, c.y - h + 26);
+    ctx.moveTo(c.x + K.POLE_W2, c.y - h);
+    ctx.lineTo(c.x + K.FLAG_OUT, c.y - h + K.FLAG_MID);
+    ctx.lineTo(c.x + K.POLE_W2, c.y - h + K.FLAG_DROP);
     ctx.closePath();
     ctx.fillStyle = c.taken ? C.CHECK_ON : C.CHECK_OFF;
     ctx.fill();

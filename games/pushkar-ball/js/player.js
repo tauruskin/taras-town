@@ -65,6 +65,13 @@ export class Ball {
     this.coyote = 0;
     this.buffer = 0;
     this.platform = null;
+    // The deflate's own timers included. Today's only caller has just zeroed
+    // `dying` itself, so this changes nothing — but `respawn` means "put the
+    // ball in a known state", and a second caller (a level transition, say)
+    // that inherited a half-spent deflate would be exactly the class of bug
+    // the paragraph above warns about, arriving from the other side.
+    this.dying = 0;
+    this.reviving = 0;
   }
 
   /**
@@ -206,8 +213,19 @@ export class Ball {
     // Checked after the move, so the checkpoint the ball is standing in this
     // step is the one that arms — and after the push, so a checkpoint reached
     // while shoving a crate still counts.
-    const reached = level.takeCheckpoint(this);
-    if (reached) { this.home.x = reached.x; this.home.y = reached.y; }
+    // A checkpoint's `y` is its GROUND ANCHOR — the flag is drawn upward from
+    // it — so home is that anchor lifted by the ball's radius and a little
+    // daylight, which is where a ball RESTS on that floor. Homing to the
+    // anchor itself puts the ball's centre exactly on the ground segment,
+    // where the resolver has nothing to eject it out of: the ball falls
+    // through the floor, dies, comes back inside the floor, and the level is
+    // destroyed with no way out at all. Measured at 21 deaths in 20 seconds
+    // before this line existed.
+    const reached = level.takeCheckpoint(this.x, this.y);
+    if (reached) {
+      this.home.x = reached.x;
+      this.home.y = reached.y - this.r - C.CHECKPOINT.CLEARANCE;
+    }
 
     // --- fell out of the world -------------------------------------------
     //

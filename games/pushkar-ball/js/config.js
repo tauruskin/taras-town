@@ -107,13 +107,38 @@ export const CONFIG = {
   // a place the ball remembers, so that failing costs the stretch since the
   // last one and nothing more.
   CHECKPOINT: {
-    // How close the ball's centre has to get, in world units. Generous on
-    // purpose: a checkpoint that can be rolled straight past at full speed
-    // without arming is worse than no checkpoint, because the player believes
-    // it armed. At MAX_SPEED the ball covers 3.5px per step, so this is many
-    // steps wide and cannot be tunnelled through.
+    // Capture is a BOX around the ball's centre, not a circle, and it is
+    // shaped like the flag that is drawn: `R` to either side of the pole, and
+    // everything from the top of the pole down to `R` below its foot.
+    //
+    // A circle was the first attempt and it was wrong on the vertical. Its
+    // window shrank to nothing as the ball rose, so a jump begun a little
+    // before the flag sailed clean over it without arming — and silent
+    // non-arming is exactly what makes a checkpoint worse than no checkpoint,
+    // because the player believes it armed. A ball that clears the box has
+    // genuinely flown over the whole flag, which is at least honest.
+    //
+    // Generous sideways for the same reason: at MAX_SPEED the ball covers
+    // 3.5px per step, so `R` is many steps wide and cannot be tunnelled
+    // through at any speed the ball can reach.
     R: 46,
-    POLE_H: 70,          // drawn height
+    POLE_H: 70,          // drawn height, and how high capture reaches
+    // Daylight between the ball and the floor when it comes back. A
+    // checkpoint's `y` is its GROUND ANCHOR — the pole is drawn upward from
+    // it — so respawning the ball's centre at that `y` puts the centre exactly
+    // on the ground segment, where the resolver does not eject it: the ball
+    // falls through the floor, dies, comes back inside the floor again and
+    // the level is destroyed with no way out. The respawn point is therefore
+    // the anchor lifted by the ball's own radius plus this, so the ball
+    // settles rather than starting embedded, and so it follows BALL.R if that
+    // is ever retuned.
+    CLEARANCE: 4,
+    // The pennant, as drawn: half the pole's width, then how far the flag
+    // reaches out from it and where its point and its bottom corner sit.
+    POLE_W2: 2.5,
+    FLAG_OUT: 38,
+    FLAG_MID: 13,
+    FLAG_DROP: 26,
   },
 
   // ---------------------------------------------------------------------
