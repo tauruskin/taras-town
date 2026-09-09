@@ -93,12 +93,33 @@ function frame(now) {
     while (accumulator >= CONFIG.STEP && steps < 240) {
       level.update(CONFIG.STEP);
 
-      // The ball puts itself back at its home when it fails; all this has to
-      // notice is that it happened, so the camera can go with it instead of
-      // easing across the whole level after it.
-      const diedBefore = ball.deaths;
+      // The ball puts itself back at its home when it fails, and the camera
+      // has to go with it instead of easing across the whole level after it.
+      //
+      // The signal is the ARRIVAL, not the death, and the difference matters
+      // because the intuitive version is the wrong one. A death and the
+      // respawn it causes are DEFLATE.TIME apart, and the ball does not move
+      // at all in between — so snapping when `deaths` changes parks the camera
+      // over the empty hole the ball fell down, and then, when the ball
+      // reappears at a checkpoint somewhere else entirely, the camera glides
+      // the whole way there with the ball already rolling and already being
+      // steered from off screen. That is exactly the glide `snap` and the
+      // camera's constructor were written to remove, arriving by a different
+      // route.
+      //
+      // `reviving` rises from 0 to DEFLATE.INFLATE in precisely the step the
+      // respawn happens, so it is the honest signal and needs no new state.
+      // Once the snap is at the arrival, whatever the camera was doing before
+      // stops mattering: `snap` writes both coordinates outright, so it
+      // re-establishes the settled resting position for the new place.
+      //
+      // Not covered offline — this loop needs a DOM. Task 3's browser deflate
+      // suite is where it is checked, by screenshotting the ball just after it
+      // comes back: a camera mid-glide puts the ball somewhere a settled
+      // camera would not.
+      const revivingBefore = ball.reviving;
       ball.update(CONFIG.STEP, input, level);
-      if (ball.deaths !== diedBefore) camera.snap(ball);
+      if (revivingBefore === 0 && ball.reviving > 0) camera.snap(ball);
 
       camera.update(CONFIG.STEP, ball, viewW, viewH);
       accumulator -= CONFIG.STEP;
