@@ -261,7 +261,14 @@ trick."
 
 ---
 
-## Task 2: Checkpoints
+## Task 2: Checkpoints — DONE
+
+> Commits `6a72784`, `20ebd25`, `f7cf495`. Spec review passed; code quality review passed on re-review, each fix proven by mutation.
+>
+> This task also absorbed two pieces the plan had filed under Task 3 — the `DEFLATE` config block and the deflate tick at the top of `Ball.update` — because Task 2's `die()` sets a `dying` timer that nothing decremented until Task 3, so Task 2's own test could never have passed. **Task 3's Steps 3 and 4 are therefore already done.** Task 3 keeps the deflate's *drawing* and its suites.
+>
+> Three bugs came out of it, two of them mine in the plan text above and both corrected there: respawning at a checkpoint put the ball's centre *on* the ground segment rather than above it, so it fell through and died again for ever; three of the five checks asserted only `ball.x` and so passed on that broken game, with check 5 provably vacuous; and the camera snapped at the moment of death rather than the moment of return, parking over an empty hole and then gliding across the level.
+
 
 Failing should cost the stretch since the last checkpoint and nothing more. Phase 1 already respawns the ball when it falls out of the world, so this task changes the *target* of that respawn; it does not build a respawn.
 
@@ -577,8 +584,18 @@ with:
 
 ```js
     // --- checkpoints ------------------------------------------------------
-    const reached = level.takeCheckpoint(this);
-    if (reached) { this.home.x = reached.x; this.home.y = reached.y; }
+    //
+    // A checkpoint's `y` is its GROUND anchor — the pole is drawn upward from
+    // it — so the respawn point has to be lifted by the ball's own radius plus
+    // a little daylight. Taking `reached.y` verbatim puts the ball's centre on
+    // the ground segment, where the resolver does not eject it: it falls
+    // straight through and dies again, for ever. That was measured at 21
+    // deaths in 20 seconds, and it destroys the level with no way out.
+    const reached = level.takeCheckpoint(this.x, this.y);
+    if (reached) {
+      this.home.x = reached.x;
+      this.home.y = reached.y - this.r - CONFIG.CHECKPOINT.CLEARANCE;
+    }
 
     // --- fell out of the world -------------------------------------------
     //
@@ -637,6 +654,13 @@ and call it in `draw`, between `drawCrates()` and `drawPlatforms()`:
 ```js
   drawCheckpoints();
 ```
+
+> **Correction applied after review.** Two things in this task as first written were wrong, and both are fixed above and below:
+>
+> - `home.y = reached.y` respawned the ball *inside* the ground, because a checkpoint's `y` is its ground anchor. The respawn point is lifted by the ball's radius plus `CHECKPOINT.CLEARANCE`.
+> - Checks 3, 4 and 5 asserted only `ball.x`, and a ball falling through the floor for ever is at the right `x`. Worse, check 5 was provably vacuous: commenting out `if (c.taken) continue;` left all five checks passing. Checks 3 and 4 must also assert the ball is alive and standing (`grounded`, `deaths === 1`, a sane `y`), and check 5's fixture must let the ball survive long enough to actually roll back over an earlier checkpoint.
+>
+> Capture is a box matching the flag's silhouette (`c.x ± R`, `c.y - POLE_H` to `c.y + R`), not a circle around the ball's centre. A circle of `R` shrinks to nothing as the ball rises, so a jump starting 140px short sailed over the flag without arming it.
 
 - [ ] **Step 9: Run the checkpoint test, then every offline suite**
 
@@ -1520,6 +1544,8 @@ needs a level authored around it."
 
 The level ends at the flag. The flag animates, a panel says what happened, and then the next level starts on its own. Winning never sends the player back to a menu — a child who has just won should not have to navigate anything to keep playing.
 
+> **A freeze to avoid, found while reviewing Task 2.** `ball.dying` is decremented only inside `Ball.update`. The state machine below stops calling `ball.update` once `mode === 'won'`, so a flag touched while the ball is mid-deflate would leave `dying` positive for ever and the ball would never come back. Either keep updating the ball while `dying > 0`, or clear `dying` and `reviving` when the level is won and when `startLevel` runs. The same applies to any pause added later. `respawn()` clears both as of Task 2, so calling it is one safe way.
+
 **Files:**
 - Modify: `games/pushkar-ball/js/config.js`
 - Modify: `games/pushkar-ball/js/levels.js`
@@ -2217,7 +2243,30 @@ In `games/pushkar-ball/tests/offline/levels.mjs`, add these checks inside the ex
     }
     if (probe.deaths > 0) fail(`level ${data.id}: a ball dropped at checkpoint ${i} died ${probe.deaths} time(s)`);
     if (!probe.grounded) fail(`level ${data.id}: a ball dropped at checkpoint ${i} never settled`);
+
+    // And the point a RESPAWN actually uses, which is lifted off the anchor by
+    // the ball's radius plus CHECKPOINT.CLEARANCE. This is the check that
+    // would have caught the respawn-inside-the-floor bug: dropping a ball at
+    // the anchor itself is not the same question as respawning at one.
+    const homeY = c.y - CONFIG.BALL.R - CONFIG.CHECKPOINT.CLEARANCE;
+    const atHome = new Ball(c.x, homeY);
+    const test2 = loadLevel(data);
+    for (let s = 0; s < Math.round(2.5 / CONFIG.STEP); s++) {
+      test2.update(CONFIG.STEP);
+      atHome.update(CONFIG.STEP, input, test2);
+    }
+    if (atHome.deaths > 0) {
+      fail(`level ${data.id}: respawning at checkpoint ${i} died ${atHome.deaths} time(s) — the respawn point is not clear`);
+    }
+    if (!atHome.grounded) fail(`level ${data.id}: respawning at checkpoint ${i} never settled`);
   }
+
+  // A checkpoint's capture box reaches CHECKPOINT.R *below* its ground anchor
+  // as well as POLE_H above it, so a passable route directly underneath a
+  // flagged floor would arm that flag from below. That is a gift rather than a
+  // trap — home becomes a spot the child has safely stood — but it is
+  // surprising, so do not author a lower route under a checkpoint without
+  // meaning to.
 
   // --- hazards ----------------------------------------------------------
   //
