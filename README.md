@@ -23,6 +23,7 @@ other one.
 | Folder | What it is |
 | --- | --- |
 | [`games/taras-town/`](games/taras-town/) | An open-world town to wander, drive and swim around. See its own README for everything about it. |
+| [`games/pushkar-ball/`](games/pushkar-ball/) | A rolling-ball platformer: momentum, slopes, moving platforms, pushable crates. See its own README. |
 
 ## Running it on your own computer
 
@@ -34,14 +35,22 @@ Then open <http://127.0.0.1:8777/> and pick a tile.
 
 ## Checking nothing broke
 
-Each game keeps its own test suite alongside its code. For Taras Town:
+Each game keeps its own test suite alongside its own code, and its own harness
+to run it. There is no shared one.
 
 ```
 node games/taras-town/tests/run.mjs
+node games/pushkar-ball/tests/run.mjs
 ```
 
-See [`games/taras-town/tests/README.md`](games/taras-town/tests/README.md)
-for what each one covers.
+Both take `offline` to skip the browser suites, which is the fast way to check
+a change while working on it. See
+[`games/taras-town/tests/README.md`](games/taras-town/tests/README.md) and
+[`games/pushkar-ball/tests/README.md`](games/pushkar-ball/tests/README.md) for
+what each one covers.
+
+Anything that changes `sw.js` or the hub's `index.html` touches both games, so
+run both suites before pushing it.
 
 ## Publishing an update
 

@@ -21,10 +21,10 @@ In scope for this spec (the whole game, built in phases below):
 
 - A ball with real rolling physics, jumping, slopes and moving platforms.
 - Hazards (spikes, saws, crushers), three enemy types, collectibles, a goal.
-- Lives, checkpoints, respawn.
+- Checkpoints and respawn. No lives — see "Failing" below.
 - 4–5 levels as data, a level-select screen, progress saved to
   `localStorage`.
-- Main menu, HUD, pause, level-complete and out-of-lives screens.
+- Main menu, HUD, pause and level-complete screens.
 - Synthesised sound effects and music, a sound switch.
 - Hub wiring: tile, service-worker precache, README.
 - Its own test suite, mirroring Taras Town's offline/browser split.
@@ -227,6 +227,40 @@ Level count: five. One and two teach rolling and jumping on hills; three
 introduces moving platforms and spikes; four moves indoors to the toy factory
 with saws and conveyors; five combines everything.
 
+### Difficulty: rising, and never harsh
+
+Each level is harder than the one before it and **none of them is hard**. That
+is a requirement, not a hope, and it is easy to lose one level at a time while
+authoring five of them — each individual step feels reasonable and level five
+ends up somewhere a six-year-old cannot follow.
+
+What it means concretely:
+
+- **Every level introduces at most one new idea**, and introduces it somewhere
+  safe — where failing costs a few seconds, not a checkpoint's progress — before
+  it is ever asked for somewhere that matters.
+- **No level requires precise timing on more than one thing at once.** A moving
+  platform over a gap is fine. A moving platform over a gap with a saw on it is
+  two things, and belongs in different levels.
+- **Nothing is ever unfair**: no leap of faith into an off-screen landing, no
+  hazard that cannot be seen before it can hurt, and no dead end that has to be
+  failed to be discovered.
+- When a level has to be one or the other, **make it longer rather than
+  sharper**. Length is patience; sharpness is a wall.
+
+### Checkpoints
+
+Only long levels get them, and then **two or three, never more**, each placed
+**immediately before a hard stretch** rather than spaced evenly. The purpose is
+that failing the hard part costs the hard part and nothing else — a checkpoint
+in the middle of an easy run just banks progress nobody was going to lose.
+
+A short level gets none: restarting it is quicker than reaching its middle.
+
+Phase 1 already respawns the ball at the level's spawn when it falls out of the
+world, so phase 2's work is to change the *target* of that respawn to the last
+checkpoint reached, not to build the mechanism.
+
 ### The two themes
 
 Both drawn entirely with shapes, no images anywhere.
@@ -240,7 +274,7 @@ Both drawn entirely with shapes, no images anywhere.
 
 ## Failing, and why nothing here is scary
 
-Touching a hazard or falling below the level costs one life. The ball
+Touching a hazard or falling below the level sends the ball back. It
 **deflates** — squashes flat with a soft puff of particles — the screen dims
 briefly, and it re-inflates at the last checkpoint. No blood, no injury, no
 death imagery, no sound of pain. This is what Red Ball itself did, and it is
@@ -249,8 +283,54 @@ inside the hub's rules rather than an exception to them.
 Enemies are squares with faces that pop into a few triangles when bounced on.
 They do not chase off-screen, they do not swarm, and there is no weapon.
 
-Lives per level: five. Out of lives returns to level select with the level's
-progress intact but not credited.
+**There are no lives.** Failing sends the ball back to the last checkpoint, for
+ever, and nothing else happens: no counter, no run that can end, nothing to
+read. An earlier draft of this spec gave five lives per level and sent an
+exhausted run back to level select; that was dropped before phase 2 was
+planned, for three reasons.
+
+A lives counter is a number a six-year-old cannot read being used to threaten
+him. Checkpoints already make failure cost something — the stretch since the
+last one — which is the whole job lives were doing. And "out of lives" is an
+extra way for a run to end, in a game whose requirement is that failing be
+harmless and instantly undone.
+
+If stakes are ever wanted later, they belong in the star rating, which rewards
+doing well rather than punishing doing badly.
+
+## Reaching the flag, and getting to the next level
+
+Touching the flag ends the level. In order: the flag animates and the ball does
+something pleased with itself, a results panel shows what was collected in
+digits and stars, and then **the next level begins on its own**.
+
+**Winning does not send the player back to a menu.** A child who has just won
+should not have to navigate anything to keep playing — the momentum is most of
+the reward, and every menu between two levels is a chance to get lost in one.
+Level select exists to *choose where to start* and to replay a level already
+beaten, not as a toll gate between every pair of them.
+
+Three consequences that are part of the requirement, not details:
+
+- **The results panel still has a way out while it is auto-advancing** — a grid
+  button to level select and a house to the hub, visible the whole time. The
+  hub's rule is that a child must always be able to get out of whatever he is
+  in, and a boy who wants to replay the level he just enjoyed must not be
+  carried onward whether he likes it or not.
+- **The last level has nowhere to advance to**, so it returns to level select
+  with something celebratory rather than sitting on a panel that promises a
+  level that does not exist.
+- **Auto-advance is for winning only**, and it is now the only way a level
+  ends at all, since there are no lives to run out of.
+
+Unlocking happens before the transition, so the level being advanced into is
+already unlocked by the time it starts and a player who leaves immediately
+afterwards still finds it available.
+
+**No sound at the flag until phase 4.** All audio is phase 4, so through phases
+2 and 3 the flag is animation only. This is a known and accepted gap rather
+than an oversight — flagged because "animation and sounds" is the natural way
+to describe the moment, and the sound half arrives two phases later.
 
 ## Text
 
@@ -258,7 +338,8 @@ Almost none, so the tile stays usable by a six-year-old too:
 
 - Level numbers are **digits**. Digits are the one text he reads reliably —
   the same reasoning that lets Taras Town show a room code.
-- Counts (lives, gems, time) are digits with a small drawn icon.
+- Counts (gems, time) are digits with a small drawn icon. There is no lives
+  counter, because there are no lives.
 - Every button is a picture: a triangle to play, two bars to pause, a curved
   arrow to retry, a grid to go back to level select, a house to go back to the
   hub.
@@ -337,6 +418,9 @@ Offline suites:
 - `feel.mjs` — coyote time allows a jump `COYOTE` seconds after leaving an
   edge and refuses it after; a buffered press within `BUFFER` of landing
   fires; jumping off a platform moving right carries its velocity.
+- `crates.mjs` — a crate falls, rests, is pushed, cannot be shoved through a
+  wall or lost down a hole, and is a step up to somewhere a jump cannot reach.
+  Nothing goes NaN while riding one.
 - `levels.mjs` — for every level: ids unique; spawn and every checkpoint sit
   in free space above ground; all geometry inside `bounds`; every ground
   polyline's normals point up; the goal is reachable in the weak sense that a
@@ -380,15 +464,27 @@ is played and judged before phase 2 starts.** If the roll is wrong, everything
 built on top of it is wasted, and the numbers table above is a guess until a
 thumb has disagreed with it.
 
-**Phase 2 — danger.** `hazards.js`, lives, checkpoints, the deflate/respawn,
-the goal and a results screen. Levels one to three.
+**Phase 2 — danger.** `hazards.js`, checkpoints, the deflate/respawn,
+the goal, a results panel, and advancing from one level into the next. Levels
+one to three.
+
+Auto-advance falls in this phase and level select does not, which works out
+well rather than awkwardly: phase 2 ends as a straight run of three levels with
+no menu anywhere in it — the flag, a results panel, the next level. Phase 4
+then adds level select *beside* that flow rather than into the middle of it, so
+nothing built here has to be taken apart.
+
+Two things phase 1 already left in place for this: the ball respawns itself
+when it falls out of the world, so checkpoints change the *target* of a respawn
+rather than building one; and the flag is already drawn and inert, so it needs
+logic rather than art.
 
 **Phase 3 — company.** `enemies.js` (rolling spike ball, walking blob,
 stationary popper that lobs soft balls), bouncing on them, gems, `effects.js`.
 Levels four and five, and the factory theme.
 
 **Phase 4 — around the game.** Main menu, level select with locks and star
-ratings, pause, out-of-lives, `save.js`, `audio.js`, the two sound switches.
+ratings, pause, `save.js`, `audio.js`, the two sound switches.
 Remaining browser suites, all screenshots, the small-screen suite.
 
 ## Changes outside the new folder
@@ -421,9 +517,11 @@ in the repo root as if it were a game.
 
 - **The feel is a guess.** Every number in the table is unverified. This is why
   phase 1 exists and why it ships alone.
-- **Sine-driven platforms cannot be pushed off course**, so a ball resting
-  between a crusher and the floor has nowhere to go. Every crusher gets a gap
-  at its bottom of at least `2r`, asserted in `levels.mjs`.
+- **Sine-driven platforms and crushers cannot be pushed off course**, so a ball
+  resting between a crusher and the floor has nowhere to go. Every crusher gets
+  a gap at its bottom of at least `2r`, asserted in `levels.mjs`. The same
+  applies to a pushable crate under a crusher, which is why a crate must never
+  be authored where a crusher can reach it.
 - **Synthesised music may be judged not good enough by ear**, exactly as it was
   in Taras Town. The answer is the same and is already written down: prepare a
   file outside the repo, agree it, commit it once.

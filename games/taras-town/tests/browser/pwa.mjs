@@ -87,9 +87,20 @@ const wantCount = await ev(`fetch('./sw.js').then(r => r.text()).then(t =>
   (t.match(/const PRECACHE = \\[([\\s\\S]*?)\\];/)[1].match(/'[^']+'/g) || []).length)`);
 check('the service worker file lists files to precache', wantCount > 5, wantCount + ' files');
 
+// The cache's NAME is asked of sw.js too, never written down here. It was
+// hardcoded as 'pushkar-games-v1' once, and the day sw.js bumped to v2 this
+// check started reading an empty cache that no longer existed and reporting
+// 0/48 — a service worker that was in fact working perfectly, as the offline
+// checks further down went on proving in the same run. It stayed broken for
+// four commits because nothing connected the bump to the failure. Same rule as
+// a button coordinate: if the game owns the number, ask the game.
+const cacheName = await ev(`fetch('./sw.js').then(r => r.text()).then(t =>
+  t.match(/const CACHE = '([^']+)'/)[1])`);
+check('the service worker names a cache', !!cacheName, cacheName);
+
 let cached = 0;
 for (let i = 0; i < 20; i++) {
-  cached = await ev(`caches.open('pushkar-games-v1').then(c => c.keys()).then(k => k.length).catch(() => 0)`);
+  cached = await ev(`caches.open(${JSON.stringify(cacheName)}).then(c => c.keys()).then(k => k.length).catch(() => 0)`);
   if (cached >= wantCount) break;
   await sleep(500);
 }
