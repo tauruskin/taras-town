@@ -227,6 +227,40 @@ Level count: five. One and two teach rolling and jumping on hills; three
 introduces moving platforms and spikes; four moves indoors to the toy factory
 with saws and conveyors; five combines everything.
 
+### Difficulty: rising, and never harsh
+
+Each level is harder than the one before it and **none of them is hard**. That
+is a requirement, not a hope, and it is easy to lose one level at a time while
+authoring five of them — each individual step feels reasonable and level five
+ends up somewhere a six-year-old cannot follow.
+
+What it means concretely:
+
+- **Every level introduces at most one new idea**, and introduces it somewhere
+  safe — where failing costs a few seconds, not a checkpoint's progress — before
+  it is ever asked for somewhere that matters.
+- **No level requires precise timing on more than one thing at once.** A moving
+  platform over a gap is fine. A moving platform over a gap with a saw on it is
+  two things, and belongs in different levels.
+- **Nothing is ever unfair**: no leap of faith into an off-screen landing, no
+  hazard that cannot be seen before it can hurt, and no dead end that has to be
+  failed to be discovered.
+- When a level has to be one or the other, **make it longer rather than
+  sharper**. Length is patience; sharpness is a wall.
+
+### Checkpoints
+
+Only long levels get them, and then **two or three, never more**, each placed
+**immediately before a hard stretch** rather than spaced evenly. The purpose is
+that failing the hard part costs the hard part and nothing else — a checkpoint
+in the middle of an easy run just banks progress nobody was going to lose.
+
+A short level gets none: restarting it is quicker than reaching its middle.
+
+Phase 1 already respawns the ball at the level's spawn when it falls out of the
+world, so phase 2's work is to change the *target* of that respawn to the last
+checkpoint reached, not to build the mechanism.
+
 ### The two themes
 
 Both drawn entirely with shapes, no images anywhere.
@@ -251,6 +285,40 @@ They do not chase off-screen, they do not swarm, and there is no weapon.
 
 Lives per level: five. Out of lives returns to level select with the level's
 progress intact but not credited.
+
+## Reaching the flag, and getting to the next level
+
+Touching the flag ends the level. In order: the flag animates and the ball does
+something pleased with itself, a results panel shows what was collected in
+digits and stars, and then **the next level begins on its own**.
+
+**Winning does not send the player back to a menu.** A child who has just won
+should not have to navigate anything to keep playing — the momentum is most of
+the reward, and every menu between two levels is a chance to get lost in one.
+Level select exists to *choose where to start* and to replay a level already
+beaten, not as a toll gate between every pair of them.
+
+Three consequences that are part of the requirement, not details:
+
+- **The results panel still has a way out while it is auto-advancing** — a grid
+  button to level select and a house to the hub, visible the whole time. The
+  hub's rule is that a child must always be able to get out of whatever he is
+  in, and a boy who wants to replay the level he just enjoyed must not be
+  carried onward whether he likes it or not.
+- **The last level has nowhere to advance to**, so it returns to level select
+  with something celebratory rather than sitting on a panel that promises a
+  level that does not exist.
+- **Auto-advance is for winning only.** Running out of lives goes back to level
+  select, exactly as above.
+
+Unlocking happens before the transition, so the level being advanced into is
+already unlocked by the time it starts and a player who leaves immediately
+afterwards still finds it available.
+
+**No sound at the flag until phase 4.** All audio is phase 4, so through phases
+2 and 3 the flag is animation only. This is a known and accepted gap rather
+than an oversight — flagged because "animation and sounds" is the natural way
+to describe the moment, and the sound half arrives two phases later.
 
 ## Text
 
@@ -381,7 +449,19 @@ built on top of it is wasted, and the numbers table above is a guess until a
 thumb has disagreed with it.
 
 **Phase 2 — danger.** `hazards.js`, lives, checkpoints, the deflate/respawn,
-the goal and a results screen. Levels one to three.
+the goal, a results panel, and advancing from one level into the next. Levels
+one to three.
+
+Auto-advance falls in this phase and level select does not, which works out
+well rather than awkwardly: phase 2 ends as a straight run of three levels with
+no menu anywhere in it — the flag, a results panel, the next level. Phase 4
+then adds level select *beside* that flow rather than into the middle of it, so
+nothing built here has to be taken apart.
+
+Two things phase 1 already left in place for this: the ball respawns itself
+when it falls out of the world, so checkpoints change the *target* of a respawn
+rather than building one; and the flag is already drawn and inert, so it needs
+logic rather than art.
 
 **Phase 3 — company.** `enemies.js` (rolling spike ball, walking blob,
 stationary popper that lobs soft balls), bouncing on them, gems, `effects.js`.
