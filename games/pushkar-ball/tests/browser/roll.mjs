@@ -116,13 +116,43 @@ else if (Math.abs(b.x - a.x) > 6) fail(`ball never stopped: still moving ${(b.x 
 else console.log('\n4. rolled to a stop');
 await shoot('3-stopped');
 
-// --- 5. and left works too ------------------------------------------------
+// --- 5. and left works too, all the way back to the wall ------------------
+//
+// Driven left until it stops rather than for a fixed moment, and compared
+// against where it SPAWNED rather than against where it happens to be now.
+// Both of those are deliberate, because a fixed hold here is not a test of
+// anything: while the camera is still following the ball, the ball stays near
+// the middle of the screen by definition, so its screen position says almost
+// nothing about how far it has actually gone. Worse, the camera looks ahead in
+// the direction of travel, so for the first fraction of a second of rolling
+// left the ball drifts very slightly RIGHT on screen. A 700ms hold measured
+// 18px of travel one run and 36px the next, against a 20px threshold — a coin
+// toss dressed up as an assertion.
+//
+// Driving it into the left wall removes the camera from the question. The
+// camera cannot show anything outside the level, so once it is pinned against
+// the left edge, screen position means world position again, and the ball ends
+// at a fixed place — against the wall, left of where it spawned — every time.
 const before = await ballAt(ev);
-await hold(LEFT, 700);
-const after = await ballAt(ev);
-if (!after) fail('lost the ball after rolling left');
-else if (after.x >= before.x - 20) fail(`held left and the ball went from ${before.x.toFixed(0)} to ${after.x.toFixed(0)}`);
-else console.log(`\n5. rolled ${(before.x - after.x).toFixed(0)}px left`);
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: LEFT.x, y: LEFT.y, id: 1 }] });
+let after = before, stalled = 0;
+for (let i = 0; i < 45 && stalled < 3; i++) {
+  await sleep(100);
+  const now = await ballAt(ev);
+  if (!now) break;
+  stalled = Math.abs(now.x - after.x) < 2 ? stalled + 1 : 0;
+  after = now;
+}
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+if (!after) fail('lost the ball while rolling left');
+else if (after.x >= start.x - 40) {
+  fail(`driven left from ${before.x.toFixed(0)}, the ball came to rest at ${after.x.toFixed(0)},` +
+       ` which is not past where it spawned (${start.x.toFixed(0)})`);
+} else {
+  console.log(`\n5. driven left from ${before.x.toFixed(0)}, came to rest against the wall at` +
+              ` ${after.x.toFixed(0)}, past its spawn at ${start.x.toFixed(0)}`);
+}
 
 for (const p of problems) fail(p);
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nROLLING LOOKS RIGHT');

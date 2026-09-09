@@ -29,13 +29,17 @@
 // Bump this only when files this list references are renamed or removed —
 // otherwise the network-first strategy above already keeps everyone current,
 // and bumping it needlessly just forces a full re-download for no reason.
-// Bumped here because a second game, Pushkar Ball, was added to the list.
+// Bumped to v2 when a second game, Pushkar Ball, was added to the list. Adding
+// Pushkar Ball's remaining files later did NOT need another bump: editing this
+// file at all re-runs `install`, and addAll puts the new paths into the cache
+// that already exists. A bump was made and reverted once on that
+// misunderstanding.
 //
 // Note that `install` below uses cache.addAll, which rejects WHOLESALE on a
 // single 404 — one missing path and the service worker fails to install, taking
 // offline support for the entire site with it. So a path only ever goes in this
 // list once the file behind it exists.
-const CACHE = 'pushkar-games-v3';
+const CACHE = 'pushkar-games-v2';
 
 const PRECACHE = [
   './',
