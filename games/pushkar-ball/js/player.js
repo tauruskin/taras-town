@@ -89,6 +89,35 @@ export class Ball {
     this.deaths++;
   }
 
+  /**
+   * How the ball should be drawn right now: `sx`/`sy` multipliers, 1 when it
+   * is whole. Deflating flattens it, re-inflating swells it back.
+   *
+   * State, not drawing — which is why it lives here and not in main.js, and
+   * why it returns numbers rather than touching a context. It is here at all
+   * so that it can be asserted in node: the squash happens off the bottom of
+   * the screen when a ball falls out of the world, so until a spike kills one
+   * in plain view there is nothing anywhere that can watch it happen.
+   *
+   * None of this touches `this.r`. That is the collision radius, and the
+   * physics must not care what the drawing is doing.
+   */
+  squash() {
+    const D = CONFIG.DEFLATE;
+    if (this.dying > 0) {
+      const t = 1 - this.dying / D.TIME;       // 0 at death, 1 at the end
+      return { sx: 1 + D.SPREAD * t, sy: 1 - D.SQUASH * t };
+    }
+    if (this.reviving > 0) {
+      const t = 1 - this.reviving / D.INFLATE; // 0 on arrival, 1 when done
+      // One scale for both axes, so it comes back ROUND rather than as an
+      // oval that snaps circular on the last frame.
+      const s = D.INFLATE_FROM + (1 - D.INFLATE_FROM) * t;
+      return { sx: s, sy: s };
+    }
+    return { sx: 1, sy: 1 };
+  }
+
   update(dt, input, level) {
     const C = CONFIG;
     this.jumped = false;
@@ -207,6 +236,15 @@ export class Ball {
         break;
       }
     }
+
+    // --- hazards ----------------------------------------------------------
+    //
+    // Checked after movement and resolution, so the ball is asked about where
+    // it actually ended up rather than where it was heading. Checked before
+    // checkpoints, so a checkpoint standing in a patch of spikes cannot be
+    // armed by the same step that kills you — which would make failing there
+    // permanent.
+    if (level.hitsHazard(this)) this.die();
 
     // --- checkpoints ------------------------------------------------------
     //

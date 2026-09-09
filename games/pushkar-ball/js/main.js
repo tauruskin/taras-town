@@ -17,6 +17,7 @@ import { Ball } from './player.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Buttons, Overlay } from './ui.js';
+import { drawSpikes } from './hazards.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -174,6 +175,7 @@ function draw() {
   drawWalls();
   drawCrates();
   drawCheckpoints();
+  drawSpikes(ctx, level.spikes, CONFIG);
   drawPlatforms();
   drawGoal();
   drawBall();
@@ -367,20 +369,11 @@ function drawGoal() {
  */
 function drawBall() {
   const C = CONFIG.COLOURS;
-  const D = CONFIG.DEFLATE;
 
-  // How squashed, and how big. `t` runs 0..1 through whichever phase is
-  // happening, so both curves are read the same way round.
-  let sx = 1, sy = 1;
-  if (ball.dying > 0) {
-    const t = 1 - ball.dying / D.TIME;         // 0 at death, 1 at the end
-    sy = 1 - D.SQUASH * t;
-    sx = 1 + D.SPREAD * t;
-  } else if (ball.reviving > 0) {
-    const t = 1 - ball.reviving / D.INFLATE;   // 0 on arrival, 1 when done
-    sy = D.INFLATE_FROM + (1 - D.INFLATE_FROM) * t;
-    sx = sy;                                   // round the whole way back up
-  }
+  // How squashed, and how big. The curve itself is the ball's own state and
+  // lives on the ball, so node can assert its shape; only the transform below
+  // is drawing and belongs here.
+  const { sx, sy } = ball.squash();
 
   ctx.save();
   // Squash towards the ground it is lying on, not towards its own middle.

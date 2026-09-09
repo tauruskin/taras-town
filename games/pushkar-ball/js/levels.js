@@ -16,6 +16,9 @@ import { segment, boxSegments, SegmentGrid, segmentHitsBox, supportUnder } from 
 // Crates fall, so they need GRAVITY and the crate numbers. config.js imports
 // nothing and touches nothing, so this stays as DOM-free as it was.
 import { CONFIG } from './config.js';
+// Hazards are geometry, not colliders, so this brings in a hit test and
+// nothing that touches the segment world or the DOM.
+import { hitsSpikes } from './hazards.js';
 
 export const LEVELS = [
   {
@@ -310,6 +313,10 @@ class Level {
     // resets them all with no bookkeeping anywhere.
     this.checkpoints = (data.checkpoints || []).map((c) => ({ x: c.x, y: c.y, taken: false }));
 
+    // Hazards are not colliders and never enter the segment world. The ball
+    // does not bounce off a spike; it rolls into one and fails.
+    this.spikes = (data.spikes || []).map((s) => ({ x: s.x, y: s.y, w: s.w }));
+
     this.statics = segs;
     this.grid = new SegmentGrid(segs);
     this.movers = (data.platforms || []).map(makeMover);
@@ -379,6 +386,16 @@ class Level {
       }
     }
     return null;
+  }
+
+  /**
+   * Is the ball touching anything that should send it back?
+   *
+   * One question for the whole level, so that when saws and crushers arrive in
+   * phase 3 the caller in player.js does not have to learn about them.
+   */
+  hitsHazard(ball) {
+    return hitsSpikes(ball, this.spikes, CONFIG);
   }
 }
 

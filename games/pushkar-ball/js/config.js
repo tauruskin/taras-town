@@ -189,6 +189,22 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Spikes
+  // ---------------------------------------------------------------------
+  SPIKE: {
+    H: 26,               // drawn height above the ground they stand on
+    TOOTH_W: 20,         // one tooth, so a patch is drawn as w / TOOTH_W teeth
+    // How much smaller the hit box is than the picture, in world units, on
+    // every side. Forgiveness, deliberately: a hazard whose hit box matches
+    // its picture kills on a graze that looked like a miss, and a six-year-old
+    // cannot tell that apart from the game cheating. Being killed by
+    // something you clearly touched is fair; being killed by something you
+    // clearly missed is not, and only one of those two mistakes is worth
+    // risking.
+    FORGIVE: 5,
+  },
+
+  // ---------------------------------------------------------------------
   // The hills behind the level
   // ---------------------------------------------------------------------
   // Two bands, drawn in screen space with the camera folded into the phase, so
@@ -254,6 +270,10 @@ export const CONFIG = {
     // the two.
     CHECK_OFF: '#9AA7B0',
     CHECK_ON: '#41C98A',
+    // Steel, and checked by hand against IS_BALL in the browser helpers: it
+    // is bluer than it is red, so it can never be mistaken for the hero.
+    SPIKE: '#B9C4CC',
+    SPIKE_EDGE: '#7C8B95',
     DIM: '#0B1E2A',      // what the screen dims towards during a deflate
     BUTTON: 'rgba(255,255,255,0.30)',
     BUTTON_HELD: 'rgba(255,255,255,0.58)',

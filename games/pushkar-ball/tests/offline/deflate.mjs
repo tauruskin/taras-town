@@ -215,5 +215,95 @@ const run = (ball, level, input, seconds) => {
   console.log(`   and it is back to ${Overlay.dim(ball)} once the ball is playable again`);
 }
 
+// --- 6. the squash flattens, then swells back round ----------------------
+//
+// The other visible half of failing, and asserted here for exactly the reason
+// the dim above is. `Ball.squash` is arithmetic on the ball's own timers and
+// touches no canvas, which is what lets Node ask it directly — and a browser
+// genuinely cannot: a ball that dies by falling out of the world does its
+// whole squash below the bottom of the screen, where no screenshot can reach
+// it. Until a spike kills a ball in plain view there is nothing anywhere else
+// that can watch this shape happen.
+{
+  const level = world();
+  const input = stub();
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+  run(ball, level, input, 1.0);
+
+  const at = ball.squash();
+  if (at.sx !== 1 || at.sy !== 1) fail(`a whole ball is not drawn round: ${at.sx}, ${at.sy}`);
+
+  ball.die();
+
+  // Walk the whole failure a step at a time and keep the series, so the SHAPE
+  // is what is asserted and not merely its extremes.
+  const dying = [], reviving = [];
+  const n = Math.round((CONFIG.DEFLATE.TIME + CONFIG.DEFLATE.INFLATE + 0.3) / CONFIG.STEP);
+  for (let i = 0; i < n; i++) {
+    level.update(CONFIG.STEP);
+    ball.update(CONFIG.STEP, input, level);
+    // Which phase produced a frame is read off the ball, not counted in steps,
+    // so this cannot drift out of step with the timers it is watching.
+    if (ball.dying > 0) dying.push(ball.squash());
+    else if (ball.reviving > 0) reviving.push(ball.squash());
+  }
+
+  if (dying.length < 10) fail(`only ${dying.length} frames of deflating to look at`);
+  if (reviving.length < 10) fail(`only ${reviving.length} frames of re-inflating to look at`);
+
+  // Flattening: shorter every frame, wider every frame, and never inverted.
+  // An sy at or below 0 is a ball drawn inside out.
+  let wrongWay = 0, inverted = 0;
+  for (let i = 1; i < dying.length; i++) {
+    if (dying[i].sy > dying[i - 1].sy + 1e-9) wrongWay++;
+    if (dying[i].sx < dying[i - 1].sx - 1e-9) wrongWay++;
+  }
+  for (const s of dying) if (s.sy <= 0) inverted++;
+  if (wrongWay) fail(`the deflate is not one direction: it reversed on ${wrongWay} steps`);
+  if (inverted) fail(`the ball was drawn with a height of zero or less on ${inverted} steps`);
+
+  // The whole point of the word "squash": at its flattest it is WIDER than it
+  // is tall. Nothing else satisfies that — a ball that merely shrank would
+  // keep sx and sy equal all the way down.
+  const flattest = dying[dying.length - 1];
+  console.log(`\n6. the flattest frame of ${dying.length} is ${flattest.sx.toFixed(2)} wide by ` +
+              `${flattest.sy.toFixed(2)} tall`);
+  if (!(flattest.sx > flattest.sy)) {
+    fail(`the flattest ball is not wider than it is tall: ${flattest.sx.toFixed(2)} x ${flattest.sy.toFixed(2)}`);
+  }
+
+  // Swelling: ROUND the whole way. An oval that snapped circular on the last
+  // frame would look like the ball popping rather than being pumped up.
+  let oval = 0, backwards = 0;
+  for (const s of reviving) if (Math.abs(s.sx - s.sy) > 1e-9) oval++;
+  for (let i = 1; i < reviving.length; i++) {
+    if (reviving[i].sy < reviving[i - 1].sy - 1e-9) backwards++;
+  }
+  console.log(`   it comes back from ${reviving[0].sx.toFixed(2)} over ${reviving.length} frames,` +
+              ` ending at ${reviving[reviving.length - 1].sy.toFixed(2)}`);
+  if (oval) fail(`the ball came back as an oval on ${oval} of ${reviving.length} frames`);
+  if (backwards) fail(`the re-inflate shrank again on ${backwards} steps`);
+  if (reviving[0].sx > 0.5) fail(`it arrives home already at ${reviving[0].sx.toFixed(2)}, so there is no swell to see`);
+
+  // The swell has to ARRIVE at 1, not merely head that way and be cut off.
+  //
+  // Asking `squash()` after the inflate proves nothing on its own: once
+  // `reviving` reaches 0 the method returns a hardcoded 1, so a curve that
+  // climbed only to 0.8 would snap the last fifth of the way in a single frame
+  // and still answer 1 afterwards. A swell mutated to stop at 0.8 passed every
+  // other clause here. So the LAST frame of the curve is what is checked, and
+  // it must be within a couple of the curve's own steps of 1.
+  const perStep = (1 - CONFIG.DEFLATE.INFLATE_FROM) * CONFIG.STEP / CONFIG.DEFLATE.INFLATE;
+  const arrived = reviving[reviving.length - 1].sy;
+  if (arrived < 1 - perStep * 2) {
+    fail(`the swell stopped at ${arrived.toFixed(3)} and snapped the rest of the way to 1`);
+  }
+
+  // And whole again once it is playable.
+  const after = ball.squash();
+  if (after.sx !== 1 || after.sy !== 1) fail(`the ball is not round again afterwards: ${after.sx}, ${after.sy}`);
+  console.log(`   and it is back to ${after.sx} x ${after.sy} once the ball is playable again`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL DEFLATE CHECKS PASSED');
 process.exit(failures ? 1 : 0);
