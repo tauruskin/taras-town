@@ -72,8 +72,27 @@ function collect(dir) {
     // Files beginning with an underscore are shared helpers, not suites.
     .filter((f) => f.endsWith('.mjs') && !f.startsWith('_'))
     .map((f) => ({ kind: dir, name: f.replace(/\.mjs$/, ''), file: join(full, f) }))
-    .filter((s) => filters.length === 0 ||
-                   filters.some((f) => f === s.kind || s.name.includes(f)));
+    .filter((s) => filters.length === 0 || filters.some((f) => matches(f, s)));
+}
+
+/**
+ * Does this filter select this suite?
+ *
+ * Three forms, and the third exists because its absence reads as a passing
+ * run. A filter naming a kind takes every suite of that kind; a bare filter is
+ * a substring of a suite's name. But once the same name exists in both halves
+ * — `offline/deflate` and `browser/deflate` — the only way to ask for one of
+ * them was to run both, and the obvious `offline/deflate` matched NOTHING and
+ * exited with "No suites matched". In a long session that is indistinguishable
+ * from a suite that is simply not there, and it had already been written into
+ * three steps of a plan before anyone typed it.
+ */
+function matches(filter, suite) {
+  const slash = filter.indexOf('/');
+  if (slash < 0) return filter === suite.kind || suite.name.includes(filter);
+  const kind = filter.slice(0, slash);
+  const name = filter.slice(slash + 1);
+  return kind === suite.kind && (name === '' || suite.name.includes(name));
 }
 
 function runSuite(suite) {

@@ -1109,7 +1109,13 @@ Run: `node games/pushkar-ball/tests/run.mjs browser/deflate`
 
 Expected: `DEFLATING AND COMING BACK LOOKS RIGHT`.
 
-Open `tests/screenshots/deflate-1-gone.png` and `deflate-2-back.png`. The first should show the gap and a dimmed screen with no ball; the second should show the ball back at the start of the level, at full size. If the ball in the second shot is still small, the inflate is not finishing — check that `reviving` is being decremented in `update` and not only set.
+Open `tests/screenshots/deflate-1-gone.png`, `deflate-2-back.png` and `deflate-3-settled.png`.
+
+**Correction to what this step originally claimed.** It said the first shot would show "a dimmed screen with no ball". It cannot, and the mistake is instructive: the ball is killed at `y - r > bounds.h`, which is far below the viewport, so at the instant `ballAt` loses sight of it `dying` is still 0 and the dim has not started. That shot shows the gap, undimmed, with no ball — and a screenshot nominated as a proof that cannot show the thing it proves is worse than no screenshot, because it passes a look-at-it check by looking plausible.
+
+So the dim is asserted instead, not eyeballed: `Overlay.dim` is pure and lives in `ui.js`, and `tests/offline/deflate.mjs` walks a whole failure and checks the amount is 0 at rest, peaks at exactly `DEFLATE.DIM` at the respawn, humps once, and returns to 0. The settled shot then answers the question this step was really asking — whether the inflate finishes — alongside a `pixels`-count assertion in the browser suite.
+
+The mid-inflate shot is worth keeping too: it shows the swell actually happening.
 
 - [ ] **Step 9: Commit**
 
@@ -1500,6 +1506,17 @@ In `sw.js` at the repo root, in the Pushkar Ball block of `PRECACHE`, after `'./
 ```
 
 Do **not** bump `CACHE`. Adding a file does not need it — editing `sw.js` at all re-runs `install`, and `addAll` puts the new path into the cache that already exists. A needless bump costs every installed phone a full re-download; this was done once and reverted already.
+
+- [ ] **Step 8b: Assert the squash and the dim, which only now become observable**
+
+A fall-death happens off the bottom of the screen, so through Task 3 the squash was proved only by measurement with a throwaway probe and the dim only by arithmetic. A spike kills the ball **in plain view**, so this is the first task that can watch either of them happen, and it should.
+
+Add to the browser suite you write for spikes, a frame or two after a spike death:
+
+- The ball's bounding box is **wider than it is tall**. That is the squash and nothing else can satisfy it accidentally — a round ball is square-ish, and a ball that vanished has no box at all. `ballAt` already returns `pixels`; you will need the box as well, so extend the helper or read it in the suite.
+- **One sky pixel darkens.** Sample a pixel well clear of the world's geometry before the death and again mid-deflate, and assert it moved towards `COLOURS.DIM`. Task 3 measured the drop as roughly `79,195,247` to `61,151,193` at full dim, so the signal is large.
+
+Neither assertion needs a new number in the game, and both die honestly if the effect is removed.
 
 - [ ] **Step 9: Run the hazards test, then every offline suite**
 
