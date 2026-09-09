@@ -162,12 +162,21 @@ export const CONFIG = {
     // too flat" or "it comes back too suddenly" are exactly the sort of thing
     // that gets said once a child has watched it happen twenty times.
     SQUASH: 0.82,        // fraction of its height a fully deflated ball loses
-    SPREAD: 0.45,        // fraction of its width it gains as it flattens, so
-                         // the air looks squeezed sideways rather than lost
-    SEED: 0.25,          // how big it is the instant it arrives home, before
-                         // swelling back to 1. Not 0: a ball that starts from
-                         // literally nothing reads as appearing out of thin
-                         // air rather than being pumped back up.
+    SPREAD: 0.45,        // fraction of its width it gains as it flattens. A
+                         // HINT of being squeezed sideways, not a conservation
+                         // law: at full squash the drawn ball covers about a
+                         // quarter of its round area, and actually preserving
+                         // that area would need it five and a half times wider,
+                         // which looks absurd rather than physical.
+    // How big it is the instant it arrives home, before swelling back to 1.
+    // Not 0: a ball that starts from literally nothing reads as appearing out
+    // of thin air rather than being pumped back up.
+    //
+    // Named for what it is and not `SEED`, which in this repo means generation
+    // ORDER — the sibling game stores a child's furniture under a building's
+    // seed — so a reader scanning this block would parse "the deflate is
+    // randomised" and need the comment to talk them back out of it.
+    INFLATE_FROM: 0.25,
   },
 
   // ---------------------------------------------------------------------

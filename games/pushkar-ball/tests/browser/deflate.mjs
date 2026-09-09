@@ -77,7 +77,32 @@ else {
     fail(`it came back at x=${back.x.toFixed(0)}, nowhere near where it started, ${start.x.toFixed(0)}`);
   }
 }
+// Caught mid-inflate, most likely, since the poll above stops the instant any
+// ball pixel appears and the swell takes DEFLATE.INFLATE to finish. Kept for
+// exactly that reason: it is the one shot that shows the swell happening.
 await shoot('2-back');
+
+// And the swell must FINISH. This is the check the offline suite cannot make
+// and a screenshot alone will not enforce: a ball left permanently at
+// INFLATE_FROM is still a ball at the right place with the right hue, so every
+// other assertion here passes while the hero is drawn a quarter size for the
+// rest of the level. Pixel COUNT is what notices, and ballAt already returns
+// it.
+await sleep(CONFIG.DEFLATE.INFLATE * 1000 + 700);
+const settled = await ballAt(ev);
+if (!settled) fail('the ball disappeared again while its inflate was finishing');
+else {
+  const ratio = settled.pixels / start.pixels;
+  console.log(`\n4. once settled it is ${settled.pixels} pixels against ${start.pixels} at the start` +
+              ` — ${(ratio * 100).toFixed(0)}% of full size`);
+  if (Math.abs(ratio - 1) > 0.1) {
+    fail(`the ball settled at ${(ratio * 100).toFixed(0)}% of its starting size,` +
+         ` so the inflate did not finish (or overshot)`);
+  }
+}
+// The one for a human to look at. Task 7's look-at-it pass wants a settled
+// ball at full size, which the mid-inflate shot above cannot show.
+await shoot('3-settled');
 
 // And it is playable: holding right moves it again.
 //
@@ -94,7 +119,7 @@ const after = await ballAt(ev);
 await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 if (!after) fail('lost the ball again while checking it still rolls');
 else if (after.x - before.x < 60) fail(`after coming back the ball only moved ${(after.x - before.x).toFixed(0)}px`);
-else console.log(`\n4. and it rolls again: ${(after.x - before.x).toFixed(0)}px right`);
+else console.log(`\n5. and it rolls again: ${(after.x - before.x).toFixed(0)}px right`);
 
 for (const p of problems) fail(p);
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nDEFLATING AND COMING BACK LOOKS RIGHT');

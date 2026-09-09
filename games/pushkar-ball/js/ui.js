@@ -1,5 +1,6 @@
 /**
- * ui.js — where every on-screen button is, and what it looks like.
+ * ui.js — the screen-space layer: where every on-screen button is, what it
+ * looks like, and whatever else is drawn over the world rather than in it.
  *
  * EVERY button position in this game comes from here, and no test may ever
  * contain a button coordinate. Taras Town broke nine suites at once by writing
@@ -12,8 +13,9 @@
  * and by canvasHeight/VIEW_H for the world, and neither of those transforms
  * applies to a thumb.
  *
- * Only `draw` touches a canvas context, and it is handed one — which is what
- * lets Node import this file and ask where anything is without a browser.
+ * Only the drawing functions touch a canvas context, and each is handed one —
+ * which is what lets Node import this file and ask where anything is, or how
+ * dark the screen should be, without a browser anywhere.
  */
 import { CONFIG } from './config.js';
 
@@ -92,5 +94,65 @@ export const Buttons = {
       ctx.fill();
       ctx.restore();
     }
+  },
+};
+
+/**
+ * Overlay — what is drawn over the whole screen, on top of the world and
+ * under the controls.
+ *
+ * It lives here rather than in main.js because this is the file that owns the
+ * screen-space layer, and because splitting the ARITHMETIC from the drawing
+ * lets Node ask "how dark should it be right now" with no canvas at all —
+ * which is the only reason the dim has an offline test.
+ */
+export const Overlay = {
+  /**
+   * How dark the screen should be, 0..1, for a ball in whatever state it is
+   * in. 0 whenever nothing is happening, which is almost always.
+   *
+   * It RISES to DEFLATE.DIM across the deflate, peaks exactly at the respawn,
+   * and FALLS back to 0 across the re-inflate. So it is a single hump over one
+   * failure, and the peak sits on the one frame where the ball vanishes from
+   * the hole and reappears at its checkpoint — which is the frame the camera
+   * snaps on. Covering that cut is half the point of the dim; the other half
+   * is that failing should visibly happen rather than be a ball that
+   * teleported.
+   *
+   * Note that the two phases are deliberately NOT normalised the same way
+   * round here, unlike the squash in main.js's drawBall, where both phases run
+   * a `t` from 0 to 1. Here `dying` counts DOWN towards the peak and
+   * `reviving` counts DOWN away from it, so the deflate's expression is
+   * inverted and the re-inflate's is not. That is the hump, and writing either
+   * one to match the other by symmetry breaks it.
+   */
+  dim(ball) {
+    const D = CONFIG.DEFLATE;
+    if (ball.dying > 0) return (1 - ball.dying / D.TIME) * D.DIM;
+    if (ball.reviving > 0) return (ball.reviving / D.INFLATE) * D.DIM;
+    return 0;
+  },
+
+  /**
+   * Paint that darkness over everything.
+   *
+   * Called with the canvas in CSS-pixel space and the world transform off, so
+   * it covers the whole screen at any zoom, and called BEFORE the buttons so
+   * the controls never dim: a control that fades looks broken rather than
+   * paused, and this is precisely the moment a child is already jabbing at
+   * them.
+   *
+   * save/restore rather than setting globalAlpha back to 1 by hand. Putting
+   * back a literal assumes what the caller's alpha WAS, which is exactly the
+   * assumption that stops being true the first time anything else in this
+   * layer wants a partial alpha of its own.
+   */
+  drawDim(ctx, w, h, amount) {
+    if (amount <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = amount;
+    ctx.fillStyle = CONFIG.COLOURS.DIM;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
   },
 };

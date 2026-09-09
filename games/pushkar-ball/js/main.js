@@ -16,7 +16,7 @@ import { LEVELS, loadLevel } from './levels.js';
 import { Ball } from './player.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
-import { Buttons } from './ui.js';
+import { Buttons, Overlay } from './ui.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -161,27 +161,12 @@ function draw() {
 
   ctx.restore();
 
-  // The screen dims while the ball is deflating, and lifts again as it swells
-  // back up, so failing is something that visibly HAPPENS rather than a ball
-  // that silently teleports. It peaks at the moment of the respawn, which is
-  // also the moment the camera snaps somewhere else entirely — the dim is what
-  // covers that cut and makes it read as one event instead of two.
-  //
-  // Drawn outside the world transform so it covers the whole screen at any
-  // zoom, and BEFORE the buttons so the controls never dim: a control that
-  // fades looks broken rather than paused, and this is precisely the moment a
-  // child is already jabbing at them.
-  const dim = ball.dying > 0
-    ? (1 - ball.dying / CONFIG.DEFLATE.TIME) * CONFIG.DEFLATE.DIM
-    : ball.reviving > 0
-      ? (ball.reviving / CONFIG.DEFLATE.INFLATE) * CONFIG.DEFLATE.DIM
-      : 0;
-  if (dim > 0) {
-    ctx.globalAlpha = dim;
-    ctx.fillStyle = CONFIG.COLOURS.DIM;
-    ctx.fillRect(0, 0, cssW, cssH);
-    ctx.globalAlpha = 1;
-  }
+  // The screen dims while the ball is deflating and lifts again as it swells
+  // back up. Both halves of it belong to ui.js, which owns this screen-space
+  // layer: the amount is arithmetic and is therefore testable in Node, and
+  // anything else drawn over the world goes there too rather than accumulating
+  // here. Drawn before the buttons, so the controls never dim.
+  Overlay.drawDim(ctx, cssW, cssH, Overlay.dim(ball));
 
   // Buttons last and outside the world transform, so they sit at a thumb's
   // size on every screen instead of scaling with the level.
@@ -374,7 +359,7 @@ function drawBall() {
     sx = 1 + D.SPREAD * t;
   } else if (ball.reviving > 0) {
     const t = 1 - ball.reviving / D.INFLATE;   // 0 on arrival, 1 when done
-    sy = D.SEED + (1 - D.SEED) * t;
+    sy = D.INFLATE_FROM + (1 - D.INFLATE_FROM) * t;
     sx = sy;                                   // round the whole way back up
   }
 
