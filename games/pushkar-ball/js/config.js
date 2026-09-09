@@ -153,6 +153,21 @@ export const CONFIG = {
     TIME: 0.42,          // s squashing flat where it stood
     INFLATE: 0.28,       // s swelling back up at home
     DIM: 0.30,           // how dark the screen goes, 0..1
+    // The shape of the squash and the swell, as multipliers on how the ball is
+    // DRAWN. None of these touches `ball.r`: that is the collision radius, and
+    // the physics must not care what the drawing is doing.
+    //
+    // They are here rather than typed into main.js because this file is meant
+    // to hold every number anybody would ever reach for, and "the puddle is
+    // too flat" or "it comes back too suddenly" are exactly the sort of thing
+    // that gets said once a child has watched it happen twenty times.
+    SQUASH: 0.82,        // fraction of its height a fully deflated ball loses
+    SPREAD: 0.45,        // fraction of its width it gains as it flattens, so
+                         // the air looks squeezed sideways rather than lost
+    SEED: 0.25,          // how big it is the instant it arrives home, before
+                         // swelling back to 1. Not 0: a ball that starts from
+                         // literally nothing reads as appearing out of thin
+                         // air rather than being pumped back up.
   },
 
   // ---------------------------------------------------------------------

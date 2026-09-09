@@ -161,6 +161,28 @@ function draw() {
 
   ctx.restore();
 
+  // The screen dims while the ball is deflating, and lifts again as it swells
+  // back up, so failing is something that visibly HAPPENS rather than a ball
+  // that silently teleports. It peaks at the moment of the respawn, which is
+  // also the moment the camera snaps somewhere else entirely — the dim is what
+  // covers that cut and makes it read as one event instead of two.
+  //
+  // Drawn outside the world transform so it covers the whole screen at any
+  // zoom, and BEFORE the buttons so the controls never dim: a control that
+  // fades looks broken rather than paused, and this is precisely the moment a
+  // child is already jabbing at them.
+  const dim = ball.dying > 0
+    ? (1 - ball.dying / CONFIG.DEFLATE.TIME) * CONFIG.DEFLATE.DIM
+    : ball.reviving > 0
+      ? (ball.reviving / CONFIG.DEFLATE.INFLATE) * CONFIG.DEFLATE.DIM
+      : 0;
+  if (dim > 0) {
+    ctx.globalAlpha = dim;
+    ctx.fillStyle = CONFIG.COLOURS.DIM;
+    ctx.fillRect(0, 0, cssW, cssH);
+    ctx.globalAlpha = 1;
+  }
+
   // Buttons last and outside the world transform, so they sit at a thumb's
   // size on every screen instead of scaling with the level.
   Buttons.draw(ctx, cssW, cssH, input.held());
@@ -324,17 +346,47 @@ function drawGoal() {
 }
 
 /**
- * The ball, turned by its spin.
+ * The ball, turned by its spin, squashed if it is dying and small if it has
+ * just come back.
  *
  * The two marks exist only so the turn is visible. A ball drawn as a plain
  * circle slides across the screen and looks wrong without anybody being able
  * to say why — and the roll suite reads exactly these marks moving, by
  * cropping a patch centred on the ball, to know that it turns at all.
+ *
+ * Failing is drawn and never simulated. Deflating goes from a round ball to a
+ * flat puddle where it stood; re-inflating swells from a small ball back to a
+ * round one at home. Both are a scale on the canvas rather than a change to
+ * `ball.r`, because `r` is the collision radius and the physics must not care
+ * what the drawing is doing — a shrinking radius would quietly drop the ball
+ * through the floor it is lying on.
  */
 function drawBall() {
   const C = CONFIG.COLOURS;
+  const D = CONFIG.DEFLATE;
+
+  // How squashed, and how big. `t` runs 0..1 through whichever phase is
+  // happening, so both curves are read the same way round.
+  let sx = 1, sy = 1;
+  if (ball.dying > 0) {
+    const t = 1 - ball.dying / D.TIME;         // 0 at death, 1 at the end
+    sy = 1 - D.SQUASH * t;
+    sx = 1 + D.SPREAD * t;
+  } else if (ball.reviving > 0) {
+    const t = 1 - ball.reviving / D.INFLATE;   // 0 on arrival, 1 when done
+    sy = D.SEED + (1 - D.SEED) * t;
+    sx = sy;                                   // round the whole way back up
+  }
+
   ctx.save();
-  ctx.translate(ball.x, ball.y);
+  // Squash towards the ground it is lying on, not towards its own middle.
+  // Scaling about the centre would sink a deflating ball halfway into the
+  // floor as it flattened; lowering the origin by the height it loses keeps
+  // its BOTTOM on the ground, which is where a puddle belongs. The same offset
+  // is what makes a re-inflating ball grow upward off the floor rather than
+  // out of it.
+  ctx.translate(ball.x, ball.y + ball.r * (1 - sy));
+  ctx.scale(sx, sy);
 
   ctx.beginPath();
   ctx.arc(0, 0, ball.r, 0, Math.PI * 2);
