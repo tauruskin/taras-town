@@ -212,24 +212,32 @@ const world = (extra) => loadLevel({
   input.right = true;
   let steps = 0;
   const limit = Math.round(6.0 / CONFIG.STEP);
-  while (ball.falls === 0 && steps < limit) {
+  while (ball.deaths === 0 && steps < limit) {
     level.update(CONFIG.STEP);
     ball.update(CONFIG.STEP, input, level);
     steps++;
   }
   input.right = false;
 
-  console.log(`\n6. driven off the end of the ground, the ball fell ${ball.falls} time(s)` +
+  console.log(`\n6. driven off the end of the ground, the ball died ${ball.deaths} time(s)` +
               ` after ${(steps * CONFIG.STEP).toFixed(1)}s`);
-  if (ball.falls !== 1) fail(`expected exactly one fall, got ${ball.falls}`);
+  if (ball.deaths !== 1) fail(`expected exactly one death, got ${ball.deaths}`);
+
+  // The deflate is given its time before anything is asked about where the
+  // ball is. Failing is no longer instantaneous — the ball squashes flat where
+  // it died for DEFLATE.TIME first — so measuring its position the step it
+  // died measures the hole it fell down, not the place it came back to. This
+  // has to be time enough for the deflate AND for the ball to settle: it is
+  // put back in the air above the spawn and needs to fall the last few pixels.
+  input.right = false;
+  run(ball, level, input, 1.0);
+
   if (Math.abs(ball.x - level.spawn.x) > 300) {
-    fail(`after falling the ball is at x=${ball.x.toFixed(0)}, nowhere near the spawn at ${level.spawn.x}`);
+    fail(`after dying the ball is at x=${ball.x.toFixed(0)}, nowhere near the spawn at ${level.spawn.x}`);
   }
 
   // It has to be *playable* again, not merely repositioned: on the ground,
   // still, and not carrying the speed it fell with.
-  input.right = false;
-  run(ball, level, input, 1.0);
   if (!ball.grounded) fail('after respawning the ball never came to rest on the ground');
   if (Math.abs(ball.vy) > 1) fail(`after respawning the ball still has vy=${ball.vy.toFixed(1)}`);
   else console.log(`   and it is back on the ground at x=${ball.x.toFixed(0)}, at rest`);
@@ -253,15 +261,26 @@ const world = (extra) => loadLevel({
   while (fellAt < 0 && steps < limit) {
     level.update(CONFIG.STEP);
     input.press();                       // jump hammered the whole way down
-    const before = ball.falls;
+    const before = ball.deaths;
     ball.update(CONFIG.STEP, input, level);
-    if (ball.falls !== before) fellAt = steps;
+    if (ball.deaths !== before) fellAt = steps;
     steps++;
   }
   if (fellAt < 0) fail('the ball never fell out of the level, so nothing was tested here');
 
+  // Jump is hammered through the deflate as well, because that is what a
+  // child holding the button actually does, and the deflate is the window
+  // where a press could quietly accumulate. The buffer is read after the ball
+  // is back — measuring it the step it died measures the press that was in
+  // flight, not what the level resumes with.
+  while (ball.dying > 0) {
+    level.update(CONFIG.STEP);
+    input.press();
+    ball.update(CONFIG.STEP, input, level);
+  }
+
   // The moment after the respawn: the buffer must be empty, so the ball is
-  // sitting still at the spawn rather than launching off it.
+  // sitting still at its home rather than launching off it.
   const bufferAfter = ball.buffer;
   input.right = false;
   let jumpedImmediately = false;
@@ -270,7 +289,7 @@ const world = (extra) => loadLevel({
     ball.update(CONFIG.STEP, input, level);   // nothing pressed now
     if (ball.jumped) jumpedImmediately = true;
   }
-  console.log(`\n7. jump hammered all the way down: fell after ${(fellAt * CONFIG.STEP).toFixed(1)}s,` +
+  console.log(`\n7. jump hammered all the way down: died after ${(fellAt * CONFIG.STEP).toFixed(1)}s,` +
               ` buffer on respawn ${bufferAfter.toFixed(3)}`);
   if (bufferAfter > 0) fail(`the jump buffer survived the respawn (${bufferAfter.toFixed(3)}s left in it)`);
   if (jumpedImmediately) fail('a jump buffered during the fall fired the moment the ball respawned');

@@ -93,12 +93,12 @@ function frame(now) {
     while (accumulator >= CONFIG.STEP && steps < 240) {
       level.update(CONFIG.STEP);
 
-      // The ball puts itself back at the spawn when it falls out of the level;
-      // all this has to notice is that it happened, so the camera can go with
-      // it instead of easing across the whole level after it.
-      const fellBefore = ball.falls;
+      // The ball puts itself back at its home when it fails; all this has to
+      // notice is that it happened, so the camera can go with it instead of
+      // easing across the whole level after it.
+      const diedBefore = ball.deaths;
       ball.update(CONFIG.STEP, input, level);
-      if (ball.falls !== fellBefore) camera.snap(ball);
+      if (ball.deaths !== diedBefore) camera.snap(ball);
 
       camera.update(CONFIG.STEP, ball, viewW, viewH);
       accumulator -= CONFIG.STEP;
@@ -133,6 +133,7 @@ function draw() {
   drawGround();
   drawWalls();
   drawCrates();
+  drawCheckpoints();
   drawPlatforms();
   drawGoal();
   drawBall();
@@ -235,6 +236,31 @@ function drawCrates() {
     ctx.moveTo(c.x, c.y + (c.h * 2) / 3); ctx.lineTo(c.x + c.w, c.y + (c.h * 2) / 3);
     ctx.lineWidth = 3;
     ctx.stroke();
+  }
+}
+
+/**
+ * The checkpoints: a little flag on a pole, grey until reached and green
+ * after.
+ *
+ * Green rather than red, and that is not a taste call — the browser suites
+ * find the ball by being the only thing on screen of its hue, so a red flag
+ * would be measured as part of the ball.
+ */
+function drawCheckpoints() {
+  const C = CONFIG.COLOURS;
+  const h = CONFIG.CHECKPOINT.POLE_H;
+  for (const c of level.checkpoints) {
+    ctx.fillStyle = C.WALL_EDGE;
+    ctx.fillRect(c.x - 2.5, c.y - h, 5, h);
+
+    ctx.beginPath();
+    ctx.moveTo(c.x + 2.5, c.y - h);
+    ctx.lineTo(c.x + 38, c.y - h + 13);
+    ctx.lineTo(c.x + 2.5, c.y - h + 26);
+    ctx.closePath();
+    ctx.fillStyle = c.taken ? C.CHECK_ON : C.CHECK_OFF;
+    ctx.fill();
   }
 }
 

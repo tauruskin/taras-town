@@ -101,6 +101,36 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Checkpoints
+  // ---------------------------------------------------------------------
+  // A checkpoint is not a collider and never touches the segment world: it is
+  // a place the ball remembers, so that failing costs the stretch since the
+  // last one and nothing more.
+  CHECKPOINT: {
+    // How close the ball's centre has to get, in world units. Generous on
+    // purpose: a checkpoint that can be rolled straight past at full speed
+    // without arming is worse than no checkpoint, because the player believes
+    // it armed. At MAX_SPEED the ball covers 3.5px per step, so this is many
+    // steps wide and cannot be tunnelled through.
+    R: 46,
+    POLE_H: 70,          // drawn height
+  },
+
+  // ---------------------------------------------------------------------
+  // Failing
+  // ---------------------------------------------------------------------
+  // There are no lives. Failing sends the ball back to its last checkpoint,
+  // for ever, and this is how long that takes. Short on purpose: this is the
+  // moment a six-year-old is already disappointed, and every extra tenth of a
+  // second is a punishment on top of the setback. Long enough to read as
+  // something that happened, short enough not to be a wait.
+  DEFLATE: {
+    TIME: 0.42,          // s squashing flat where it stood
+    INFLATE: 0.28,       // s swelling back up at home
+    DIM: 0.30,           // how dark the screen goes, 0..1
+  },
+
+  // ---------------------------------------------------------------------
   // The hills behind the level
   // ---------------------------------------------------------------------
   // Two bands, drawn in screen space with the camera folded into the phase, so
@@ -160,6 +190,13 @@ export const CONFIG = {
     BALL_MARK: '#A32615',
     FLAG_POLE: '#EFEFEF',
     FLAG: '#FFC93C',
+    // Green, not red. The browser suites find the ball by being the only
+    // thing on screen of the ball's hue, so a red flag would be picked up as
+    // a second ball and every position they measure would be the average of
+    // the two.
+    CHECK_OFF: '#9AA7B0',
+    CHECK_ON: '#41C98A',
+    DIM: '#0B1E2A',      // what the screen dims towards during a deflate
     BUTTON: 'rgba(255,255,255,0.30)',
     BUTTON_HELD: 'rgba(255,255,255,0.58)',
     BUTTON_MARK: '#FFFFFF',

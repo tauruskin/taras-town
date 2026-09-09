@@ -304,6 +304,12 @@ class Level {
     this.crates = (data.boxes || []).filter((b) => b.movable).map(makeCrate);
     for (const b of this.walls) segs.push(...boxSegments(b.x, b.y, b.w, b.h));
 
+    // Checkpoints are not colliders and never touch the segment world; they
+    // are places the ball remembers. `taken` is per-run state and belongs on
+    // the loaded level rather than in the data, so that reloading a level
+    // resets them all with no bookkeeping anywhere.
+    this.checkpoints = (data.checkpoints || []).map((c) => ({ x: c.x, y: c.y, taken: false }));
+
     this.statics = segs;
     this.grid = new SegmentGrid(segs);
     this.movers = (data.platforms || []).map(makeMover);
@@ -342,6 +348,25 @@ class Level {
     for (const m of this.movers) if (m.overlaps(x, y, r)) out.push(...m.segments);
     for (const c of this.crates) if (c.overlaps(x, y, r)) out.push(...c.segments);
     return out;
+  }
+
+  /**
+   * The checkpoint the ball is standing in, if any — and it is marked taken.
+   *
+   * Returns the checkpoint so the caller can move its home there. Already
+   * taken ones are skipped, which is what stops rolling back over an earlier
+   * checkpoint from dragging home backwards down the level.
+   */
+  takeCheckpoint(ball) {
+    const r = CONFIG.CHECKPOINT.R;
+    for (const c of this.checkpoints) {
+      if (c.taken) continue;
+      if ((ball.x - c.x) ** 2 + (ball.y - c.y) ** 2 <= r * r) {
+        c.taken = true;
+        return c;
+      }
+    }
+    return null;
   }
 }
 

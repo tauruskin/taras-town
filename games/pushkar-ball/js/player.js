@@ -28,38 +28,87 @@ export class Ball {
     this.platform = null;   // the mover under us, if any
     this.jumped = false;    // jumped THIS step
     this.everJumped = false; // jumped at any point — for tests asking "did it?"
-    this.falls = 0;         // how many times it has dropped out of the level
+
+    this.dying = 0;         // seconds of deflating left
+    this.reviving = 0;      // seconds of re-inflating left
+
+    // Where a respawn puts the ball: the spawn to begin with, then the last
+    // checkpoint reached. Set by whoever constructs the ball, because the ball
+    // is handed its position and not the level.
+    this.home = { x, y };
+
+    // Every way of failing, counted together. This used to be `falls`, when
+    // falling out of the world was the only way to fail; a hazard is not a
+    // fall, and two counters for one idea is how they drift apart.
+    this.deaths = 0;
   }
 
   /**
-   * Back to the start of the level, as if nothing had happened.
+   * Send the ball back to its home — the last checkpoint, or the spawn.
    *
    * This is the whole of failing, and it is meant to be: no lives to run out,
-   * no screen to dismiss, no wait. Falling down a hole and being handed the
-   * level back immediately is the least discouraging thing that can happen to
-   * a six-year-old, and it is what the hub's rules ask for — where a game can
-   * be failed, failing is harmless and instantly undone.
+   * no screen to dismiss, no wait beyond the deflate. Being handed the level
+   * back is the least discouraging thing that can happen to a six-year-old,
+   * and it is what the hub's rules ask for.
    *
    * Every piece of carried state has to go, not just position. A leftover
-   * upward velocity launches the ball off the spawn point; a leftover jump in
-   * `buffer` fires the instant it lands; a leftover `platform` makes it ride a
-   * platform elsewhere in the level.
+   * upward velocity launches the ball off the respawn point; a leftover jump
+   * in `buffer` fires the instant it lands; a leftover `platform` makes it
+   * ride a platform elsewhere in the level.
    */
-  respawn(level) {
-    this.x = level.spawn.x;
-    this.y = level.spawn.y;
+  respawn() {
+    this.x = this.home.x;
+    this.y = this.home.y;
     this.vx = 0; this.vy = 0;
     this.spin = 0;
     this.grounded = false;
     this.coyote = 0;
     this.buffer = 0;
     this.platform = null;
-    this.falls++;
+  }
+
+  /**
+   * Fail. The ball deflates where it stands, then re-inflates at home.
+   *
+   * Ignored while already dying, which matters more than it looks: a ball that
+   * dies on a spike is still overlapping that spike, and without this guard it
+   * would re-trigger every single step and never finish deflating.
+   */
+  die() {
+    if (this.dying > 0) return;
+    this.dying = CONFIG.DEFLATE.TIME;
+    this.reviving = 0;
+    this.vx = 0; this.vy = 0;
+    this.deaths++;
   }
 
   update(dt, input, level) {
     const C = CONFIG;
     this.jumped = false;
+
+    // --- deflating --------------------------------------------------------
+    //
+    // While the ball is deflating it is not simulated at all: no gravity, no
+    // input, no resolution. Everything is deliberate. Gravity would drag the
+    // squashed ball through the floor it died on; input would let the player
+    // steer a corpse; and resolution against a spike it is still overlapping
+    // would fight the death every step.
+    //
+    // The input is still DRAINED, though — `takeJump` is called and its result
+    // thrown away — because a press held through the deflate would otherwise
+    // sit in the buffer and fire the instant the ball came back, and the level
+    // would resume with a jump nobody asked for.
+    if (this.dying > 0) {
+      input.takeJump();
+      this.dying -= dt;
+      if (this.dying <= 0) {
+        this.dying = 0;
+        this.respawn();
+        this.reviving = C.DEFLATE.INFLATE;
+      }
+      return;
+    }
+    if (this.reviving > 0) this.reviving = Math.max(0, this.reviving - dt);
 
     // A platform we are standing on moved this step, so we move with it. This
     // runs before anything else: the ball should be where the platform put it
@@ -152,12 +201,20 @@ export class Ball {
       }
     }
 
+    // --- checkpoints ------------------------------------------------------
+    //
+    // Checked after the move, so the checkpoint the ball is standing in this
+    // step is the one that arms — and after the push, so a checkpoint reached
+    // while shoving a crate still counts.
+    const reached = level.takeCheckpoint(this);
+    if (reached) { this.home.x = reached.x; this.home.y = reached.y; }
+
     // --- fell out of the world -------------------------------------------
     //
-    // `bounds.h` is exactly the lowest the camera is ever allowed to show, so a
-    // ball below it is off the bottom of the screen and is never coming back
-    // under its own power. No margin needed and none wanted: a margin here is
-    // just a delay before the level is handed back.
-    if (this.y - this.r > level.bounds.h) this.respawn(level);
+    // `bounds.h` is exactly the lowest the camera is ever allowed to show, so
+    // a ball below it is off the bottom of the screen and is never coming back
+    // under its own power. It fails the same way a spike fails it, through the
+    // same `die`, so there is one fail path and not two.
+    if (this.y - this.r > level.bounds.h) this.die();
   }
 }
