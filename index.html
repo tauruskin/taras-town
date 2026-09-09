@@ -26,10 +26,23 @@
 <body>
 
   <!--
-    The picker screen: one tile per game. No writing on any tile — Taras may
-    not read fluently, so every choice is a picture, the same rule the games
-    themselves follow. The one piece of text on the page is the app's own
-    name, exactly as "Taras Town" is shown on its own opening panel.
+    The picker screen: one tile per game.
+
+    Each tile is a picture FIRST and a name second, and that order is the whole
+    design. Taras may not read fluently, so the picture and the colour are what
+    he navigates by — they are what he recognises from across the room, and
+    they are sized and placed so that nothing changes for him. The name
+    underneath is for everybody else: an adult handing him the phone, and
+    Taras himself in a year or two.
+
+    That makes the tile names a deliberate, narrow exception to "almost no
+    text", which is written down in CLAUDE.md so it is not mistaken for the
+    rule slipping. The test of it is simple: cover the words and the screen
+    must still be usable. It is.
+
+    Each name stays INSIDE its own <a>, so the whole tile — picture and word
+    together — is one tap target. Nothing here should ever be a word you have
+    to hit precisely.
   -->
   <div id="hub-screen">
     <div class="sun"></div>
@@ -37,9 +50,12 @@
 
     <div class="tiles">
       <a class="tile" href="games/taras-town/index.html" aria-label="Play Taras Town">
-        <svg viewBox="0 0 48 48" aria-hidden="true">
-          <path d="M6 24 L24 8 L42 24 L36 24 L36 40 L12 40 L12 24 Z"/>
-        </svg>
+        <span class="art">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M6 24 L24 8 L42 24 L36 24 L36 40 L12 40 L12 24 Z"/>
+          </svg>
+        </span>
+        <span class="name">Taras Town</span>
       </a>
 
       <!-- A ball, with two fading ghosts of itself behind it: a ball in
@@ -47,11 +63,14 @@
            and read, unmistakably, as a face — a dot with a mouth. Nothing but
            looking at it would have caught that. -->
       <a class="tile ball" href="games/pushkar-ball/index.html" aria-label="Play Pushkar Ball">
-        <svg viewBox="0 0 48 48" aria-hidden="true">
-          <circle cx="8"  cy="10" r="4"   opacity="0.3"/>
-          <circle cx="18" cy="19" r="7"   opacity="0.5"/>
-          <circle cx="32" cy="32" r="13"/>
-        </svg>
+        <span class="art">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <circle cx="8"  cy="10" r="4"   opacity="0.3"/>
+            <circle cx="18" cy="19" r="7"   opacity="0.5"/>
+            <circle cx="32" cy="32" r="13"/>
+          </svg>
+        </span>
+        <span class="name">Pushkar Ball</span>
       </a>
     </div>
   </div>

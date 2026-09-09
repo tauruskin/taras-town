@@ -56,7 +56,14 @@ another tile.
 
 One panel, following the existing "no text, picture only" rule used
 throughout Taras Town: the only text anywhere is what a player types
-themselves or the room code. A single tile button for Taras Town, showing an
+themselves or the room code.
+
+**Amended Sep 2026, on request:** each tile now shows its game's name
+underneath the square. The picture and the colour remain what a
+six-year-old navigates by — they are unchanged in size and position — and the
+name is a smaller label below, inside the same single tap target, for an adult
+handing over the phone and for him in a year or two. See the note under
+"Almost no text" in `CLAUDE.md`. A single tile button for Taras Town, showing an
 icon built from the same inline-SVG-shapes approach as the rest of the game
 (no image files — consistent with "nothing is drawn from a file"). Centered,
 sized for a young child's tap target. Laid out as a flex/grid row so a

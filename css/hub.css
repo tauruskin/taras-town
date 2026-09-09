@@ -72,18 +72,34 @@ html, body {
   justify-content: center;
 }
 
+/* The whole tile — picture and name together — is one tap target. The name is
+   never a thing you have to hit precisely. */
 #hub-screen .tile {
-  width: clamp(96px, 26vh, 140px);
-  height: clamp(96px, 26vh, 140px);
-  border: none;
-  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* The square carries an 8px drop-shadow bar (`0 8px 0`), and a box-shadow
+     takes no layout space — so the first version's gap was eaten whole by it
+     and the names sat directly on the shadow, reading as part of the tile
+     rather than a label under it. The 8px is paid back explicitly here. */
+  gap: calc(8px + clamp(8px, 1.8vh, 16px));
   cursor: pointer;
+  text-decoration: none;
+  border: none;
+  background: none;
+}
+
+/* The coloured square. This used to be the `.tile` itself; the name moving in
+   underneath is why the square is its own element now. */
+#hub-screen .tile .art {
+  width: clamp(88px, 24vh, 140px);
+  height: clamp(88px, 24vh, 140px);
+  border-radius: 28px;
   display: grid;
   place-items: center;
   background: #5AC85A;
   box-shadow: 0 8px 0 #3C8547;
   transition: transform 0.08s ease, box-shadow 0.08s ease;
-  text-decoration: none;
 }
 
 #hub-screen .tile svg {
@@ -92,17 +108,50 @@ html, body {
   fill: #fff;
 }
 
+/* The name, and everything about it says "second".
+
+   Smaller than the app's own title, lighter than the picture, and placed
+   below rather than on the square, so the thing Taras recognises is still the
+   first thing the tile is. He may not read it; an adult handing him the phone
+   does, and he will in a year or two. Cover the words with a thumb and the
+   screen must still work — that is the test of whether this stayed a label
+   rather than becoming the interface. */
+#hub-screen .tile .name {
+  font-size: clamp(15px, 2.8vh, 22px);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+  /* A soft dark halo rather than the title's hard offset shadow. The hub's
+     background is a pale sky-to-grass gradient, so white-on-pale is the whole
+     difficulty: a 1px offset vanished against it at the top of the gradient
+     and left the names looking washed out. A blur carries the contrast from
+     every side instead of one. */
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25), 0 2px 10px rgba(0, 0, 0, 0.30);
+  white-space: nowrap;
+}
+
 /* A colour per game, not just a picture per game. Taras may not read the tiles,
    so the more ways they differ the faster he finds the one he wants — and a
    colour is recognised from further away than a shape. */
-#hub-screen .tile.ball {
+#hub-screen .tile.ball .art {
   background: #E8402A;
   box-shadow: 0 8px 0 #A32615;
 }
 
-#hub-screen .tile:active {
+/* Only the square depresses. The name staying put is what makes the square
+   read as the button. */
+#hub-screen .tile:active .art {
   transform: translateY(6px);
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* A short landscape window — 740x280 is the shortest this hub is held to — has
+   no room for the sun, the title, a tile and a name at their full sizes. The
+   sun is the one thing on the screen carrying no information, so it goes
+   first, and the title's margin tightens rather than the tiles shrinking. */
+@media (orientation: landscape) and (max-height: 340px) {
+  #hub-screen .sun { display: none; }
+  #hub-screen h1 { margin-bottom: 12px; }
 }
 
 /* --------------------------------------------------------------------------

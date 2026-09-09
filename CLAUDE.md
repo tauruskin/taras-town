@@ -44,6 +44,13 @@ any game added later:
   only text anywhere is what he types himself (his name), a room code, and a
   level number — digits are the one kind of text he reliably reads. A game's own
   name on its opening screen is the one allowed word.
+  - **The hub's tiles carry their game's name underneath**, added on request in
+    Sep 2026. It is a deliberate exception and it is narrow: the picture and the
+    colour stay the thing he navigates by, and the name is smaller, below the
+    square, and never a separate tap target. The test of it is to cover the
+    words and check the screen still works. If a future screen wants a label,
+    hold it to the same test rather than to this precedent — a rule with one
+    stated exception survives; a rule with an unexamined one does not.
 - **Relative paths only.** GitHub Pages serves from `/taras-town/`, so a leading
   `/` silently looks at the top of the whole site and fails.
 - **Nothing leaves the phone** except, in a shared game, position and a name.
