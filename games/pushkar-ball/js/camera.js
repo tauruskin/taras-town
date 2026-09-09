@@ -21,9 +21,13 @@ export class Camera {
   constructor(level) {
     this.level = level;
     // Starting on the spawn rather than at the origin, or the first frame of
-    // every level is a swoop across the map.
-    this.x = level.spawn.x;
-    this.y = level.spawn.y;
+    // every level is a swoop across the map — and starting exactly where a
+    // settled camera rests, or it is a small swoop instead of a large one.
+    // That is `snap`'s whole argument, so this calls `snap` rather than
+    // repeating its expression: the resting offset is written down once. The
+    // spawn is `{x, y}`, which is all `snap` reads, and `this.level` is
+    // assigned first because `snap` may want it.
+    this.snap(level.spawn);
   }
 
   /**
