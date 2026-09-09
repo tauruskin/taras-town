@@ -23,7 +23,7 @@ other one.
 | Folder | What it is |
 | --- | --- |
 | [`games/taras-town/`](games/taras-town/) | An open-world town to wander, drive and swim around. See its own README for everything about it. |
-| [`games/pushkar-ball/`](games/pushkar-ball/) | A rolling-ball platformer: momentum, slopes, moving platforms. See its own README. |
+| [`games/pushkar-ball/`](games/pushkar-ball/) | A rolling-ball platformer: momentum, slopes, moving platforms, pushable crates. See its own README. |
 
 ## Running it on your own computer
 

@@ -65,6 +65,27 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Crates
+  // ---------------------------------------------------------------------
+  // A wooden crate can be pushed. It is how you get somewhere the jump alone
+  // will not reach: shove one up against a high ledge and jump off it.
+  CRATE: {
+    // How fast a pushed crate slides, in px/s. Deliberately far slower than
+    // the ball's own MAX_SPEED of 420, because a crate that shot away at the
+    // speed of the ball would feel weightless — and because a child needs to
+    // be able to stop pushing before the crate is somewhere useless.
+    PUSH_SPEED: 150,
+    // How side-on a contact has to be before it counts as a push, as |nx|.
+    // Without this the ball pushes the crate along merely by standing on it,
+    // which looks like the crate is haunted.
+    PUSH_NX: 0.6,
+    // How far a crate is allowed to be lifted by whatever it is pushed onto,
+    // per step. This is what lets a crate ride up a gentle slope while still
+    // being stopped dead by a wall.
+    STEP_UP: 6,
+  },
+
+  // ---------------------------------------------------------------------
   // The hills behind the level
   // ---------------------------------------------------------------------
   // Two bands, drawn in screen space with the camera folded into the phase, so
@@ -109,8 +130,14 @@ export const CONFIG = {
     HILL_NEAR: '#63BE7B',
     GROUND: '#7ED957',
     GROUND_EDGE: '#4E9E38',
+    // Wood means "you can push this". The level's boundary walls are boxes
+    // too, and they used to be drawn in exactly this wood, which made the rule
+    // a lie the moment crates became pushable — so the walls have their own
+    // stone colours below and nothing wooden is ever fixed in place.
     CRATE: '#C98A4B',
     CRATE_LINE: '#9C6631',
+    WALL: '#9AA7B0',
+    WALL_EDGE: '#78868F',
     PLATFORM: '#B0BEC5',
     PLATFORM_EDGE: '#78909C',
     BALL: '#E8402A',

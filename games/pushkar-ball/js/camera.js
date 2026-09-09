@@ -26,6 +26,19 @@ export class Camera {
     this.y = level.spawn.y;
   }
 
+  /**
+   * Jump straight to the ball, with no easing at all.
+   *
+   * For a respawn. Letting the camera lerp back from wherever the ball fell to
+   * the start of the level is a long swoop across the scenery, during which the
+   * ball is already rolling and already being steered from somewhere the player
+   * cannot see.
+   */
+  snap(ball) {
+    this.x = ball.x;
+    this.y = ball.y;
+  }
+
   /** @param viewW,viewH the visible world, in world units */
   update(dt, ball, viewW, viewH) {
     const C = CONFIG.CAMERA;

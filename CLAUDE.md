@@ -213,6 +213,31 @@ is in its own README; these are the things to know before touching it.
   level therefore looks identical on every attempt, so a player learns the
   timing; and a test can assert where a platform is at time *t* without running
   the game.
+- **Anything the ball can STAND on is a carrier, and owes `dx`, `dy`, `vx`,
+  `vy`.** `player.js` adds `platform.dx` to the ball's position without asking
+  whether it exists. Crates were added without those four, so the ball's
+  position became `NaN` the first frame it stood on one and the ball vanished
+  from the level with nothing logged anywhere. If you add a lift, a raft or a
+  see-saw, it owes the same four.
+- **Wood means you can push it; stone means you cannot.** No exceptions, ever —
+  it is the only way a six-year-old learns the rule, because there is no text
+  and there is not going to be any. The boundary walls are `boxes` in the data
+  exactly like a crate and were once drawn in the same wood; that made the
+  picture lie the moment crates started moving.
+- **A crate is not a general rigid body, on purpose.** It moves sideways only
+  when pushed and downwards only by falling. It cannot be pushed into anything,
+  and a crate shoved down a hole returns to where the level put it. The bad
+  outcome to design against is a crate left somewhere that makes a level
+  impossible — a child cannot undo that and cannot be told why.
+- **Falling out of the level respawns the ball at the spawn immediately**, and
+  the camera snaps rather than easing back across the whole level. Every piece
+  of carried state has to be cleared, not just position: a surviving `buffer`
+  spends a queued jump the instant the ball lands, so the level begins with a
+  jump nobody asked for.
+- **Level one keeps its first flat stretch clear of crates**, because the roll
+  suite measures friction by letting the ball coast to a stop there. A crate on
+  that stretch stops the ball dead and the suite goes on passing while
+  measuring nothing.
 - **Every on-screen button's position lives in `js/ui.js`** and its size in
   `CONFIG.UI`. The tests ask it. No test may ever contain a coordinate.
 - **`js/main.js` holds the loop and the drawing, and must not become a second
@@ -225,6 +250,10 @@ is in its own README; these are the things to know before touching it.
   git's history for ever, so if a synthesised sound is ever judged too weak by
   ear, prepare the replacement outside the repo, agree it, and commit it once.
 - **Narrow test command:** `node games/pushkar-ball/tests/run.mjs offline`.
+- **"Suspect the test first" is a starting point, not a verdict here.** Four of
+  the first five browser failures were the test's fault, and then the worst bug
+  in the game was found by a test that was right. When the symptom is "the
+  thing is simply not there any more", suspect arithmetic before the harness.
 
 ## Tests — never run the full suite by default
 

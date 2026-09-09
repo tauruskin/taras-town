@@ -52,6 +52,73 @@ function closestOn(s, px, py) {
 }
 
 /**
+ * Does this segment cross this box at all?
+ *
+ * A boolean, not a contact — it answers "may a crate stand here", nothing
+ * more. Liang–Barsky clipping: walk the segment's parameter range down against
+ * each of the box's four edges, and if anything is left the two overlap.
+ *
+ * Note that this ignores the segment's normal, so it treats geometry as solid
+ * from both sides. That is on purpose and it is the difference between a crate
+ * you can shove through a wall and one you cannot: a crate has no velocity
+ * history to tell which side it came from, so "may I be here" has to be a
+ * question about the space itself.
+ */
+export function segmentHitsBox(s, x, y, w, h) {
+  let t0 = 0, t1 = 1;
+  const dx = s.bx - s.ax, dy = s.by - s.ay;
+
+  for (const [p, q] of [[-dx, s.ax - x], [dx, x + w - s.ax],
+                        [-dy, s.ay - y], [dy, y + h - s.ay]]) {
+    if (p === 0) {
+      // Parallel to this edge, and outside it: no overlap is possible at all.
+      if (q < 0) return false;
+      continue;
+    }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+    else { if (r < t0) return false; if (r < t1) t1 = r; }
+  }
+  return true;
+}
+
+/**
+ * The highest thing a box of this footprint could come to rest on.
+ *
+ * Returns the y of that surface, or Infinity when there is nothing under the
+ * box at all — which is what falling out of the level looks like from here.
+ *
+ * Only up-facing segments count, because those are the only ones anything can
+ * stand on, and only ones at or below the box's middle, so that a surface the
+ * box is already straddling is not mistaken for a floor beneath it. Each
+ * candidate is clipped to the box's own x range first, so a long slope
+ * contributes the height it actually has under THIS box rather than the height
+ * it has somewhere off to the side.
+ */
+export function supportUnder(x, w, y, h, segments, cfg) {
+  const middle = y + h / 2;
+  let best = Infinity;
+
+  for (const s of segments) {
+    if (s.ny >= cfg.GROUND_NY) continue;
+
+    const lo = Math.min(s.ax, s.bx), hi = Math.max(s.ax, s.bx);
+    if (hi < x || lo > x + w) continue;
+
+    // The segment's highest point within the box's footprint. A segment is a
+    // straight line, so its extreme over an interval is at one of the ends of
+    // that interval.
+    const ex = s.bx - s.ax;
+    const at = (px) => (ex === 0 ? Math.min(s.ay, s.by)
+                                 : s.ay + ((px - s.ax) / ex) * (s.by - s.ay));
+    const top = Math.min(at(Math.max(lo, x)), at(Math.min(hi, x + w)));
+
+    if (top >= middle && top < best) best = top;
+  }
+  return best;
+}
+
+/**
  * Segments in buckets, so resolution only ever looks at what is nearby.
  *
  * A level is a few hundred segments, so this is not a performance need today.

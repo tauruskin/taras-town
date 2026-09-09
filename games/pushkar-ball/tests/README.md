@@ -47,6 +47,7 @@ Files beginning with `_` are shared helpers, not suites, and are skipped.
 |---|---|
 | `physics` | A ball dropped on flat ground comes to rest exactly its radius above it and stays there. It accelerates downhill on a slope. It never ends a step inside a segment. Fired at a wall at full speed it does not pass through. Jump height matches the closed-form `JUMP_V² / 2·GRAVITY`. |
 | `feel` | Coyote time allows a jump for `COYOTE` seconds after an edge and refuses it after. A press within `BUFFER` of landing fires on landing. Jumping off a platform moving right carries its velocity. |
+| `crates` | A crate falls and rests and does not creep. The ball pushes it, stops pushing and it stops. Standing on it does not drag it. It cannot be shoved through a wall or lost down a hole. Standing on one and jumping clears a ledge the jump provably cannot reach from the floor. Falling out of the level puts the ball back at the start with nothing queued. And six seconds of riding, pushing and jumping off a crate leaves every value finite — the check that would have caught the `NaN` below in one run. |
 | `levels` | For every level: ids unique, spawn in free space, all geometry inside `bounds`, and **every ground polyline's normals point up** — the one authoring mistake that is easy to make and invisible until you fall through the floor. |
 | `buttons` | All three buttons fit on 844×390, 568×320 and 740×280, none overlaps another, the middle of the screen is not a button, and jump is the biggest one. |
 | `precache` | Every file the game loads is in the root `sw.js` `PRECACHE` list, and this folder contains **no image or audio file at all**. |
@@ -86,10 +87,13 @@ loudly, which is the intended outcome.
 "Red" is a test of **hue**, not of the raw channels, and both halves of that
 were learned the hard way:
 
-- Plain red-ish channel thresholds also match the **crate wall**, whose brown
-  blends against its own darker outline into something that passes. That wall
-  runs the full height of the level, so it dragged the measured centroid clean
+- Plain red-ish channel thresholds also match **wood**, whose brown blends
+  against its own darker outline into something that passes. When this was
+  found, the level's boundary walls were drawn in that same wood, and a wall
+  runs the full height of the level — so it dragged the measured centroid clean
   off the ball and every position reported was a measurement of the scenery.
+  The walls are stone now, for unrelated reasons, but the crates are still
+  wood and this is still exactly why the predicate has to be what it is.
 - Tightening the thresholds is the trap on the other side. The ball is drawn
   *under* the on-screen buttons, and a button is a 30% white wash, so a ball
   behind one is much paler than `#E8402A`. Any threshold tight enough to
@@ -117,6 +121,18 @@ here were the test's fault, not the game's:
   opposite each other, so its pattern repeats every *half* turn, and at full
   speed 120ms is only 36° short of exactly that — a plainly spinning ball read
   as one that was not turning at all.
+
+**But "suspect the test" is a starting point, not a verdict.** The worst bug in
+the game so far was found the other way round, by a test that was right. A
+crate is something the ball stands on, which makes it a carrier exactly like a
+moving platform, and `player.js` adds `platform.dx` to the ball's position
+without asking whether it exists — so a crate with no `dx` made that
+`undefined`, the ball's position became `NaN` the first frame it stood on a
+crate, and the ball vanished from the level with nothing logged anywhere at
+all. `crates` now checks that every value is still finite after six seconds of
+riding, pushing and jumping off a crate, which is the check that would have
+found it in one run instead of three. When a symptom is "the thing is simply
+not there any more", suspect arithmetic before suspecting the harness.
 
 Two habits came out of that, both worth keeping:
 

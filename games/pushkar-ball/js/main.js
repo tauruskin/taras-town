@@ -92,7 +92,14 @@ function frame(now) {
     let steps = 0;
     while (accumulator >= CONFIG.STEP && steps < 240) {
       level.update(CONFIG.STEP);
+
+      // The ball puts itself back at the spawn when it falls out of the level;
+      // all this has to notice is that it happened, so the camera can go with
+      // it instead of easing across the whole level after it.
+      const fellBefore = ball.falls;
       ball.update(CONFIG.STEP, input, level);
+      if (ball.falls !== fellBefore) camera.snap(ball);
+
       camera.update(CONFIG.STEP, ball, viewW, viewH);
       accumulator -= CONFIG.STEP;
       steps++;
@@ -124,7 +131,8 @@ function draw() {
   ctx.translate(-camera.x, -camera.y);
 
   drawGround();
-  drawBoxes();
+  drawWalls();
+  drawCrates();
   drawPlatforms();
   drawGoal();
   drawBall();
@@ -191,18 +199,40 @@ function drawGround() {
   }
 }
 
-function drawBoxes() {
+/**
+ * The level's boundaries: stone, not wood.
+ *
+ * They are boxes in the data exactly like a crate is, and they used to be drawn
+ * in the same wood. That was harmless while nothing moved, and became a lie the
+ * moment crates could be pushed — a child shoving fruitlessly at the end wall
+ * has been told by the picture that it should give. Wood means it moves.
+ */
+function drawWalls() {
   const C = CONFIG.COLOURS;
-  for (const b of level.data.boxes || []) {
-    ctx.fillStyle = C.CRATE;
+  for (const b of level.walls) {
+    ctx.fillStyle = C.WALL;
     ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = C.WALL_EDGE;
+    ctx.fillRect(b.x, b.y, b.w, 6);
+  }
+}
+
+/**
+ * The crates, at wherever they have been shoved to — `c.x`/`c.y`, never the
+ * position they were declared at.
+ */
+function drawCrates() {
+  const C = CONFIG.COLOURS;
+  for (const c of level.crates) {
+    ctx.fillStyle = C.CRATE;
+    ctx.fillRect(c.x, c.y, c.w, c.h);
     ctx.strokeStyle = C.CRATE_LINE;
     ctx.lineWidth = 5;
-    ctx.strokeRect(b.x + 2.5, b.y + 2.5, b.w - 5, b.h - 5);
+    ctx.strokeRect(c.x + 2.5, c.y + 2.5, c.w - 5, c.h - 5);
     // Two planks, so a crate is not a plain brown rectangle.
     ctx.beginPath();
-    ctx.moveTo(b.x, b.y + b.h / 3); ctx.lineTo(b.x + b.w, b.y + b.h / 3);
-    ctx.moveTo(b.x, b.y + (b.h * 2) / 3); ctx.lineTo(b.x + b.w, b.y + (b.h * 2) / 3);
+    ctx.moveTo(c.x, c.y + c.h / 3); ctx.lineTo(c.x + c.w, c.y + c.h / 3);
+    ctx.moveTo(c.x, c.y + (c.h * 2) / 3); ctx.lineTo(c.x + c.w, c.y + (c.h * 2) / 3);
     ctx.lineWidth = 3;
     ctx.stroke();
   }

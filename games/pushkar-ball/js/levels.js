@@ -12,7 +12,10 @@
  *
  * DOM-free, so node can ask it anything the browser knows.
  */
-import { segment, boxSegments, SegmentGrid } from './physics.js';
+import { segment, boxSegments, SegmentGrid, segmentHitsBox, supportUnder } from './physics.js';
+// Crates fall, so they need GRAVITY and the crate numbers. config.js imports
+// nothing and touches nothing, so this stays as DOM-free as it was.
+import { CONFIG } from './config.js';
 
 export const LEVELS = [
   {
@@ -35,11 +38,30 @@ export const LEVELS = [
     ],
 
     boxes: [
-      // Walls at both ends, so the level cannot be left sideways.
+      // Walls at both ends, so the level cannot be left sideways. Not movable,
+      // and drawn as stone rather than wood so that "wood means you can push
+      // it" stays true everywhere.
       { x: 0, y: 0, w: 40, h: 1080 },
       { x: 4760, y: 0, w: 40, h: 1080 },
-      // A crate on the flat: jump it, or build up speed and roll over it.
-      { x: 3780, y: 660, w: 110, h: 100 },
+      // Two wooden crates, and both can be pushed. Jump them, roll over them
+      // at speed, or shove them about.
+      //
+      // Nothing in THIS level needs a crate to be finished — there is no spot
+      // here that a jump cannot already reach, and saying otherwise in a
+      // comment would be the easiest kind of lie to leave behind. They are
+      // here so the mechanic is in a child's hands from the first level and so
+      // the game exercises it; the level that is built around a crate belongs
+      // with phase 2's level design, where the geometry can be drawn for it.
+      // What a crate can do is proved in tests/offline/crates.mjs, on a level
+      // built for the purpose, with a ledge the jump provably cannot reach.
+      //
+      // Both sit beyond the first flat, and the first flat is kept clear on
+      // purpose: the roll suite measures friction by letting the ball coast to
+      // a stop there. A crate put on that stretch — the obvious place for one,
+      // and where this one started — stops the ball dead instead, and the
+      // suite goes on passing while measuring nothing at all.
+      { x: 2700, y: 660, w: 100, h: 100, movable: true },
+      { x: 3780, y: 660, w: 110, h: 100, movable: true },
     ],
 
     platforms: [
@@ -104,6 +126,157 @@ function makeMover(p) {
   return m;
 }
 
+/**
+ * A wooden crate: solid, standable, and pushable.
+ *
+ * It exists so there is a way to reach somewhere the jump alone will not — put
+ * a crate under a high ledge and jump off it. Everything wooden in the game can
+ * be pushed, and nothing that can be pushed is any other colour, so the rule
+ * is legible without a word of explanation.
+ *
+ * Deliberately NOT a general rigid body. It moves horizontally only when
+ * something pushes it, and vertically only by falling straight down onto
+ * whatever is beneath it. A crate that could tumble, spin, or slide down a
+ * slope of its own accord would be more realistic and much worse: the one
+ * genuinely bad outcome here is a crate ending up somewhere that makes the
+ * level impossible, and a crate that only goes where it is pushed cannot do
+ * that by itself.
+ */
+function makeCrate(b) {
+  const c = {
+    ...b,
+    x: b.x, y: b.y,
+    movable: true,       // what player.js looks for before pushing
+    grounded: false,
+    falls: 0,            // times it has been shoved out of the level
+    segments: [],
+
+    // A crate is something the ball can STAND on, which makes it a carrier in
+    // exactly the way a moving platform is, and it has to answer the same four
+    // questions or it cannot be stood on safely: how far it moved this step, so
+    // a rider comes with it, and how fast it is going, so a jump off it
+    // carries. Leaving these off is not a missing nicety — `player.js` adds
+    // `platform.dx` to the ball's position unconditionally, so an absent `dx`
+    // is `undefined`, the ball's position becomes NaN on the first frame it
+    // stands on a crate, and the ball simply disappears from the level with
+    // nothing logged anywhere.
+    dx: 0, dy: 0,
+    vx: 0, vy: 0,
+
+    /** Rebuild the colliders, and tag them so a contact leads back here. */
+    _reseg() {
+      c.segments = boxSegments(c.x, c.y, b.w, b.h);
+      for (const s of c.segments) s.owner = c;
+    },
+
+    /**
+     * Fall, and land.
+     *
+     * `solids` is everything that could hold this crate up — the level's static
+     * geometry and the other crates, but never this crate itself, or it would
+     * rest on its own floor and hang in the air for ever.
+     */
+    update(dt, solids, cfg, boundsH) {
+      // A fresh step: whatever it was shoved by last step is spent. Any push
+      // this step happens later, during the ball's update, and is carried by a
+      // rider on the step after — the same one-step lag a moving platform's
+      // rider already lives with.
+      const wasY = c.y;
+      c.dx = 0;
+      c.vx = 0;
+
+      c.vy += cfg.GRAVITY * dt;
+      c.y += c.vy * dt;
+
+      const floor = supportUnder(c.x, b.w, c.y, b.h, solids, cfg);
+      if (floor < Infinity && c.y + b.h > floor) {
+        c.y = floor - b.h;
+        c.vy = 0;
+        c.grounded = true;
+      } else {
+        c.grounded = false;
+      }
+
+      // Fell out of the level: put it back where the level put it.
+      //
+      // A crate can be shoved off a ledge, and a crate with nothing under it
+      // falls for ever. Without this it is simply gone — and the day a level
+      // needs a crate to be finishable, "gone" means a child has permanently
+      // broken his own game with no way to undo it and no way to know why. The
+      // ball is handed the level back when it falls; so is the crate.
+      if (c.y > boundsH) {
+        c.x = b.x; c.y = b.y;
+        c.vy = 0;
+        c.falls++;
+        // No rider delta for a respawn. `dy` means "how far the lid moved, so
+        // bring whoever is standing on it" — reporting the whole trip back up
+        // the level would teleport the ball with it.
+        c.dy = 0;
+        c._reseg();
+        return;
+      }
+
+      // What a rider on the lid should be moved by. This is the case that
+      // matters: a crate shoved off a ledge with the ball on top takes the ball
+      // down with it instead of leaving it hanging in the air.
+      c.dy = c.y - wasY;
+      c._reseg();
+    },
+
+    /**
+     * Try to slide by dx. Returns how far it actually went.
+     *
+     * Refused outright if the crate would end up inside something. A crate is
+     * pushed by a ball with no idea what is on the far side of it, so this is
+     * the only thing standing between a child and a crate shoved through the
+     * level's boundary wall.
+     *
+     * The exception is a small rise, STEP_UP: the foot of a slope lifts the
+     * crate a little rather than stopping it, so a crate can be walked up a
+     * ramp but is still stopped dead by anything wall-shaped.
+     */
+    tryPush(dx, dt, solids, cfg) {
+      const nx = c.x + dx;
+
+      // Inset VERTICALLY only, and that asymmetry is the whole point. The
+      // inset exists because a crate resting on the ground genuinely touches
+      // the ground segment, and counting that as blocked would report every
+      // crate everywhere as stuck. But inset horizontally too and the crate
+      // may overlap a wall by the width of the inset before anything objects —
+      // which showed up as a crate sitting 1.2px inside the level's boundary.
+      // Nothing about the ground needs slack sideways.
+      const IN = 1.5;
+      const clear = (atX, atY) => {
+        for (const s of solids) {
+          if (segmentHitsBox(s, atX, atY + IN, b.w, b.h - IN * 2)) return false;
+        }
+        return true;
+      };
+
+      if (!clear(nx, c.y)) {
+        // Perhaps it is only a step up rather than a wall. Try again lifted;
+        // this is what lets a crate ride up the foot of a slope while still
+        // being stopped dead by anything wall-shaped.
+        const lifted = c.y - cfg.CRATE.STEP_UP;
+        if (!clear(nx, lifted)) return 0;
+        c.y = lifted;
+      }
+
+      c.x = nx;
+      c.dx += dx;
+      c.vx = dx / dt;
+      c._reseg();
+      return dx;
+    },
+
+    overlaps(x, y, r) {
+      return x + r > c.x && x - r < c.x + b.w && y + r > c.y && y - r < c.y + b.h;
+    },
+  };
+  c._reseg();
+  return c;
+}
+
 class Level {
   constructor(data) {
     this.data = data;
@@ -123,7 +296,13 @@ class Level {
         segs.push(s);
       }
     }
-    for (const b of data.boxes || []) segs.push(...boxSegments(b.x, b.y, b.w, b.h));
+    // Boxes come in two kinds and it matters which. A `movable` one is a
+    // wooden crate: it is a body that moves, so it must stay OUT of the static
+    // grid, which is built once and never rebuilt. Everything else is scenery
+    // — in level one, the boundary walls — and is baked in like the ground.
+    this.walls = (data.boxes || []).filter((b) => !b.movable);
+    this.crates = (data.boxes || []).filter((b) => b.movable).map(makeCrate);
+    for (const b of this.walls) segs.push(...boxSegments(b.x, b.y, b.w, b.h));
 
     this.statics = segs;
     this.grid = new SegmentGrid(segs);
@@ -133,18 +312,35 @@ class Level {
   update(dt) {
     this.time += dt;
     for (const m of this.movers) m.update(this.time);
+    for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
+  }
+
+  /**
+   * Everything a crate may rest on or be stopped by: the level's fixed
+   * geometry, the moving platforms, and every crate EXCEPT itself.
+   *
+   * Excluding itself is the whole point. A crate asked whether it may stand
+   * somewhere, with its own four sides in the list, is told no by its own
+   * floor — and a crate that rests on itself hangs in mid-air for ever.
+   */
+  solidsFor(crate) {
+    const out = [...this.statics];
+    for (const m of this.movers) out.push(...m.segments);
+    for (const c of this.crates) if (c !== crate) out.push(...c.segments);
+    return out;
   }
 
   /**
    * Every segment the ball could touch right now.
    *
-   * Statics come from the grid; movers are checked one by one because there are
-   * a handful of them, and rebuilding a grid every step to save four
-   * comparisons would be a poor trade.
+   * Statics come from the grid; movers and crates are checked one by one
+   * because there are a handful of them, and rebuilding a grid every step to
+   * save a few comparisons would be a poor trade.
    */
   near(x, y, r) {
     const out = [...this.grid.near(x, y, r)];
     for (const m of this.movers) if (m.overlaps(x, y, r)) out.push(...m.segments);
+    for (const c of this.crates) if (c.overlaps(x, y, r)) out.push(...c.segments);
     return out;
   }
 }

@@ -1,8 +1,9 @@
 # Pushkar Ball
 
 A rolling ball you push around a hilly landscape: momentum you have to manage,
-slopes that read as slopes, a jump that forgives a late thumb, and platforms
-that slide back and forth on a schedule you can learn. No violence, nothing
+slopes that read as slopes, a jump that forgives a late thumb, platforms that
+slide back and forth on a schedule you can learn, and wooden crates you can
+shove around to reach places the jump alone will not. No violence, nothing
 scary, and almost no words on the screen.
 
 **Play:** https://tauruskin.github.io/taras-town/games/pushkar-ball/ (or tap
@@ -18,6 +19,12 @@ else from them — no artwork, no names, no level layouts.
 This is **phase 1**, and phase 1 is only about how the ball feels. One
 hand-built level, a flag at the end that does nothing when you reach it, and
 that is the whole game.
+
+Falling down a hole is the one way to fail, and it costs nothing: the ball
+reappears at the start of the level immediately, with the camera already there.
+No lives to run out, no screen to dismiss, no wait. That is the hub's rule
+rather than a design flourish — where a game can be failed, failing has to be
+harmless and instantly undone.
 
 Deliberately absent, and not to be built ahead of time: hazards, enemies,
 gems, lives, checkpoints, a menu, a level-select screen, saved progress, and
@@ -76,9 +83,9 @@ when one does.
 | File | What it does | Touches the DOM? |
 |---|---|---|
 | `js/config.js` | every tunable number and colour | never |
-| `js/physics.js` | segments, the broad-phase grid, circle-vs-segment resolution, the step | never |
-| `js/levels.js` | the level data, the loader that expands it, moving platforms | never |
-| `js/player.js` | the ball: acceleration, friction, jump, coyote time, buffering, spin | never |
+| `js/physics.js` | segments, the broad-phase grid, circle-vs-segment resolution, the step, and the two box questions a crate asks | never |
+| `js/levels.js` | the level data, the loader that expands it, moving platforms, crates | never |
+| `js/player.js` | the ball: acceleration, friction, jump, coyote time, buffering, spin, pushing, respawning | never |
 | `js/camera.js` | follow with lookahead and a vertical deadzone, clamped to the level | never |
 | `js/ui.js` | where every on-screen button is, and what it looks like | canvas only |
 | `js/input.js` | the on-screen buttons and the keyboard, as one thing | yes |
@@ -154,6 +161,58 @@ not, all in `js/player.js`:
 Jump is a **consumed press**, not a held button. Held would bounce the ball off
 anything it touched, for ever.
 
+## Crates
+
+**If it is wood, you can push it. If it is stone, you cannot.** That rule holds
+everywhere with no exceptions, which is the only way a six-year-old is going to
+learn it — there is no text to explain it and there is not going to be any. The
+level's boundary walls are boxes in the data exactly like a crate is, and they
+used to be drawn in the same wood; they are stone now, because the day crates
+started moving, that shared colour became a picture telling a child to keep
+shoving at something that will never give.
+
+A crate is deliberately **not** a general rigid body. It moves sideways only
+when something pushes it, and downwards only by falling straight onto whatever
+is under it. It cannot tumble, spin, or slide off on its own. That is a
+restriction worth having rather than a shortcut: the one genuinely bad thing a
+crate could do is end up somewhere that makes the level impossible, and a crate
+that only ever goes where it is pushed cannot manage that by itself.
+
+The rest of what keeps a crate safe:
+
+- **It cannot be pushed into anything.** A move that would end with the crate
+  inside a wall, another crate or the ground is refused outright. The ball
+  pushing it has no idea what is on the far side, so this is the only thing
+  between a child and a crate shoved out through the level's boundary.
+- **A small rise lifts it instead of stopping it** (`CRATE.STEP_UP`), so a
+  crate can be walked up the foot of a slope but is still stopped dead by
+  anything wall-shaped.
+- **A crate pushed into a hole comes back**, to exactly where the level put it.
+  A crate with nothing under it falls for ever, and "gone for ever" would one
+  day mean a level a child has permanently broken with no way to undo it.
+- **It slides at its own speed** (`CRATE.PUSH_SPEED`, 150) rather than the
+  ball's (420), which is what makes it feel heavy, and the ball is held to that
+  speed while pushing.
+- **Standing on one does not push it.** A push has to be a side-on contact
+  (`CRATE.PUSH_NX`) *and* in the direction the player is asking for. Without
+  the first, the ball shoves the crate along while sitting on top of it, which
+  looks like the crate is haunted.
+
+**A crate is something the ball stands on, which makes it a carrier exactly
+like a moving platform, and it has to answer the same four questions:** `dx`,
+`dy`, `vx`, `vy`. This is not tidiness. `player.js` adds `platform.dx` to the
+ball's position without asking whether it exists, so a crate without a `dx`
+made that `undefined`, the ball's position became `NaN` on the first frame it
+stood on a crate, and the ball vanished from the level with nothing logged
+anywhere. Anything new that can be stood on owes the same four.
+
+Nothing in level one *needs* a crate — there is no spot in it a jump cannot
+already reach, and the crates are there so the mechanic is in a child's hands
+from the first level. A level built around a crate belongs with phase 2's level
+design. That a crate can genuinely reach the unreachable is proved in
+`tests/offline/crates.mjs`, on a level built for it, with a ledge placed higher
+than `JUMP_V² / 2·GRAVITY` so the jump provably cannot clear it from the floor.
+
 ## Levels are data
 
 A level is a plain object; the loader expands it into segments, moving
@@ -170,7 +229,8 @@ geometry is worked out at draw time.
   ground: [                                  // polylines, AUTHORED LEFT TO RIGHT
     [[40, 760], [900, 760], [1250, 600]],
   ],
-  boxes:     [ { x, y, w, h } ],
+  boxes:     [ { x, y, w, h },                     // scenery: stone, immovable
+               { x, y, w, h, movable: true } ],   // a wooden crate
   platforms: [ { x, y, w, h, axis: 'x', dist: 200, period: 4, phase: 0 } ],
 }
 ```
