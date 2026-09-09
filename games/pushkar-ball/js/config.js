@@ -60,21 +60,30 @@ export const CONFIG = {
     LERP_Y: 2.5,        // vertical follow, much slower on purpose: a camera
                         // that tracks every jump exactly is nauseating
     DEADZONE_Y: 90,     // world units of vertical slack before it follows at all
-    // How far BELOW the ball the camera aims, in world units.
+    // Where a resting ball's FEET should sit on the screen, as a fraction of
+    // its height — so 0.73 puts the ground about three quarters of the way
+    // down and leaves a quarter of the screen as land.
     //
-    // Without this the camera aims straight at the ball, and because the
-    // deadzone stops it as soon as it is within DEADZONE_Y, a ball that
-    // settles from above — which is every ball, since gravity brings it down
-    // — comes to rest a whole deadzone below the middle of the screen. On a
-    // short phone that is inside the band where the buttons are drawn, so a
-    // thumb ends up resting on top of the hero.
+    // This replaced a fixed BIAS_Y of 110 world units, which had an accident
+    // in it. A settled camera rests `BIAS_Y - DEADZONE_Y` below the ball;
+    // that came to 20, the ball's radius is also 20, and the two cancelled
+    // exactly — so the ground landed on the precise middle of every screen,
+    // whatever its size. On a phone a 50/50 split passes unnoticed. On a
+    // 1200px-tall window it reads as a hard half-and-half horizon with a
+    // featureless field of green under it.
     //
-    // Slightly MORE than DEADZONE_Y, so a grounded ball settles a little
-    // above the middle rather than exactly on it. That is worth the small
-    // loss of view downwards: tests/offline/camera.mjs measures the daylight
-    // between the ball and the controls on the shortest screen, and exactly
-    // centred left only a few pixels of it.
-    BIAS_Y: 110,
+    // A fraction cannot be honoured everywhere, and that is the point of
+    // GROUND_CLEAR below. On a 280px-tall screen the thumb buttons occupy the
+    // bottom 124px — 44% of everything — so a ball three quarters of the way
+    // down would sit under a thumb, which is exactly what raising it fixed in
+    // the first place. So this is a target, not a promise: it is honoured
+    // wherever there is room and given up where there is not.
+    GROUND_AT: 0.73,
+
+    // The daylight, in CSS pixels, that must remain between the ball and the
+    // top of the nearest on-screen button. This is the hard constraint that
+    // outranks GROUND_AT, and tests/offline/camera.mjs is what holds it.
+    GROUND_CLEAR: 26,
     LOOKAHEAD: 0.35,    // seconds of vx to look ahead, so a fast ball can see
                         // what it is about to hit
   },

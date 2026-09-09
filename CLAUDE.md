@@ -220,6 +220,17 @@ is in its own README; these are the things to know before touching it.
   level therefore looks identical on every attempt, so a player learns the
   timing; and a test can assert where a platform is at time *t* without running
   the game.
+- **Where the ball sits on screen is derived per screen, not a constant.**
+  `Camera.biasFor` weighs two things that disagree: `CAMERA.GROUND_AT` wants a
+  resting ball's feet a fraction of the way down, so the horizon looks the same
+  everywhere; the thumb buttons want the ball above them by `GROUND_CLEAR`, and
+  they occupy a fixed 124 CSS pixels — 10% of a tall window and 44% of a 280px
+  one. The buttons always win, so the fraction is a target and not a promise.
+  A fixed `BIAS_Y` was tried first and had an accident in it: a settled camera
+  rests `BIAS_Y - DEADZONE_Y` below the ball, that came to 20, the ball's
+  radius is also 20, and they cancelled — putting the ground on the exact
+  middle of every screen. Harmless on a phone, a hard half-and-half horizon on
+  a monitor.
 - **Anything the ball can STAND on is a carrier, and owes `dx`, `dy`, `vx`,
   `vy`.** `player.js` adds `platform.dx` to the ball's position without asking
   whether it exists. Crates were added without those four, so the ball's

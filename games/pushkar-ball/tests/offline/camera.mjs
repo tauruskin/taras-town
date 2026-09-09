@@ -13,8 +13,12 @@ const { Buttons } = await import('../../js/ui.js');
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
 
-// The widest phone, an iPhone SE on its side, and a short landscape window.
-const SCREENS = [[844, 390], [568, 320], [740, 280]];
+// Three phones the hub rules hold this to, and two desktop windows. The
+// desktop sizes are here because the horizon problem this suite now guards
+// was invisible on every phone size: the ground sat at exactly 50% on all of
+// them, which looks unremarkable small and reads as a hard half-and-half
+// split on a 1200px-tall window.
+const SCREENS = [[844, 390], [568, 320], [740, 280], [1440, 900], [1835, 1200]];
 
 const flat = () => loadLevel({
   id: 96, theme: 'hills',
@@ -32,6 +36,10 @@ for (const [w, h] of SCREENS) {
   const level = flat();
   const ball = new Ball(level.spawn.x, level.spawn.y);
   const camera = new Camera(level);
+  // Exactly what main.js does on every resize. Testing the default instead
+  // would be testing a value the game never actually runs with.
+  camera.biasY = Camera.biasFor(h, scale, CONFIG.BALL.R, w);
+  camera.snap(ball);
   const input = { left: false, right: false, takeJump: () => false };
 
   // Four seconds is far longer than the camera needs to settle; the point is
@@ -71,6 +79,39 @@ for (const [w, h] of SCREENS) {
   // And it must not have gone the other way. A ball pinned to the top of the
   // screen cannot see what it is falling towards.
   if (screenY < h * 0.25) fail(`on ${w}x${h} the ball rides at ${screenY.toFixed(0)}, too high to see what is below it`);
+
+  // --- the horizon ------------------------------------------------------
+  //
+  // A resting ball's feet ARE the ground, so `bottom` is the horizon. Two
+  // rules, and which one applies depends on whether the buttons are in the
+  // way — that is the whole design of `Camera.biasFor`, so it is what gets
+  // asserted rather than a single number that could only be right on one
+  // screen.
+  const land = (1 - bottom / h) * 100;
+  const roomFor = CONFIG.CAMERA.GROUND_AT * h <= controlTop - CONFIG.CAMERA.GROUND_CLEAR;
+  console.log(`   land is ${land.toFixed(0)}% of the screen` +
+              (roomFor ? ' (the target was reachable here)' : ' (the controls capped it)'));
+
+  if (roomFor) {
+    // Where there is room, the target is honoured — and honoured closely, or
+    // GROUND_AT is not really the number deciding anything.
+    const want = CONFIG.CAMERA.GROUND_AT * h;
+    if (Math.abs(bottom - want) > 1) {
+      fail(`on ${w}x${h} there was room for the target horizon at ${want.toFixed(0)} but the ground is at ${bottom.toFixed(0)}`);
+    }
+  } else {
+    // Where there is not, the ball sits exactly as low as the controls allow
+    // and no higher — anything higher is view thrown away for nothing.
+    const allowed = controlTop - CONFIG.CAMERA.GROUND_CLEAR;
+    if (Math.abs(bottom - allowed) > 1) {
+      fail(`on ${w}x${h} the controls cap the ground at ${allowed.toFixed(0)} but it is at ${bottom.toFixed(0)}`);
+    }
+  }
+
+  // The whole point of the exercise: a big screen must not look half-and-half.
+  if (h >= 700 && land > 35) {
+    fail(`on ${w}x${h} the land still fills ${land.toFixed(0)}% of the screen — a tall window should not read as half sky, half field`);
+  }
 
   // Snapping and settling must agree. `snap` is what a respawn uses, and it
   // promises no easing at all — so if it puts the camera anywhere `update`

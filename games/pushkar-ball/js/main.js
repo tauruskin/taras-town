@@ -22,6 +22,11 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
 let cssW = 0, cssH = 0;      // the canvas in CSS pixels
+// Declared up here only so `resize` can tell the camera its bias; it is
+// assigned below, once the level exists. A `let` read before assignment is
+// `undefined` rather than an error, which is what the guard in `resize`
+// relies on — a `const` down there would throw instead.
+let camera;
 let scale = 1;               // world units -> CSS pixels
 let viewW = 0, viewH = 0;    // the visible world, in world units
 
@@ -44,14 +49,28 @@ function resize() {
   scale = cssH / CONFIG.VIEW_H;
   viewH = CONFIG.VIEW_H;
   viewW = cssW / scale;
+
+  // How far below the ball the camera aims depends on the screen, because the
+  // two things that want to decide it disagree: the horizon wants a fraction
+  // of the height, and the thumb buttons want a fixed number of pixels. So it
+  // is recomputed here rather than being a constant, and on every resize —
+  // rotating a tablet changes the answer.
+  //
+  // Guarded because `resize` runs once before there is a camera to tell.
+  if (camera) camera.biasY = Camera.biasFor(cssH, scale, CONFIG.BALL.R, cssW);
 }
 window.addEventListener('resize', resize);
 resize();
 
 const level = loadLevel(LEVELS[0]);
 const ball = new Ball(level.spawn.x, level.spawn.y);
-const camera = new Camera(level);
+camera = new Camera(level);
 const input = new Input(canvas);
+
+// The camera exists now, so give it the bias the first `resize` could not, and
+// put it where that bias says rather than where its default guess had it.
+camera.biasY = Camera.biasFor(cssH, scale, CONFIG.BALL.R, cssW);
+camera.snap(ball);
 
 // The world is drawn from the first frame, behind the start panel, so the tap
 // that begins play reveals a level rather than a blank screen. Only the

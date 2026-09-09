@@ -43,6 +43,22 @@ export const Buttons = {
   },
 
   /**
+   * The topmost edge of the whole control band, in CSS pixels.
+   *
+   * Everything below this line is somewhere a thumb rests, so it is what the
+   * camera has to keep the ball clear of. Asked of the buttons rather than
+   * derived from CONFIG.UI by whoever needs it, for the same reason no test
+   * may contain a coordinate: the moment two places compute it, one of them is
+   * wrong after the next change to the layout.
+   */
+  topEdge(w, h) {
+    return Math.min(...NAMES.map((n) => {
+      const b = Buttons[n](w, h);
+      return b.y - b.r;
+    }));
+  },
+
+  /**
    * Which button is at this point, or null.
    *
    * The hit radius is larger than the drawn one by CONFIG.UI.HIT. A thumb is

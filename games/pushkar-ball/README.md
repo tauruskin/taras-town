@@ -253,6 +253,17 @@ small phone sees a little less horizontally rather than seeing less of the
 level. A platformer where the small screen shows less of what is coming is
 secretly harder on the small screen, which is not a difficulty anybody chose.
 
+**Where the ball sits on that screen is worked out per screen**, by
+`Camera.biasFor`, because the two things that want to decide it disagree.
+`CAMERA.GROUND_AT` wants a resting ball's feet a fraction of the way down, so
+the horizon looks the same on a phone and a monitor. The thumb buttons want the
+ball above them by `GROUND_CLEAR`, and they take a fixed 124 CSS pixels — a
+tenth of a tall window, but 44% of a 280px one. The buttons always win, so
+`GROUND_AT` is a target honoured where there is room and given up where there
+is not: about a quarter of the screen is land on a monitor, closer to a half on
+the shortest phone, and `tests/offline/camera.mjs` asserts both halves of that
+rule rather than one number that could only be right on one screen.
+
 ## Tests
 
 ```

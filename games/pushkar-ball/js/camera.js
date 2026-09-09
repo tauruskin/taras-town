@@ -14,12 +14,57 @@
  * where it would point.
  */
 import { CONFIG } from './config.js';
+// Only for where the control band starts. ui.js is DOM-free apart from its
+// drawing functions, so importing it here costs this module nothing.
+import { Buttons } from './ui.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 export class Camera {
+  /**
+   * How far below the ball to aim, in world units, for a given screen.
+   *
+   * Pure, static, and derived rather than tuned — which is the whole reason
+   * this is a function and not a number in config.js. Two things want to
+   * decide where the ball sits, and they disagree:
+   *
+   *   - GROUND_AT wants a resting ball's feet a fixed FRACTION of the way
+   *     down, so the horizon looks the same on a phone and a monitor.
+   *   - The thumb buttons want the ball above them by GROUND_CLEAR, and they
+   *     occupy a fixed number of PIXELS regardless of screen size — 124px,
+   *     which is 10% of a tall window and 44% of a 280px one.
+   *
+   * So the fraction is honoured where there is room and abandoned where there
+   * is not, and the buttons always win. Whichever target is higher up the
+   * screen is the one used, because both are lower bounds on how high the ball
+   * must be.
+   *
+   * Working: a settled camera rests at `ball.y + BIAS - DEADZONE_Y`, so a
+   * resting ball's feet land at `cssH/2 + (r - (BIAS - DEADZONE_Y)) * scale`.
+   * Setting that equal to the target and solving for BIAS gives the line
+   * below.
+   *
+   * @param cssH   screen height in CSS pixels
+   * @param scale  world units to CSS pixels, i.e. cssH / VIEW_H
+   * @param ballR  the ball's collision radius, in world units
+   * @param cssW   screen width, only so the buttons can be asked where they are
+   */
+  static biasFor(cssH, scale, ballR, cssW) {
+    const C = CONFIG.CAMERA;
+    const wanted = C.GROUND_AT * cssH;
+    const allowed = Buttons.topEdge(cssW, cssH) - C.GROUND_CLEAR;
+    const feet = Math.min(wanted, allowed);
+    return ballR - (feet - cssH / 2) / scale + C.DEADZONE_Y;
+  }
+
   constructor(level) {
     this.level = level;
+
+    // A sane default so a camera works the moment it is constructed, and so
+    // every offline suite that never mentions a screen still gets sensible
+    // behaviour. main.js overwrites it on every resize with the value
+    // `biasFor` derives for the actual screen.
+    this.biasY = CONFIG.CAMERA.DEADZONE_Y + CONFIG.BALL.R;
     // Starting on the spawn rather than at the origin, or the first frame of
     // every level is a swoop across the map — and starting exactly where a
     // settled camera rests, or it is a small swoop instead of a large one.
@@ -39,10 +84,10 @@ export class Camera {
    * cannot see.
    *
    * The vertical is NOT simply `ball.y`, and that is not an oversight to be
-   * tidied away. `update` aims BIAS_Y below the ball and stops as soon as it
+   * tidied away. `update` aims `biasY` below the ball and stops as soon as it
    * is within DEADZONE_Y of that, and gravity always brings a ball down into
    * that slack from above — so a settled camera rests at
-   * `ball.y + BIAS_Y - DEADZONE_Y`, not on the ball. Snapping to `ball.y`
+   * `ball.y + biasY - DEADZONE_Y`, not on the ball. Snapping to `ball.y`
    * would put the camera somewhere `update` immediately eases away from, so
    * every respawn would end with a small glide: exactly the easing this
    * function exists to avoid, and about to happen dozens of times a level
@@ -51,9 +96,8 @@ export class Camera {
    * config.js keeps snapping and settling in agreement.
    */
   snap(ball) {
-    const C = CONFIG.CAMERA;
     this.x = ball.x;
-    this.y = ball.y + C.BIAS_Y - C.DEADZONE_Y;
+    this.y = ball.y + this.biasY - CONFIG.CAMERA.DEADZONE_Y;
   }
 
   /** @param viewW,viewH the visible world, in world units */
@@ -66,13 +110,13 @@ export class Camera {
     // the phone. This form does not, and it costs one exp() a step.
     this.x += (tx - this.x) * (1 - Math.exp(-C.LERP * dt));
 
-    // The camera wants to be BIAS_Y below the ball, and the deadzone is slack
+    // The camera wants to be `biasY` below the ball, and the deadzone is slack
     // around that, not around the ball itself. Applying the deadzone to the
     // ball's own y is what left a grounded ball a full deadzone low on screen:
     // gravity always brings the ball down into the deadzone from above, so it
     // always settled at its lower edge, which on a short phone is inside the
     // band where the on-screen buttons are drawn.
-    const want = ball.y + C.BIAS_Y;
+    const want = ball.y + this.biasY;
     const dy = want - this.y;
     if (Math.abs(dy) > C.DEADZONE_Y) {
       // Chase the edge of the deadzone, not the target. Chasing the target
