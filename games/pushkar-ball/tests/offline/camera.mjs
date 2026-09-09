@@ -104,22 +104,56 @@ for (const [w, h] of SCREENS) {
 
   snapAgrees('after the ball had settled');
 
-  // Again after a jump and a landing. `update` has two stable trailing
-  // positions — one deadzone below the bias when trailing a descending ball
-  // and one above it when trailing an ascending one, BIAS apart — and `snap`
-  // can only agree with one of them. Gravity puts every ball back in the
-  // falling case, which is why agreeing with that one is enough today. It
-  // stops being obviously enough in this phase: spikes will be able to end a
-  // life in mid-air, and the respawn then calls `snap` while the camera is
-  // still trailing a ball that was going up. Pin the landing case now, before
-  // there is a hazard to discover it with.
+  // A whole jump must not move the camera at all.
+  //
+  // This is the deadzone earning its keep, and it is a design property rather
+  // than an incidental one. A settled camera sits one deadzone BELOW the point
+  // it aims at, so the ball has to rise more than TWO deadzones before the
+  // camera is pulled out the other side. The jump clears
+  // JUMP_V^2 / 2*GRAVITY, which is nowhere near that — so the camera holds
+  // perfectly still through a jump, which is exactly why it is not nauseating
+  // and exactly why `tests/browser/jump.mjs` can measure a jump as a rise in
+  // screen pixels.
+  const escape = 2 * CONFIG.CAMERA.DEADZONE_Y;
+  const reach = (CONFIG.JUMP_V ** 2) / (2 * CONFIG.GRAVITY);
+  const wasY = camera.y;
+
   let jumps = 1;
   const jumpOnce = { left: false, right: false, takeJump: () => (jumps-- > 0) };
+  let peak = ball.y;
   for (let i = 0; i < Math.round(3 / CONFIG.STEP); i++) {
     level.update(CONFIG.STEP);
     ball.update(CONFIG.STEP, jumpOnce, level);
     camera.update(CONFIG.STEP, ball, viewW, viewH);
+    peak = Math.min(peak, ball.y);
   }
+
+  if (reach >= escape) {
+    // Not a failure of the game, a failure of this check's premise: retuned
+    // numbers have made a jump big enough to move the camera, so the
+    // assertion below is no longer testing what it claims to.
+    fail(`a jump now reaches ${reach.toFixed(0)} but the camera escapes its deadzone at ` +
+         `${escape} — this check's reasoning no longer holds and needs rewriting`);
+  }
+  if (Math.abs(camera.y - wasY) > 0.001) {
+    fail(`on ${w}x${h} a jump of ${(ball.y - peak).toFixed(0)} units moved the camera ` +
+         `${(camera.y - wasY).toFixed(2)} units; a jump inside the deadzone should move it none`);
+  }
+
+  // And snapping still agrees once the ball is back down. Cheap regression
+  // rather than new coverage: because the jump above provably cannot move the
+  // camera, this ends up asserting the same state the first call did.
+  //
+  // What is therefore still NOT pinned anywhere is the other stable trailing
+  // position. `update` has two — one deadzone below the aim point when
+  // trailing a descending ball and one above it when trailing an ascending
+  // one, 2 * DEADZONE_Y apart — and `snap` can only ever agree with the
+  // falling one. Gravity returns every ball to that case, which is why it is
+  // enough today. It stops being enough as soon as something can end a life in
+  // mid-air, because the respawn then snaps while the camera trails a ball
+  // that was going up. Reaching that state needs a fall of more than
+  // 2 * DEADZONE_Y followed by a mid-air respawn, which belongs with the
+  // hazards that will make it possible — not here.
   snapAgrees('after a jump and a landing');
 }
 

@@ -65,7 +65,11 @@ Also modified at the end: `games/pushkar-ball/README.md`, `games/pushkar-ball/te
 
 ---
 
-## Task 1: Raise the ball clear of the controls
+## Task 1: Raise the ball clear of the controls — DONE
+
+> Commits `6ee66ff`, `2b585ab`, `0a9b805` and the camera-suite follow-up. Spec review passed; code quality review passed ("ready to merge").
+>
+> Three things came out of it that the plan did not anticipate, all recorded in their commits: `Camera.snap()` **and** the constructor both had to be brought into line, because a settled camera rests at `ball.y + BIAS_Y - DEADZONE_Y` and snapping to `ball.y` left every respawn and every level's first frame with a ~20-unit glide against `snap`'s own promise of none; `tests/browser/jump.mjs` carried a pre-existing phase-1 bug where the window was derived from `MAX_SPEED` as though it were a speed limit, which it is not (it clamps only the acceleration the player asks for, and a slope adds to `vx` underneath it) — fixed in `56b1f36`; and the camera suite now also pins the deadzone absorbing a whole jump, with a guard that fails loudly if retuned numbers ever make a jump large enough to escape it.
 
 Phase 1 left the ball riding about 74% of the way down the screen, which puts it inside the band where the on-screen buttons are drawn at the start and end of a level — a thumb sits on top of the hero. That was tolerable while the ground was empty. Phase 2 puts spikes on that ground, so it stops being tolerable.
 
@@ -76,7 +80,7 @@ This task is first because it is small, it is immediately visible, and every scr
 - Modify: `games/pushkar-ball/js/camera.js`
 - Create: `games/pushkar-ball/tests/offline/camera.mjs`
 
-- [ ] **Step 1: Write the failing camera test**
+- [x] **Step 1: Write the failing camera test**
 
 Create `games/pushkar-ball/tests/offline/camera.mjs`:
 
@@ -157,13 +161,13 @@ console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CAMERA CHECKS PASSED'
 process.exit(failures ? 1 : 0);
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `node games/pushkar-ball/tests/run.mjs camera`
 
 Expected: FAIL on all three screens — the ball overlaps the controls, or clears them by only a few pixels. On 740×280 phase 1's numbers put the overlap at its worst.
 
-- [ ] **Step 3: Add `BIAS_Y` to config.js**
+- [x] **Step 3: Add `BIAS_Y` to config.js**
 
 In `games/pushkar-ball/js/config.js`, inside `CAMERA`, after `DEADZONE_Y`:
 
@@ -185,7 +189,7 @@ In `games/pushkar-ball/js/config.js`, inside `CAMERA`, after `DEADZONE_Y`:
     BIAS_Y: 110,
 ```
 
-- [ ] **Step 4: Aim below the ball in camera.js**
+- [x] **Step 4: Aim below the ball in camera.js**
 
 In `games/pushkar-ball/js/camera.js`, replace the vertical block of `update`:
 
@@ -213,7 +217,7 @@ with:
     }
 ```
 
-- [ ] **Step 5: Run the camera test**
+- [x] **Step 5: Run the camera test**
 
 Run: `node games/pushkar-ball/tests/run.mjs camera`
 
@@ -221,7 +225,7 @@ Expected: `offline/camera  ok  ALL CAMERA CHECKS PASSED`, with the printed dayli
 
 If a screen still fails, change `BIAS_Y` in `config.js` — not `camera.js`, and not the test's screen list or its half-a-ball rule. That list and that rule are the requirement.
 
-- [ ] **Step 6: Run every offline suite, then look at it**
+- [x] **Step 6: Run every offline suite, then look at it**
 
 Run: `node games/pushkar-ball/tests/run.mjs offline`
 
@@ -235,7 +239,7 @@ node games/pushkar-ball/tests/run.mjs browser
 
 Look at `tests/screenshots/roll-1-spawn.png` and `small-740x280-2-playing.png`. The ball should be clearly above the buttons with sky or hill behind it, not tinted by a button's white wash. Check that the ground is still visible below the ball — if the horizon has climbed so high that there is no ground on screen, `BIAS_Y` has gone too far.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add games/pushkar-ball/js/config.js games/pushkar-ball/js/camera.js games/pushkar-ball/tests/offline/camera.mjs
