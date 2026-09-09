@@ -1512,16 +1512,53 @@ In `sw.js` at the repo root, in the Pushkar Ball block of `PRECACHE`, after `'./
 
 Do **not** bump `CACHE`. Adding a file does not need it — editing `sw.js` at all re-runs `install`, and `addAll` puts the new path into the cache that already exists. A needless bump costs every installed phone a full re-download; this was done once and reverted already.
 
-- [ ] **Step 8b: Assert the squash and the dim, which only now become observable**
+- [ ] **Step 8b: Make the squash assertable, since it still cannot be seen**
 
-A fall-death happens off the bottom of the screen, so through Task 3 the squash was proved only by measurement with a throwaway probe and the dim only by arithmetic. A spike kills the ball **in plain view**, so this is the first task that can watch either of them happen, and it should.
+**Correction to my own Step 8b.** It said to add these assertions to "the browser suite you write for spikes". There is no such suite and there cannot be one in this task: level one has no spikes, level three does not exist until Task 6, and no browser suite can reach level three from a cold start. So a spike death still cannot be watched.
 
-Add to the browser suite you write for spikes, a frame or two after a spike death:
+What is genuinely available is the arithmetic. The dim is already covered — Task 3 extracted `Overlay.dim` into `ui.js` and `tests/offline/deflate.mjs` asserts its whole curve. The squash is not, because it is computed inline in `main.js`, which no offline suite can import.
 
-- The ball's bounding box is **wider than it is tall**. That is the squash and nothing else can satisfy it accidentally — a round ball is square-ish, and a ball that vanished has no box at all. `ballAt` already returns `pixels`; you will need the box as well, so extend the helper or read it in the suite.
-- **One sky pixel darkens.** Sample a pixel well clear of the world's geometry before the death and again mid-deflate, and assert it moved towards `COLOURS.DIM`. At full `DIM` a sky of `79,195,247` composites to about `59,145,185`, so the signal is large — but treat that as arithmetic rather than a measurement, and assert the direction of the change rather than any particular value.
+So do the same thing for it. Move the squash and swell scale out of `drawBall` into a pure method on the ball:
 
-Neither assertion needs a new number in the game, and both die honestly if the effect is removed.
+```js
+  /**
+   * How the ball should be drawn right now: `sx`/`sy` multipliers, 1 when it
+   * is whole. Deflating flattens it, re-inflating swells it back.
+   *
+   * State, not drawing — which is why it lives here and not in main.js, and
+   * why it returns numbers rather than touching a context. It is here at all
+   * so that it can be asserted in node: the squash happens off the bottom of
+   * the screen when a ball falls out of the world, so until a spike kills one
+   * in plain view there is nothing anywhere that can watch it happen.
+   */
+  squash() {
+    const D = CONFIG.DEFLATE;
+    if (this.dying > 0) {
+      const t = 1 - this.dying / D.TIME;
+      return { sx: 1 + D.SPREAD * t, sy: 1 - D.SQUASH * t };
+    }
+    if (this.reviving > 0) {
+      const t = 1 - this.reviving / D.INFLATE;
+      const s = D.INFLATE_FROM + (1 - D.INFLATE_FROM) * t;
+      return { sx: s, sy: s };
+    }
+    return { sx: 1, sy: 1 };
+  }
+```
+
+`drawBall` then reads `const { sx, sy } = ball.squash();` and keeps the translate exactly as it is — the translate is drawing and stays in `main.js`.
+
+Then assert it in `tests/offline/deflate.mjs`, walking one whole failure as the dim check already does:
+
+- `{1, 1}` at rest, before anything happens.
+- While dying: `sy` falls monotonically and `sx` rises monotonically, `sy` never reaching 0 or below.
+- The flattest frame is **wider than it is tall** (`sx > sy`). That is the squash and nothing else satisfies it.
+- While reviving: both scale equally (`sx === sy`, so it comes back round, not oval) and rise monotonically to 1.
+- `{1, 1}` again once playable.
+
+Break it afterwards and confirm each clause fails — an inverted phase, a scale that never returns to 1, an oval swell.
+
+**The picture itself is deferred to Task 7**, which already builds `tools/panels.html` for exactly this reason: the results panel cannot be reached in a test either. Task 7 gains a second tool page that draws the ball at several points through a deflate so the shape can be judged by eye. Note there that Task 3 measured the real thing with a throwaway probe and found the ball's bottom edge held to within half a pixel through the whole squash, so the tool page is confirming a known-good shape rather than discovering it.
 
 - [ ] **Step 9: Run the hazards test, then every offline suite**
 
@@ -2640,6 +2677,7 @@ python -m http.server 8778
 | Page | What it is for |
 |---|---|
 | `panels.html` | The results panel at 844×390, 568×320 and 740×280, over grass and sky, with its tap areas ringed in magenta. Open it after any change to `Panel` in `js/ui.js`. |
+| `deflate.html` | The ball drawn at several points through a deflate and a re-inflate, on a ground line, so the squash can be judged by eye. It exists because a falling death happens off the bottom of the screen and a spike death is not reachable by any browser suite, so this shape is otherwise never seen. Its arithmetic is asserted in `tests/offline/deflate.mjs`; this page is for whether it *looks* like a ball flattening onto a floor. Check the bottom edge stays on the ground line across every frame — Task 3 measured it holding to within half a pixel. |
 
 The magenta rings are the hit radii `ui.js` reports, not the drawn circles. If a
 ring is not concentric with the button under it, the panel is drawn in one place
