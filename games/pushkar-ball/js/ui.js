@@ -153,13 +153,20 @@ export const Overlay = {
    * How visible the ball should be while invincible after a hit, 0..1. 1
    * whenever nothing is happening.
    *
+   * Suppressed while `dying > 0`: a hit's invincibility timer is still
+   * running through the whole squash (see player.js's `_loseHeart`, which
+   * sets `iframe` on every hit including the ones that trigger a relocate),
+   * and update()'s deflate branch never decrements it, so without this check
+   * the squash would render at a permanently dimmed, non-flickering alpha
+   * instead of the ball's normal full-opacity deflate.
+   *
    * A step function rather than a fade: at CONFIG.HEALTH.IFRAME's half a
    * second, a fade barely reads at all, where an on/off flicker is what
    * tells a player "you cannot be hit again yet" in every game that has
    * i-frames.
    */
   flash(ball) {
-    if (ball.iframe <= 0) return 1;
+    if (ball.dying > 0 || ball.iframe <= 0) return 1;
     const HZ = 8; // full flickers per second
     return Math.floor(ball.iframe * HZ * 2) % 2 === 0 ? 0.35 : 1;
   },

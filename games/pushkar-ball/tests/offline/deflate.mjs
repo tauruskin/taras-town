@@ -305,5 +305,33 @@ const run = (ball, level, input, seconds) => {
   console.log(`   and it is back to ${after.sx} x ${after.sy} once the ball is playable again`);
 }
 
+// --- 7. the flash flickers during ordinary invincibility, but not during
+// a death's squash --------------------------------------------------------
+//
+// Overlay.flash and Overlay.dim can both be active at once — a hit that
+// exhausts the last heart sets `iframe` (from _loseHeart) AND `dying` (from
+// _relocate) in the same call — and the squash must win: a death is supposed
+// to read as a full-opacity puddle, not a permanently dimmed one, even
+// though the invincibility timer from that same hit is still running.
+{
+  const level = world();
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+
+  if (Overlay.flash(ball) !== 1) fail(`the flash is not 1 while nothing is happening: ${Overlay.flash(ball)}`);
+
+  ball.hit(1);
+  if (ball.iframe <= 0) fail('the hit did not grant invincibility, so this proves nothing');
+  console.log(`\n7. mid-invincibility after a non-fatal hit: flash=${Overlay.flash(ball)}`);
+  if (Overlay.flash(ball) === 1) fail('the flash never dims during ordinary invincibility — check the step function');
+
+  ball.hearts = 1;
+  ball.iframe = 0;
+  ball.hit(1);
+  if (ball.dying <= 0) fail('the hit did not trigger a relocate, so this proves nothing');
+  if (ball.iframe <= 0) fail('the fatal hit did not also grant invincibility, so this proves nothing about the interaction');
+  console.log(`   mid-squash after a fatal hit: dying=${ball.dying.toFixed(2)}, iframe=${ball.iframe.toFixed(2)}, flash=${Overlay.flash(ball)}`);
+  if (Overlay.flash(ball) !== 1) fail(`the squash should render at full opacity even while iframe is still running: flash=${Overlay.flash(ball)}`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL DEFLATE CHECKS PASSED');
 process.exit(failures ? 1 : 0);
