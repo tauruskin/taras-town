@@ -20,24 +20,59 @@ import { CONFIG } from './config.js';
 // nothing that touches the segment world or the DOM.
 import { hitsSpikes } from './hazards.js';
 
+// A note on how long a level is, and how sparse its checkpoints are.
+//
+// Levels 1-3 below were rewritten in Sep 2026 after the first three shipped —
+// they were roughly 4000-4800 units wide, about 15-25 seconds of real play,
+// and level three had a checkpoint before every one of its three spike
+// patches. Both were wrong. A "round" should be long enough to be worth
+// sitting down for — these run 13,600-16,800 units, roughly 3.5-4x the
+// originals, which is 60-100+ seconds of unhurried play rather than a blink.
+// And a checkpoint belongs before the single hardest STRETCH of a level, not
+// before every individual jump: each level below carries exactly two,
+// positioned to break the level into large, roughly even pieces so one
+// mistake costs a third of the level, not the whole run, but a run of easy,
+// already-practised ground in between never gets flagged just for existing.
+//
+// The gap widths reused here (200, 220, 240, 260) and the spike widths
+// (70-100) are not new numbers — they are exactly the ones the original three
+// levels proved completable, thirty ways each, in tests/offline/finish.mjs.
+// Physics does not care where in the world a jump happens, so reusing proven
+// distances at new positions carries the same guarantee forward rather than
+// staking a new level on freshly-guessed arithmetic. Every level below is
+// re-proven completable by that same suite regardless.
 export const LEVELS = [
   {
     id: 1,
     theme: 'hills',
-    bounds: { w: 4800, h: 1080 },
+    bounds: { w: 16800, h: 1080 },
     spawn: { x: 200, y: 560 },
-    goal: { x: 4660, y: 680 },
+    goal: { x: 16660, y: 680 },
 
     ground: [
-      // Flat to begin with, then up a ramp, along the top and down the other
-      // side. Rolling and slopes, before anything at all is asked of the player.
-      [[40, 760], [900, 760], [1250, 600], [1600, 600], [1950, 760], [2400, 760]],
-      // After a 200px gap: flat, a bowl to roll through, then flat again. 200px
-      // is comfortable at speed — the jump reaches about 290px — so the first
-      // gap in the game is nowhere near the limit.
-      [[2600, 760], [3100, 760], [3250, 840], [3450, 840], [3600, 760], [4200, 760]],
+      // A long flat start — MORE room than the original gave before its first
+      // hill, so the roll suite's friction measurement, which happens right
+      // after spawn, has at least as much clear road as it always had. Then a
+      // hill (up, along, down): rolling and slopes, before anything at all is
+      // asked of the player.
+      [[40, 760], [1100, 760], [1450, 600], [1800, 600], [2150, 760], [2950, 760]],
+      // After a 200px gap: a bowl, a long flat run with nothing in it — pure
+      // rolling, the kind of stretch a long level needs and a short one has no
+      // room for — then a second, bigger hill and a flat to the second gap.
+      [
+        [3150, 760], [3500, 760], [3650, 840], [3850, 840], [4000, 760], [4600, 760],
+        [6400, 760], [6900, 540], [7500, 540], [8000, 760], [8850, 760],
+      ],
+      // After the 240px second gap: a second bowl, another long flat, a third
+      // and tallest hill, then flat to the final approach. The vertical lift
+      // sits somewhere in the long flat between the bowl and the hill —
+      // nothing needs it, same as the first level ever had.
+      [
+        [9090, 760], [10600, 760], [10950, 760], [11100, 840], [11300, 840], [11450, 760], [12200, 760],
+        [13800, 760], [14350, 520], [15000, 520], [15550, 760], [16200, 760],
+      ],
       // The last ledge. Nothing but the moving platform reaches it.
-      [[4560, 680], [4760, 680]],
+      [[16560, 680], [16760, 680]],
     ],
 
     boxes: [
@@ -45,7 +80,7 @@ export const LEVELS = [
       // and drawn as stone rather than wood so that "wood means you can push
       // it" stays true everywhere.
       { x: 0, y: 0, w: 40, h: 1080 },
-      { x: 4760, y: 0, w: 40, h: 1080 },
+      { x: 16760, y: 0, w: 40, h: 1080 },
       // Two wooden crates, and both can be pushed. Jump them, roll over them
       // at speed, or shove them about.
       //
@@ -54,37 +89,38 @@ export const LEVELS = [
       // comment would be the easiest kind of lie to leave behind. They are
       // here so the mechanic is in a child's hands from the first level and so
       // the game exercises it; the level that is built around a crate belongs
-      // with phase 2's level design, where the geometry can be drawn for it.
+      // with level two, where the geometry is drawn for it.
       // What a crate can do is proved in tests/offline/crates.mjs, on a level
       // built for the purpose, with a ledge the jump provably cannot reach.
-      //
-      // Both sit beyond the first flat, and the first flat is kept clear on
-      // purpose: the roll suite measures friction by letting the ball coast to
-      // a stop there. A crate put on that stretch — the obvious place for one,
-      // and where this one started — stops the ball dead instead, and the
-      // suite goes on passing while measuring nothing at all.
-      { x: 2700, y: 660, w: 100, h: 100, movable: true },
-      { x: 3780, y: 660, w: 110, h: 100, movable: true },
+      { x: 2450, y: 660, w: 100, h: 100, movable: true },
+      { x: 8300, y: 660, w: 110, h: 100, movable: true },
     ],
 
     platforms: [
-      // Across the last gap. Its travel is chosen so its left edge reaches back
-      // over the ground at 4200 and its right edge stops short of the ledge at
-      // 4560, leaving a small hop — a platform that docks exactly with the
-      // scenery just reads as part of it.
-      { x: 4275, y: 740, w: 170, h: 28, axis: 'x', dist: 85, period: 5.0, phase: 0 },
-      // A lift over the first flat. Nothing needs it; it is here so vertical
-      // movers are exercised by the game and not only by the tests.
-      { x: 1700, y: 470, w: 150, h: 28, axis: 'y', dist: 120, period: 4.0, phase: 0.25 },
+      // Across the last gap. Its travel is chosen so its left edge reaches
+      // back over the ground at 16200 and its right edge stops short of the
+      // ledge at 16560, leaving a small hop — a platform that docks exactly
+      // with the scenery just reads as part of it. This is platforms[0]
+      // deliberately: tests/offline/finish.mjs's route for this level reads
+      // level.movers[0] to find it, and mover order follows platform order.
+      { x: 16275, y: 740, w: 170, h: 28, axis: 'x', dist: 85, period: 5.0, phase: 0 },
+      // A lift over the long flat between the first bowl and the second hill.
+      // Nothing needs it; it is here so vertical movers are exercised by the
+      // game and not only by the tests.
+      { x: 9700, y: 470, w: 150, h: 28, axis: 'y', dist: 120, period: 4.0, phase: 0.25 },
     ],
 
-    // Two, both immediately before something that can be failed: the first
-    // gap, and the last one that needs the moving platform. Not evenly spaced
-    // — a checkpoint in the middle of an easy run banks progress nobody was
-    // going to lose.
+    // Two, breaking the level into three pieces of roughly a third each
+    // rather than guarding every gap. The first ~8700 units — the first hill,
+    // both crates' worth of terrain, the first gap and bowl, the second hill —
+    // have no checkpoint at all: none of it is the level's hard part, it is
+    // the level's ROLLING, and a checkpoint there would only be banking
+    // progress nobody was going to lose. The two below sit right before the
+    // two stretches that can actually be failed: the second gap, and the
+    // final hill-then-platform approach.
     checkpoints: [
-      { x: 2300, y: 760 },
-      { x: 4120, y: 760 },
+      { x: 8750, y: 760 },
+      { x: 13750, y: 760 },
     ],
   },
 
@@ -95,31 +131,37 @@ export const LEVELS = [
     // without a hazard anywhere in sight.
     id: 2,
     theme: 'hills',
-    bounds: { w: 3540, h: 1080 },
+    bounds: { w: 13600, h: 1080 },
     spawn: { x: 180, y: 560 },
-    goal: { x: 3380, y: 620 },
+    goal: { x: 13400, y: 620 },
 
     ground: [
-      // A long flat run to get up to speed, then two gaps of increasing size.
-      // 200px is comfortable at speed; 260px needs a proper run-up. Measured
-      // in tests/offline/finish.mjs's terms, a press anywhere in about 140px
-      // before the first edge gets across and about 100px before the second —
-      // the second is the tightest jump in the first three levels.
-      [[40, 760], [1200, 760]],
-      [[1400, 760], [2000, 760]],
-      // A step down and along: the flat where the crate lives, below the ledge.
-      [[2260, 800], [2900, 800]],
+      // A long flat run to get up to speed, then a first 200px gap.
+      [[40, 760], [1300, 760]],
+      // A long flat, then a 220px gap — a shade wider than the first, so the
+      // sequence keeps asking a little more without ever asking two things
+      // at once.
+      [[1500, 760], [3800, 760]],
+      // A long flat, then the 260px gap — the tightest jump in the level.
+      [[4020, 760], [6400, 760]],
+      // A long flat, then a 240px gap — a little easier than the one just
+      // met, a breather before the level's real subject.
+      [[6660, 760], [9000, 760]],
+      // The step down and along: the flat where the crate lives, below the
+      // ledge, and MUCH longer than the original gave — there is room here to
+      // experiment with the crate without the flat itself feeling cramped.
+      [[9240, 800], [11200, 800]],
       // The high ledge, and the goal is on it. Its top is 180px above the flat
       // below, and a jump from that flat reaches 131px — a ball there is at
       // y=780 and peaks at 649, which is not the 600 it needs to land on 620.
       // Standing on a 100px crate it is at 680 and peaks at 549, which is. So
       // the crate is the only way up, with about 50px of margin either way.
-      [[2960, 620], [3500, 620]],
+      [[11260, 620], [13560, 620]],
     ],
 
     boxes: [
       { x: 0, y: 0, w: 40, h: 1080 },
-      { x: 3500, y: 0, w: 40, h: 1080 },
+      { x: 13560, y: 0, w: 40, h: 1080 },
       // The ledge's face, as a stone box rather than a bend in the polyline.
       //
       // A ground polyline cannot turn vertical here: winding order gives a
@@ -133,104 +175,103 @@ export const LEVELS = [
       //
       // It runs to the bottom of the level rather than stopping at the flat's
       // 800, because the ground is drawn as a filled band under each line and
-      // the two bands here end 60px apart. A face stopping at 800 left that
-      // slot open below it, and the hills showed through a crevice under the
-      // stone.
-      { x: 2900, y: 620, w: 60, h: 460 },
+      // the two bands here end short of each other otherwise. A face stopping
+      // partway left a crevice open below it, and the hills showed through.
+      { x: 11200, y: 620, w: 60, h: 460 },
       // The crate that matters, on the flat below the ledge, well clear of
-      // both gaps so it cannot be shoved into one before it is needed. It can
-      // be — crates come back when they fall out — but a child who loses it
-      // for ten seconds has learned nothing except that things vanish.
-      { x: 2400, y: 700, w: 100, h: 100, movable: true },
+      // the gap behind it so it cannot be shoved off the edge before it is
+      // needed. It can be — crates come back when they fall out — but a child
+      // who loses it for ten seconds has learned nothing except that things
+      // vanish. This is boxes' only movable entry: tests/offline/finish.mjs's
+      // route for this level reads level.crates[0] to find it.
+      { x: 9700, y: 700, w: 100, h: 100, movable: true },
     ],
 
     platforms: [],
 
+    // Two, not one per gap. The first sits right before the level's tightest
+    // jump — the 260px gap — so failing THAT specific jump costs only that
+    // jump, not the two easier gaps rolled through to reach it. The second
+    // sits on the crate flat, 100px before the crate itself — the same
+    // relative spacing the level always used — so a respawn still lands on
+    // the correct side to push it. Placing this one BEHIND the crate instead
+    // (which the first draft did, at the crate's own far edge) left a
+    // respawned ball on the wrong side to push from, unable to finish;
+    // tests/offline/finish.mjs's per-checkpoint pass is what caught it.
+    // Working out a crate means backing up and trying again, and the flat
+    // ends in a gap on its left — without this flag, every child who backs
+    // off the flat while experimenting is sent to redo a gap before he may
+    // try the crate again.
     checkpoints: [
-      // Before the second, wider gap — the tightest jump in the level: a press
-      // anywhere in about 100px of run-up gets across, against about 140px for
-      // the 200px gaps. Respawning here leaves 100px to the edge, and the ball
-      // is at full speed after 55 of them.
-      { x: 1900, y: 760 },
-      // On the flat where the crate lives, just past the landing: the puzzle
-      // is the hard stretch in this level, not the gap before it. Working out
-      // a crate means backing up and trying again, and the flat ends in that
-      // wide gap on its left — without this flag, every child who backs off
-      // the end while experimenting is sent to redo the hardest jump in the
-      // level before he may try the crate again.
-      { x: 2300, y: 800 },
+      { x: 6260, y: 760 },
+      { x: 9600, y: 800 },
     ],
   },
 
   {
     // Level three introduces the spike, and nothing else. Everything under it
     // — rolling, gaps, crates, a moving platform — has already been met.
-    //
-    // The first patch is somewhere failing costs a few seconds: flat ground,
-    // in plain sight, with a checkpoint just before it. That is the rule for
-    // introducing anything, and it is the reason this level is longer than it
-    // looks: the safe rehearsal has to come before the real ask.
     id: 3,
     theme: 'hills',
-    bounds: { w: 4380, h: 1080 },
+    bounds: { w: 15200, h: 1080 },
     spawn: { x: 180, y: 560 },
     // On the ground, like every other goal in the game — level one's sits at
     // its ledge's own height. GOAL.R is forgiving enough either way, but a
     // flag floating 60px in the air is a flag drawn hovering.
-    goal: { x: 4200, y: 760 },
+    goal: { x: 15000, y: 760 },
 
     ground: [
-      // Flat, with the first spikes on it, in the open.
-      [[40, 760], [1500, 760]],
-      // A 200px gap, the same size as level one's, then a long flat with the
-      // second patch well along it.
-      [[1700, 760], [2600, 760]],
-      // Up a ramp and along the high ground, with the third patch on it.
-      [[2600, 760], [2950, 620], [3500, 620]],
-      // Down and home.
-      [[3500, 620], [3800, 760], [4340, 760]],
+      // A long flat with the first two patches on it, in the open, well
+      // before any checkpoint. The first is close enough to spawn that
+      // meeting a spike for the very first time costs almost nothing even
+      // without a flag to catch it — that is the safe rehearsal the rule
+      // asks for. The second is the same idea, met a second time, still on
+      // easy ground, before the level asks for anything else at once.
+      [[40, 760], [5200, 760]],
+      // After a 200px gap — the same size as level one's, already met and
+      // already practised there — a long flat with the third patch on it,
+      // then up a ramp onto high ground with the fourth. Nothing guards the
+      // gap itself: it is not the new idea here, only the spikes are, and
+      // only a new idea earns its own checkpoint in this level.
+      [[5400, 760], [9800, 760], [10150, 620], [11800, 620]],
+      // Down off the high ground and a long flat home.
+      [[11800, 620], [12150, 760], [15160, 760]],
     ],
 
     boxes: [
       { x: 0, y: 0, w: 40, h: 1080 },
-      { x: 4340, y: 0, w: 40, h: 1080 },
+      { x: 15160, y: 0, w: 40, h: 1080 },
     ],
 
     platforms: [
       // Across the gap, so it can be crossed by waiting as well as by jumping.
       // Two ways past the same obstacle is how a level stops being a wall.
-      { x: 1540, y: 800, w: 150, h: 26, axis: 'x', dist: 70, period: 4.5, phase: 0 },
+      { x: 5240, y: 800, w: 150, h: 26, axis: 'x', dist: 70, period: 4.5, phase: 0 },
     ],
 
     spikes: [
-      // The rehearsal: narrow, flat, unmissable, right after a checkpoint.
-      { x: 900, y: 760, w: 80 },
-      // After the gap, but a long way after it — the landing edge is at 1700,
-      // so that is 550px of flat between it and the teeth. Close behind the
-      // landing would make the gap and the spikes one piece of timing, which
-      // is the thing never to ask.
-      { x: 2250, y: 760, w: 100 },
-      // On the high ground, 250px past the crest of the ramp, so it is in
-      // plain view from the top before it has to be jumped.
-      { x: 3200, y: 620, w: 90 },
+      // The rehearsal: narrow, flat, unmissable, close to spawn.
+      { x: 700, y: 760, w: 70 },
+      // A second, still-easy patch on the same long flat — one more rep of
+      // the new idea before the gap and the first checkpointed stretch.
+      { x: 3400, y: 760, w: 90 },
+      // The first patch that is really asked of the player, well after the
+      // gap so the gap and the spikes are never one piece of timing.
+      { x: 7200, y: 760, w: 100 },
+      // On the high ground, in plain view from the top of the ramp before it
+      // has to be jumped.
+      { x: 11100, y: 620, w: 90 },
     ],
 
+    // Two, not one per patch. The first two patches sit close to spawn and
+    // are cheap to redo from it, which is the whole point of a rehearsal —
+    // flagging them would just be banking progress nobody was going to lose.
+    // Each checkpoint below sits right before the one real test that follows
+    // it, so failing a patch costs that patch and nothing rolled through to
+    // reach it.
     checkpoints: [
-      // One immediately before each patch, and nowhere else. Meeting spikes
-      // for the first time is exactly the moment to lose nothing but seconds,
-      // and a patch failed should never send him back to redo the one before
-      // it — or the gap.
-      //
-      // Nothing guards the gap at 1500-1700 itself, 720px past this one —
-      // that is deliberate rather than an oversight. The gap is the same
-      // 200px as level one's, already met and already practised there; only
-      // a NEW idea earns its own checkpoint here, which is why every one of
-      // the three below sits on a spike patch and none sits on a gap.
-      // tests/offline/finish.mjs proves the stretch from here is still
-      // completable in one.
-      { x: 780, y: 760 },
-      { x: 2100, y: 760 },
-      { x: 3050, y: 620 },
+      { x: 7050, y: 760 },
+      { x: 10950, y: 620 },
     ],
   },
 ];

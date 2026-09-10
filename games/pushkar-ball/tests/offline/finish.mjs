@@ -100,8 +100,8 @@ const ROUTES = {
   1: (level, lead) => {
     const run = runner(level, lead);
     const m = level.movers[0];
-    const edge = 4200;          // the end of the ground before the last gap
-    const ledge = 4560;         // where the ledge begins
+    const edge = 16200;         // the end of the ground before the last gap
+    const ledge = 16560;        // where the ledge begins
     let stage = 'run';
     return (ball) => {
       if (stage === 'run') {

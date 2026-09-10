@@ -227,6 +227,19 @@ Level count: five. One and two teach rolling and jumping on hills; three
 introduces moving platforms and spikes; four moves indoors to the toy factory
 with saws and conveyors; five combines everything.
 
+**A level should be long enough to be worth sitting down for.** Levels one
+through three's first draft (phase 2) ran 3,500-4,800 world units — 15-25
+seconds of real, unhurried play, closer to a blink than a round. Corrected on
+request in Sep 2026 to roughly 13,000-17,000 (60-100+ seconds), which is the
+number the shipped levels actually hold to; treat it as the floor for four and
+five too, not a one-off fix. The way to get there without making anything
+harder is the difficulty rule already below — **longer rather than sharper**:
+more distance of plain rolling between moments that matter, and where it fits,
+one more low-stakes repetition of the level's own idea (a level already
+introducing gaps can have three or four of them instead of two, provided none
+is harder than the last and every one is still comfortably inside the jump's
+reach) rather than a new kind of difficulty layered in to fill the time.
+
 ### Difficulty: rising, and never harsh
 
 Each level is harder than the one before it and **none of them is hard**. That
@@ -256,6 +269,20 @@ that failing the hard part costs the hard part and nothing else — a checkpoint
 in the middle of an easy run just banks progress nobody was going to lose.
 
 A short level gets none: restarting it is quicker than reaching its middle.
+
+**"A hard stretch" means a substantial piece of the level, not an individual
+obstacle.** Levels two and three's first draft (Task 6, phase 2) put a
+checkpoint before every one of level three's three spike patches — three
+checkpoints, one per obstacle. That reads as "immediately before a hard
+stretch" if each patch is treated as its own stretch, but it was not what the
+rule meant, and it was corrected on request in Sep 2026 along with the level
+lengths below. A checkpoint marks the boundary between large *pieces* of a
+level — roughly thirds of it — not a fence around every jump. The test of
+whether a checkpoint earns its place: would skipping it mean redoing a real
+chunk of the level, or would it just mean redoing the one thing right next to
+it? Only the first is worth a flag. The easy, already-practised stretch of a
+level — including its first hazard of a newly-introduced kind, which is meant
+to be cheap to fail — goes unguarded on purpose.
 
 Phase 1 already respawns the ball at the level's spawn when it falls out of the
 world, so phase 2's work is to change the *target* of that respawn to the last

@@ -71,21 +71,25 @@ for (let waited = 0; waited < budget && !back; waited += 100) {
 if (!back) fail(`the ball never came back within ${(budget / 1000).toFixed(1)}s of falling`);
 else {
   console.log(`\n3. it came back at ${back.x.toFixed(0)},${back.y.toFixed(0)} (it started at ${start.x.toFixed(0)},${start.y.toFixed(0)})`);
-  // Level one has a checkpoint immediately before its first gap, which the
-  // drive right has just rolled through, so home is that flag and not the
-  // spawn. It is far from the level's left edge, so the camera is not clamped
-  // there: it snaps to the ball on arrival, and a snapped camera with a ball
-  // at rest puts the ball in the exact middle of the screen, sideways. That
-  // is a sharper question than "near the start" was — a camera still gliding
-  // over from the hole would put the ball somewhere else.
+  // Level one's checkpoints sit well past its first gap on purpose — Sep 2026
+  // rewrote it as a much longer level with only two checkpoints, breaking it
+  // into large pieces rather than guarding every gap, and the first several
+  // thousand units of rolling are deliberately unguarded because none of it
+  // is the level's hard part. So falling into the FIRST gap has no checkpoint
+  // to catch it, and home is still the spawn — which is what makes `start`
+  // the right thing to compare against, not some derived mid-level position.
   //
-  // This used to assert the ball came back where it began, which was only
-  // true while level one had no checkpoints; they arrived in Task 6.
-  const cp = LEVELS[0].checkpoints?.find((c) => c.x < gapFrom);
-  if (!cp) fail('level one has no checkpoint before its first gap, so the check below is asking the wrong question');
-  else console.log(`   home is the checkpoint at ${cp.x}, before the gap at ${gapFrom}`);
-  if (Math.abs(back.x - W / 2) > 30) {
-    fail(`it came back at x=${back.x.toFixed(0)}; a camera snapped to a ball at its checkpoint puts it at ${W / 2}`);
+  // The camera snaps on arrival either way, so this is really asking: does a
+  // respawn at the same world position put the ball back at the same SCREEN
+  // position it started at? A camera still gliding over from the hole, or
+  // snapped to the wrong bias, would put it somewhere else even though the
+  // world position matches exactly.
+  if (LEVELS[0].checkpoints?.some((c) => c.x < gapFrom)) {
+    fail('level one now has a checkpoint before its first gap; this check needs to compare against that checkpoint, not the spawn');
+  } else if (Math.abs(back.x - start.x) > 30) {
+    fail(`it came back at x=${back.x.toFixed(0)}, not near where it started, ${start.x.toFixed(0)} — home should still be the spawn`);
+  } else {
+    console.log(`   home is still the spawn — no checkpoint precedes the first gap — and the ball landed back near ${start.x.toFixed(0)}`);
   }
 }
 // Caught mid-inflate, most likely, since the poll above stops the instant any
@@ -117,13 +121,19 @@ await shoot('3-settled');
 
 // And it is playable: holding a direction moves it again.
 //
-// LEFT, away from the gap: home is now 100px short of it, and holding right
-// would drop the ball straight back in. And measured by the camera's
-// LOOKAHEAD, because the camera is not clamped here and follows the ball, so
-// the ball's screen position says nothing about how far it went — see
-// jump.mjs's check 3 for what assuming otherwise cost. What it does say is
-// how FAST it is going: at full speed the ball settles off-centre by a fixed
-// amount, derived below.
+// RIGHT, not left. Home is the spawn now that level one's first gap has no
+// checkpoint before it (Sep 2026's rewrite — see the note at check 3), and the
+// spawn sits close to the level's LEFT wall: holding left for 900ms hits that
+// wall in about a third of a second and stops there, which is nothing like the
+// sustained full-speed roll this check needs to measure. Right has thousands
+// of units of clear flat before the first gap, so it is the safe direction
+// here regardless of which way a checkpoint might once have made risky.
+//
+// Measured by the camera's LOOKAHEAD, because the camera is not clamped here
+// and follows the ball, so the ball's screen position says nothing about how
+// far it went — see jump.mjs's check 3 for what assuming otherwise cost. What
+// it does say is how FAST it is going: at full speed the ball settles
+// off-centre by a fixed amount, derived below.
 //
 // NOT `LOOKAHEAD * MAX_SPEED`. That treats `camera.x` as though it snapped
 // straight to its target every step, but `update` LERPS toward
@@ -142,9 +152,8 @@ await shoot('3-settled');
 //
 // A generous safety fraction (0.8) on top, since 900ms may not be quite long
 // enough to fully settle and the steady-state formula is itself a limit.
-const LEFT = Buttons.left(W, H);
 const before = await ballAt(ev);
-await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: LEFT.x, y: LEFT.y, id: 1 }] });
+await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: RIGHT.x, y: RIGHT.y, id: 1 }] });
 await sleep(900);
 const after = await ballAt(ev);
 await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
@@ -152,7 +161,7 @@ const C = CONFIG.CAMERA;
 const steadyLead = (C.LOOKAHEAD - 1 / C.LERP) * CONFIG.MAX_SPEED * (H / CONFIG.VIEW_H);
 if (!after) fail('lost the ball again while checking it still rolls');
 else if (after.x - before.x < steadyLead * 0.8) {
-  fail(`after coming back, holding left put the ball only ${(after.x - before.x).toFixed(0)}px right of where it was; the camera's steady-state lag at full speed puts it about ${steadyLead.toFixed(0)}px`);
+  fail(`after coming back, holding right put the ball only ${(after.x - before.x).toFixed(0)}px right of where it was; the camera's steady-state lag at full speed puts it about ${steadyLead.toFixed(0)}px`);
 } else console.log(`\n5. and it rolls again: the camera leads it by ${(after.x - before.x).toFixed(0)}px, about ${steadyLead.toFixed(0)} at full speed`);
 
 for (const p of problems) fail(p);
