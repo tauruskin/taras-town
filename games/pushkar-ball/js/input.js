@@ -19,6 +19,12 @@ export class Input {
     this._keys = new Set();      // 'left' | 'right'
     this._pointers = new Map();  // pointerId -> button name
     this._jump = false;          // an unconsumed press
+    // A tap that hit no control, for the panels. Kept as a POSITION and not as
+    // a button name, because the results panel's buttons are not game controls
+    // and are not in ui.js's Buttons: the panel knows its own geometry, and
+    // this file has no business learning about every overlay the game ever
+    // grows. Null when there is nothing waiting.
+    this._tap = null;
 
     canvas.addEventListener('pointerdown', (e) => this._down(e));
     canvas.addEventListener('pointermove', (e) => this._move(e));
@@ -55,7 +61,15 @@ export class Input {
 
   _down(e) {
     const name = this._hit(e);
-    if (!name) return;
+    if (!name) {
+      // Remembered rather than dropped, so an overlay can ask where the last
+      // tap on nothing was. Not preventDefault'd, deliberately: a press that
+      // is not on a control is left alone exactly as it was before, so a tap
+      // on the world still behaves like a tap on a page.
+      const r = this.canvas.getBoundingClientRect();
+      this._tap = { x: e.clientX - r.left, y: e.clientY - r.top };
+      return;
+    }
     e.preventDefault();
     if (name === 'jump') this._jump = true;
     else this._pointers.set(e.pointerId, name);
@@ -92,6 +106,16 @@ export class Input {
    * to use it, rather than existing only during the frame the finger was down.
    */
   takeJump() { const j = this._jump; this._jump = false; return j; }
+
+  /**
+   * Where the last tap that missed every control was, consumed.
+   *
+   * Consumed for the same reason a jump press is: an overlay that read a HELD
+   * position would fire its button on every frame the finger was down, so a
+   * results panel would retry the level dozens of times in the third of a
+   * second a thumb rests on it.
+   */
+  takeTap() { const t = this._tap; this._tap = null; return t; }
 
   /** What to draw as pressed. */
   held() {

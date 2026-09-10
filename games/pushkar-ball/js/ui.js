@@ -172,3 +172,217 @@ export const Overlay = {
     ctx.restore();
   },
 };
+
+/**
+ * Panel — the results panel shown when a level is won.
+ *
+ * Its geometry lives here for exactly the reason the control buttons' does:
+ * the tests ask for it, and no test may ever contain a coordinate. Positions
+ * are in CSS pixels from the top-left of the canvas.
+ *
+ * There are two buttons and no more. A grid button to level select is missing
+ * on purpose — level select is phase 4, and a button that goes nowhere is
+ * worse than no button. Retry is the curved arrow; the house goes back to the
+ * hub. Both are visible the whole time the panel is, because the panel
+ * advances to the next level by itself and a child who wants to replay the
+ * level he just enjoyed must not be carried onward regardless.
+ *
+ * Everything here except `draw` is arithmetic, and nothing measures anything:
+ * measuring text needs a context, and this file has to stay importable in Node
+ * with no browser anywhere. So the digit's box is DECLARED in config.js and
+ * the drawing is made to fit it, rather than the other way round.
+ */
+export const Panel = {
+  /**
+   * The panel itself, centred, and clamped so it always fits.
+   *
+   * Clamped rather than scaled: a panel that shrank would take its buttons and
+   * its digit down with it, and both of those are sized for a thumb and an eye
+   * rather than for the window. What the clamp protects against is a screen
+   * shorter than the panel, where the honest answer is to lose the margin.
+   */
+  box(w, h) {
+    const R = CONFIG.RESULTS;
+    const pw = Math.min(R.PANEL_W, w - 24);
+    const ph = Math.min(R.PANEL_H, h - 24);
+    return { x: (w - pw) / 2, y: (h - ph) / 2, w: pw, h: ph };
+  },
+
+  /** Replay this level. Left of centre, low in the panel. */
+  retry(w, h) {
+    const R = CONFIG.RESULTS;
+    const b = Panel.box(w, h);
+    return {
+      x: b.x + b.w / 2 - R.BUTTON_R - R.GAP / 2,
+      y: b.y + b.h - R.BUTTON_R - R.BUTTON_LIFT,
+      r: R.BUTTON_R,
+    };
+  },
+
+  /** Back to the hub's tile screen. Right of centre, level with retry. */
+  home(w, h) {
+    const R = CONFIG.RESULTS;
+    const b = Panel.box(w, h);
+    return {
+      x: b.x + b.w / 2 + R.BUTTON_R + R.GAP / 2,
+      y: b.y + b.h - R.BUTTON_R - R.BUTTON_LIFT,
+      r: R.BUTTON_R,
+    };
+  },
+
+  /** Where the i'th of the three stars is. */
+  star(i, w, h) {
+    const R = CONFIG.RESULTS;
+    const b = Panel.box(w, h);
+    return {
+      x: b.x + b.w / 2 + (i - 1) * R.STAR_R * R.STAR_SPACING,
+      y: b.y + R.STAR_TOP,
+      r: R.STAR_R,
+    };
+  },
+
+  /**
+   * Where the level number goes, and how tall it is.
+   *
+   * A box and not just a point, so a test can check it clears the buttons and
+   * stays on the panel without measuring any text — which is the only way to
+   * check it at all in Node. `size` is the font's height in CSS pixels, and
+   * the digit is drawn centred on `x` and middled on `y`, so its band is `y`
+   * plus or minus half of `size`.
+   */
+  number(w, h) {
+    const R = CONFIG.RESULTS;
+    const b = Panel.box(w, h);
+    return { x: b.x + b.w / 2, y: b.y + R.NUMBER_Y, size: R.NUMBER_SIZE };
+  },
+
+  /** Which of the panel's buttons is at this point, or null. */
+  at(px, py, w, h) {
+    for (const name of PANEL_NAMES) {
+      const b = Panel[name](w, h);
+      const hit = b.r * CONFIG.UI.HIT;
+      if ((px - b.x) ** 2 + (py - b.y) ** 2 <= hit * hit) return name;
+    }
+    return null;
+  },
+
+  /**
+   * Draw it.
+   *
+   * @param level the level's own id, as a digit. The one kind of text he reads
+   *              reliably, and the only text this game draws anywhere.
+   * @param stars how many of three are earned. Phase 2 has no gems to collect,
+   *              so finishing earns one; the other two arrive with gems in
+   *              phase 3 and are drawn empty until then. Empty rather than
+   *              absent, so the picture already says there is more to get.
+   */
+  draw(ctx, w, h, { level, stars }) {
+    const C = CONFIG.COLOURS;
+    const b = Panel.box(w, h);
+
+    ctx.fillStyle = C.PANEL;
+    roundRect(ctx, b.x, b.y, b.w, b.h, 22);
+    ctx.fill();
+    ctx.strokeStyle = C.PANEL_EDGE;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Three stars, filled from the left.
+    for (let i = 0; i < 3; i++) {
+      const s = Panel.star(i, w, h);
+      star(ctx, s.x, s.y, s.r, i < stars ? C.STAR_ON : C.STAR_OFF);
+    }
+
+    // The level number. `textAlign`/`textBaseline` are set every time rather
+    // than once at the top of the file, because this context is shared with
+    // the whole of the world drawing and cannot be assumed to be in any
+    // particular state — and because setting them here is what makes
+    // `Panel.number`'s promise (centred on x, middled on y) actually true,
+    // which is what the button suite is checking against.
+    const n = Panel.number(w, h);
+    ctx.fillStyle = C.PANEL_INK;
+    ctx.font = `bold ${n.size}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(level), n.x, n.y);
+
+    // Retry: a curved arrow, drawn as an arc with a head on its end. Home: a
+    // house. Pictures, never words.
+    const r = Panel.retry(w, h);
+    circleButton(ctx, r, C);
+    ctx.strokeStyle = C.PANEL_INK;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r * 0.5, Math.PI * 0.35, Math.PI * 1.75);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r.x + r.r * 0.5, r.y - r.r * 0.32);
+    ctx.lineTo(r.x + r.r * 0.16, r.y - r.r * 0.2);
+    ctx.lineTo(r.x + r.r * 0.52, r.y + r.r * 0.06);
+    ctx.closePath();
+    ctx.fillStyle = C.PANEL_INK;
+    ctx.fill();
+
+    // The house: a wide roof, a square body, and a door punched out of it.
+    //
+    // Drawn as three pieces rather than as the one clever seven-point polygon
+    // it started as. That version was a roof over a narrow stem, and on screen
+    // it read as a fat arrow pointing up — which is the picture the JUMP
+    // button already uses, on a panel whose other button is also an arrow. The
+    // door is what makes it unmistakably a house, and a picture a child has to
+    // work out is a picture that has failed.
+    const hm = Panel.home(w, h);
+    circleButton(ctx, hm, C);
+    ctx.fillStyle = C.PANEL_INK;
+    ctx.beginPath();
+    ctx.moveTo(hm.x - hm.r * 0.62, hm.y - hm.r * 0.06);
+    ctx.lineTo(hm.x, hm.y - hm.r * 0.58);
+    ctx.lineTo(hm.x + hm.r * 0.62, hm.y - hm.r * 0.06);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(hm.x - hm.r * 0.42, hm.y - hm.r * 0.1, hm.r * 0.84, hm.r * 0.62);
+    // The door, in the panel's own colour so it reads as a hole in the house
+    // rather than a mark on it. STAR_OFF and not PANEL: this is punched out of
+    // the disc the picture sits on, and that disc is the grey one.
+    ctx.fillStyle = C.STAR_OFF;
+    ctx.fillRect(hm.x - hm.r * 0.14, hm.y + hm.r * 0.18, hm.r * 0.28, hm.r * 0.34);
+  },
+};
+
+// The order Panel.at walks. Same shape as NAMES above, and the same reason:
+// it only matters if two of them overlap, which the button suite forbids on
+// every screen size.
+const PANEL_NAMES = ['retry', 'home'];
+
+/** The disc a panel button's picture sits on. */
+function circleButton(ctx, b, C) {
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+  ctx.fillStyle = C.STAR_OFF;
+  ctx.fill();
+}
+
+/** A rounded rectangle, as a path — the caller fills or strokes it. */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/** A five-pointed star, filled. Ten points, alternating in and out. */
+function star(ctx, cx, cy, r, colour) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rad = i % 2 === 0 ? r : r * 0.45;
+    const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = colour;
+  ctx.fill();
+}

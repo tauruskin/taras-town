@@ -32,6 +32,11 @@ export class Ball {
     this.dying = 0;         // seconds of deflating left
     this.reviving = 0;      // seconds of re-inflating left
 
+    // Touched the flag: the level is over. Latched and never cleared — a new
+    // level means a new ball, which is why there is nothing anywhere that
+    // sets this back to false. See the goal check in `update`.
+    this.won = false;
+
     // Where a respawn puts the ball: the spawn to begin with, then the last
     // checkpoint reached. Set by whoever constructs the ball, because the ball
     // is handed its position and not the level.
@@ -80,8 +85,20 @@ export class Ball {
    * Ignored while already dying, which matters more than it looks: a ball that
    * dies on a spike is still overlapping that spike, and without this guard it
    * would re-trigger every single step and never finish deflating.
+   *
+   * Ignored once the level is WON, too, and for two separate reasons. The
+   * gentle one is that the win is the reward and outranks the hazard: nothing
+   * should be able to take it back after the flag has been touched. The
+   * mechanical one is a freeze. `dying` is decremented only in `update`, and
+   * main.js stops updating the ball once the level is won — so a deflate begun
+   * on the winning step would never finish, and the ball would sit behind the
+   * results panel as a flat puddle for as long as the panel was up. Guarding
+   * here rather than in the caller means every future way of failing — a saw,
+   * a crusher, the fall out of the world at the bottom of this file — inherits
+   * it without having to remember to.
    */
   die() {
+    if (this.won) return;
     if (this.dying > 0) return;
     this.dying = CONFIG.DEFLATE.TIME;
     this.reviving = 0;
@@ -234,6 +251,34 @@ export class Ball {
           this.vx = dir * C.CRATE.PUSH_SPEED;
         }
         break;
+      }
+    }
+
+    // --- the flag ---------------------------------------------------------
+    //
+    // Checked BEFORE the hazards, and that order is the whole of it. A ball
+    // that reaches the flag while overlapping a spike must win rather than
+    // die: the flag is the reward and it outranks the hazard. Put the hazard
+    // first and which of the two happened would depend on how a level was
+    // authored — a flag planted a little too close to a spike patch would
+    // sometimes end the level and sometimes deflate the ball, with nothing
+    // anywhere to explain the difference to a six-year-old.
+    //
+    // `level.goal` is null on a level that has none, and `won` must stay false
+    // for those rather than measuring the distance to `undefined` — which
+    // would come out NaN, compare false, and quietly work until the day the
+    // arithmetic changed.
+    if (!this.won && level.goal) {
+      const g = CONFIG.GOAL.R;
+      if ((this.x - level.goal.x) ** 2 + (this.y - level.goal.y) ** 2 <= g * g) {
+        this.won = true;
+        // Whole again, the instant it wins. Nothing calls `update` on a ball
+        // whose level is over, so a half-spent re-inflate would freeze exactly
+        // where it was and the ball would sit behind the results panel at
+        // three-quarter size with the screen still half dimmed — for as long
+        // as the panel was up. `dying` cannot be positive here at all, because
+        // a deflating ball returns from `update` long before this line.
+        this.reviving = 0;
       }
     }
 

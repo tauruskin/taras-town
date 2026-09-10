@@ -404,3 +404,20 @@ class Level {
 }
 
 export function loadLevel(data) { return new Level(data); }
+
+/**
+ * The index of the level after this one, or null if there is none.
+ *
+ * Null rather than wrapping round to zero, and rather than clamping to the
+ * last one. The caller has to decide what "nowhere to go" means — for the
+ * results panel it means staying on the panel instead of promising a level
+ * that does not exist — and a function that quietly returned the same level
+ * again would hide that decision rather than force it, which is how a child
+ * ends up replaying the last level for ever with no idea why.
+ *
+ * An INDEX and not an id, because that is what the caller has: main.js holds
+ * `levelIndex` into LEVELS, and ids are for the digit on the panel.
+ */
+export function nextLevel(index) {
+  return index + 1 < LEVELS.length ? index + 1 : null;
+}

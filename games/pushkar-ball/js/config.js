@@ -225,6 +225,68 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // The flag, and what happens after it
+  // ---------------------------------------------------------------------
+  GOAL: {
+    // How close the ball's CENTRE gets before the level is won. Generous, for
+    // the same reason a checkpoint's radius is: the flag is the reward, and a
+    // reward you have to line up precisely is a reward withheld.
+    //
+    // A circle here rather than the flag-shaped box a checkpoint uses, and
+    // that difference is deliberate rather than an oversight. A checkpoint
+    // needs the box because sailing over one without arming it is a silent
+    // failure the player cannot see — the game goes on looking normal and
+    // punishes them later. Flying over the flag is not silent at all: the
+    // level does not end, and the player simply comes back and rolls into it.
+    // So the honest generous shape is enough here, and being reachable from
+    // ABOVE is what a circle gives that matters — the last flag in level one
+    // is arrived at off a moving platform.
+    R: 52,
+  },
+
+  RESULTS: {
+    // Seconds the panel is shown before the next level starts on its own.
+    // Long enough to see what happened and to reach a button; short enough
+    // that a child who just wants to keep playing is not made to wait.
+    HOLD: 3.2,
+
+    // The panel, in CSS pixels. Fixed rather than a fraction of the screen,
+    // so it is the same size on a phone and a desktop — everything on it is a
+    // thumb target or a digit to be read, and neither of those wants to shrink
+    // because the window did. `Panel.box` clamps it if a screen is somehow
+    // smaller than this, and tests/offline/buttons.mjs checks that everything
+    // on its face still fits when it does.
+    PANEL_W: 300,
+    PANEL_H: 200,
+
+    // The three rows on its face, measured DOWN from the top of the panel in
+    // CSS pixels, except the buttons which are measured up from the bottom.
+    // Absolute rather than multiples of each other because the one thing that
+    // matters here is that the rows do not collide, and rows that each scale
+    // off a different number collide the first time one of them is retuned.
+    // With the numbers below, the stars end at 62, the number's band runs 67
+    // to 111, and the buttons begin at 116 — so all three rows are clear of
+    // each other by 5px with nothing relying on how WIDE anything is.
+    STAR_R: 20,
+    STAR_TOP: 42,        // centre of the row of stars
+    STAR_SPACING: 2.5,   // between star centres, as a multiple of STAR_R
+    NUMBER_Y: 89,        // centre of the level number
+    // The digit's height. Digits are the one kind of text he reads reliably,
+    // so this is the only place in the whole game where the legibility of type
+    // matters at all — and it wants to be big.
+    //
+    // It sits in a row of its OWN, above the buttons rather than between them,
+    // which is what lets it be this big. Between them it would have had to
+    // stay narrower than the gap, and "level 10" is twice as wide as "level 1"
+    // — so the layout would have been correct for nine levels and then quietly
+    // wrong, with no test able to see it without measuring text in a browser.
+    NUMBER_SIZE: 44,
+    BUTTON_R: 34,        // the retry and hub buttons
+    BUTTON_LIFT: 16,     // from the bottom of the panel to the bottom of them
+    GAP: 26,             // between the two of them
+  },
+
+  // ---------------------------------------------------------------------
   // The hills behind the level
   // ---------------------------------------------------------------------
   // Two bands, drawn in screen space with the camera folded into the phase, so
@@ -295,6 +357,21 @@ export const CONFIG = {
     SPIKE: '#B9C4CC',
     SPIKE_EDGE: '#7C8B95',
     DIM: '#0B1E2A',      // what the screen dims towards during a deflate
+    // The results panel. Every one of these was checked by hand against
+    // IS_BALL in tests/browser/_helpers.mjs, which calls a pixel the ball when
+    // red minus blue exceeds 60 AND green is barely above blue. Both greys are
+    // BLUER than they are red, so they fail the first clause outright; the
+    // panel itself is white, where red and blue are equal, and blending white
+    // over anything only moves a colour towards that equality. The star is the
+    // one that needed the arithmetic: 255-60 is 195, which passes the first
+    // clause, but (201-60)*4 is 564 and that is not less than 195, so it fails
+    // the second. It is a warm yellow, not a red — the same reasoning that
+    // already lets FLAG be this exact colour.
+    PANEL: 'rgba(255,255,255,0.94)',
+    PANEL_EDGE: '#78868F',
+    PANEL_INK: '#33444F',
+    STAR_ON: '#FFC93C',
+    STAR_OFF: '#D8DEE2',
     BUTTON: 'rgba(255,255,255,0.30)',
     BUTTON_HELD: 'rgba(255,255,255,0.58)',
     BUTTON_MARK: '#FFFFFF',
