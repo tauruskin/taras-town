@@ -65,12 +65,22 @@ function circleHitsBox(cx, cy, r, b) {
  * and only a ball whose exact centre is inside the picture dies — which reads
  * as spikes that mostly do not work.
  */
-export function hitsSpikes(body, spikes, cfg) {
+/**
+ * Which spike patch this body is touching, or null. The same forgiveness as
+ * `hitsSpikes` below — see the comment on `FORGIVE` in config.js — but
+ * returning the patch itself rather than a boolean, so a caller can work out
+ * which way to knock the ball back.
+ */
+export function spikeHit(body, spikes, cfg) {
   const r = Math.max(0, body.r - cfg.SPIKE.FORGIVE);
   for (const s of spikes) {
-    if (circleHitsBox(body.x, body.y, r, spikeBox(s, cfg))) return true;
+    if (circleHitsBox(body.x, body.y, r, spikeBox(s, cfg))) return s;
   }
-  return false;
+  return null;
+}
+
+export function hitsSpikes(body, spikes, cfg) {
+  return !!spikeHit(body, spikes, cfg);
 }
 
 /**

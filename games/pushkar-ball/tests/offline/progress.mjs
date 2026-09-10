@@ -209,9 +209,9 @@ const world = (extra = {}) => loadLevel({
 
   const inSpikes = new Ball(level.spikes[0].x + 30, level.goal.y - CONFIG.BALL.R);
   run(inSpikes, level, input, 0.5);
-  console.log(`   and in the same patch but away from the flag: won=${inSpikes.won}, deaths=${inSpikes.deaths}`);
+  console.log(`   and in the same patch but away from the flag: won=${inSpikes.won}, hits=${inSpikes.hits}`);
   if (inSpikes.won) fail(`won at x=${inSpikes.x.toFixed(0)}, which is ${Math.abs(inSpikes.x - level.goal.x).toFixed(0)}px from the flag`);
-  if (inSpikes.deaths === 0) fail('the spike patch killed nothing, so the check above proves nothing about ordering');
+  if (inSpikes.hits === 0) fail('the spike patch touched nothing, so the check above proves nothing about ordering');
 }
 
 // --- 5. the level list knows what comes next -----------------------------

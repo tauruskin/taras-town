@@ -345,7 +345,8 @@ export class Ball {
     // checkpoints, so a checkpoint standing in a patch of spikes cannot be
     // armed by the same step that kills you — which would make failing there
     // permanent.
-    if (level.hitsHazard(this)) this.die();
+    const knock = level.hazardKnockDir(this);
+    if (knock !== null) this.hit(knock);
 
     // --- checkpoints ------------------------------------------------------
     //

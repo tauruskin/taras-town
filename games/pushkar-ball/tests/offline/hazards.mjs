@@ -130,11 +130,18 @@ const world = (spikes) => loadLevel({
   console.log(`   the kill threshold on the near edge is centre x=${brink}, straddled from both sides`);
 }
 
-// --- 3. rolling into them kills ------------------------------------------
+// --- 3. one touch costs exactly one heart, and knocks back --------------
+//
+// Rewritten Sep 2026 for the health system: a hazard touch is no longer an
+// instant relocate (see player.js's `hit`) — it costs a heart and knocks the
+// ball back, and it takes losing all three hearts before anything relocates
+// at all. The old version of this check drove the ball into the patch and
+// waited for `deaths` to become 1, which would now depend on how many times
+// the knockback lets it drift back in before invincibility runs out — timing
+// this suite has no business depending on. So: stop at the first HIT
+// instead, which happens on a known step regardless of what comes after it.
 {
   const patch = { x: 800, y: 760, w: 160 };
-  const box = spikeBox(patch, CONFIG);
-  const effR = CONFIG.BALL.R - CONFIG.SPIKE.FORGIVE;
   const level = world([patch]);
   const input = stub();
   const ball = new Ball(level.spawn.x, level.spawn.y);
@@ -142,42 +149,25 @@ const world = (spikes) => loadLevel({
 
   input.right = true;
   let steps = 0;
-  const limit = Math.round(8 / CONFIG.STEP);
-  while (ball.deaths === 0 && steps < limit) {
+  const limit = Math.round(4 / CONFIG.STEP);
+  while (ball.hits === 0 && steps < limit) {
     level.update(CONFIG.STEP);
     ball.update(CONFIG.STEP, input, level);
     steps++;
   }
   input.right = false;
 
-  console.log(`\n3. rolled into a spike patch and died after ${(steps * CONFIG.STEP).toFixed(2)}s at x=${ball.x.toFixed(2)};` +
-              ` its effective leading edge was at ${(ball.x + effR).toFixed(2)}, and the picture starts at ${box.x}`);
-  if (ball.deaths !== 1) fail(`rolling into spikes gave ${ball.deaths} deaths, expected 1`);
-
-  // WHERE it died, derived from the box and the effective radius rather than
-  // typed. A hand-written band is how the inverted forgiveness got through
-  // review: `700 < x < 1000` around a patch spanning 800..960 tolerates a kill
-  // a hundred pixels early, which is most of a screen on a phone.
-  //
-  // This is the clause that states the design outright: the ball must not die
-  // before its effective leading edge has reached the picture at all. Under
-  // the inset-the-box version this held only by accident of the two
-  // formulations being the same arithmetic; stated here, it cannot drift.
-  if (ball.x + effR < box.x) {
-    fail(`killed at x=${ball.x.toFixed(2)} before touching the picture: its edge was at ` +
-         `${(ball.x + effR).toFixed(2)}, the patch starts at ${box.x}`);
+  console.log(`\n3. touched the patch after ${(steps * CONFIG.STEP).toFixed(2)}s at x=${ball.x.toFixed(2)};` +
+              ` hearts ${CONFIG.HEALTH.HEARTS} -> ${ball.hearts}, vx=${ball.vx.toFixed(0)}, vy=${ball.vy.toFixed(0)}`);
+  if (ball.hits !== 1) fail(`never touched the patch at all within ${(limit * CONFIG.STEP).toFixed(1)}s`);
+  if (ball.hearts !== CONFIG.HEALTH.HEARTS - 1) {
+    fail(`one touch left ${ball.hearts} hearts, expected ${CONFIG.HEALTH.HEARTS - 1}`);
   }
-  // And not late either: a ball whose CENTRE is past the far side has rolled
-  // clean through, so something else killed it. That is exactly how an earlier
-  // draft of this suite passed with the kill deleted from player.js.
-  if (ball.x > box.x + box.w) {
-    fail(`died at x=${ball.x.toFixed(2)}, past the patch's far side at ${box.x + box.w} — something else killed it`);
-  }
-  // Nor may it survive deep into the patch: more than the effective radius in
-  // and the hazard is reacting too slowly to be the thing that killed it.
-  if (ball.x - effR > box.x) {
-    fail(`died at x=${ball.x.toFixed(2)}, already ${(ball.x - effR - box.x).toFixed(2)}px inside the picture`);
-  }
+  if (ball.deaths !== 0) fail(`one touch with hearts to spare should not relocate the ball; deaths=${ball.deaths}`);
+  // Knocked BACK, not forward: the ball approached from the left, so it must
+  // be pushed further left (and a little up), away from the patch it hit.
+  if (ball.vx !== -CONFIG.HEALTH.KNOCKBACK) fail(`vx after the hit is ${ball.vx}, expected exactly ${-CONFIG.HEALTH.KNOCKBACK}`);
+  if (ball.vy !== -CONFIG.HEALTH.KNOCKBACK_UP) fail(`vy after the hit is ${ball.vy}, expected exactly ${-CONFIG.HEALTH.KNOCKBACK_UP}`);
 }
 
 // --- 4. rolling past where they are NOT does not kill --------------------
@@ -193,6 +183,7 @@ const world = (spikes) => loadLevel({
 
   console.log(`\n4. rolled to x=${ball.x.toFixed(0)} with spikes at 1500: deaths=${ball.deaths}`);
   if (ball.deaths !== 0) fail('died without reaching the spikes at all');
+  if (ball.hits !== 0) fail('took a hit without reaching the spikes at all');
 }
 
 // --- 5. jumping over them survives ---------------------------------------
@@ -239,43 +230,14 @@ const world = (spikes) => loadLevel({
   console.log(`\n5. a jump clears ${reach.toFixed(0)}px; jumping over a 90px patch gave ${ball.deaths} death(s),` +
               ` ending at x=${ball.x.toFixed(0)}`);
   if (ball.deaths > 0) fail(`jumping over a 90px spike patch still died ${ball.deaths} time(s)`);
+  if (ball.hits > 0) fail(`jumping over a 90px spike patch still took ${ball.hits} hit(s)`);
   if (ball.x < 990) fail(`never got past the patch: ended at x=${ball.x.toFixed(0)}`);
 }
 
-// --- 6. dying on spikes finishes deflating and comes back ---------------
-//
-// The case the die() guard exists for: the ball dies ON the spikes and is
-// still overlapping them the whole time it deflates.
-{
-  const level = world([{ x: 800, y: 760, w: 160 }]);
-  const input = stub();
-  const ball = new Ball(level.spawn.x, level.spawn.y);
-  run(ball, level, input, 1.0);
-
-  input.right = true;
-  let steps = 0;
-  while (ball.deaths === 0 && steps < Math.round(8 / CONFIG.STEP)) {
-    level.update(CONFIG.STEP);
-    ball.update(CONFIG.STEP, input, level);
-    steps++;
-  }
-  input.right = false;
-  // Where it died, so this check is known to be about a death ON the spikes
-  // and not about some other way of failing further along. Derived from the
-  // box and the effective radius, for the same reason check 3 is.
-  const diedAt = ball.x;
-  const box6 = spikeBox({ x: 800, y: 760, w: 160 }, CONFIG);
-  const effR6 = CONFIG.BALL.R - CONFIG.SPIKE.FORGIVE;
-  if (diedAt + effR6 < box6.x || diedAt > box6.x + box6.w) {
-    fail(`died at x=${diedAt.toFixed(2)}, not on the patch at ${box6.x}..${box6.x + box6.w}`);
-  }
-
-  run(ball, level, input, CONFIG.DEFLATE.TIME + CONFIG.DEFLATE.INFLATE + 1.0);
-  console.log(`\n6. after dying on the spikes: deaths=${ball.deaths}, x=${ball.x.toFixed(0)}, home=${ball.home.x}`);
-  if (ball.deaths !== 1) fail(`the death on the spikes re-triggered: ${ball.deaths} deaths`);
-  if (Math.abs(ball.x - ball.home.x) > 60) fail(`did not come back home: x=${ball.x.toFixed(0)}, home=${ball.home.x}`);
-  if (ball.dying > 0) fail('still deflating long after it should have finished');
-}
+// Check 6 used to live here ("dying on spikes finishes deflating and comes
+// back"). Its guard is now proven directly in health.mjs check 5, without
+// depending on knockback physics happening to drift the ball back into the
+// patch a specific number of times — see that file for why.
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL HAZARD CHECKS PASSED');
 process.exit(failures ? 1 : 0);

@@ -18,7 +18,7 @@ import { segment, boxSegments, SegmentGrid, segmentHitsBox, supportUnder } from 
 import { CONFIG } from './config.js';
 // Hazards are geometry, not colliders, so this brings in a hit test and
 // nothing that touches the segment world or the DOM.
-import { hitsSpikes } from './hazards.js';
+import { hitsSpikes, spikeHit } from './hazards.js';
 
 // A note on how long a level is, and how sparse its checkpoints are.
 //
@@ -596,6 +596,21 @@ class Level {
    */
   hitsHazard(body) {
     return hitsSpikes(body, this.spikes, CONFIG);
+  }
+
+  /**
+   * If this body is touching a hazard, which way to knock it — away from
+   * whatever it touched, as -1 or 1, never 0. Null if nothing was touched.
+   *
+   * One question for the whole level, the same shape as `hitsHazard`, so
+   * that when enemies arrive the caller in player.js does not have to learn
+   * a second hazard type.
+   */
+  hazardKnockDir(body) {
+    const s = spikeHit(body, this.spikes, CONFIG);
+    if (!s) return null;
+    const mid = s.x + s.w / 2;
+    return body.x >= mid ? 1 : -1;
   }
 }
 
