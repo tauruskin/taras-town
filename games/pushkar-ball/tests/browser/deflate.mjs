@@ -71,10 +71,21 @@ for (let waited = 0; waited < budget && !back; waited += 100) {
 if (!back) fail(`the ball never came back within ${(budget / 1000).toFixed(1)}s of falling`);
 else {
   console.log(`\n3. it came back at ${back.x.toFixed(0)},${back.y.toFixed(0)} (it started at ${start.x.toFixed(0)},${start.y.toFixed(0)})`);
-  // Level one has no checkpoints before its first gap, so home is still the
-  // spawn and the ball must be back roughly where it began.
-  if (Math.abs(back.x - start.x) > 120) {
-    fail(`it came back at x=${back.x.toFixed(0)}, nowhere near where it started, ${start.x.toFixed(0)}`);
+  // Level one has a checkpoint immediately before its first gap, which the
+  // drive right has just rolled through, so home is that flag and not the
+  // spawn. It is far from the level's left edge, so the camera is not clamped
+  // there: it snaps to the ball on arrival, and a snapped camera with a ball
+  // at rest puts the ball in the exact middle of the screen, sideways. That
+  // is a sharper question than "near the start" was — a camera still gliding
+  // over from the hole would put the ball somewhere else.
+  //
+  // This used to assert the ball came back where it began, which was only
+  // true while level one had no checkpoints; they arrived in Task 6.
+  const cp = LEVELS[0].checkpoints?.find((c) => c.x < gapFrom);
+  if (!cp) fail('level one has no checkpoint before its first gap, so the check below is asking the wrong question');
+  else console.log(`   home is the checkpoint at ${cp.x}, before the gap at ${gapFrom}`);
+  if (Math.abs(back.x - W / 2) > 30) {
+    fail(`it came back at x=${back.x.toFixed(0)}; a camera snapped to a ball at its checkpoint puts it at ${W / 2}`);
   }
 }
 // Caught mid-inflate, most likely, since the poll above stops the instant any
@@ -104,22 +115,28 @@ else {
 // ball at full size, which the mid-inflate shot above cannot show.
 await shoot('3-settled');
 
-// And it is playable: holding right moves it again.
+// And it is playable: holding a direction moves it again.
 //
-// Measured across the SCREEN, which only says anything while the camera is
-// still clamped to the left edge of the level — and just after a respawn at
-// the spawn it is. If this ever reads marginal, do not simply widen the 60:
-// read jump.mjs's check 3 first, because past the clamp the ball's screen
-// position stops moving however fast it travels, and the check would be
-// measuring nothing at all.
+// LEFT, away from the gap: home is now 100px short of it, and holding right
+// would drop the ball straight back in. And measured by the camera's
+// LOOKAHEAD, because the camera is not clamped here and follows the ball, so
+// the ball's screen position says nothing about how far it went — see
+// jump.mjs's check 3 for what assuming otherwise cost. What it does say is
+// how FAST it is going: the camera aims `LOOKAHEAD` seconds of speed ahead of
+// the ball, so a ball rolling left at full speed sits that far RIGHT of the
+// middle, and a ball that is not rolling sits in the middle. At full speed
+// that is `LOOKAHEAD * MAX_SPEED` world units; half of it is asked for.
+const LEFT = Buttons.left(W, H);
 const before = await ballAt(ev);
-await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: RIGHT.x, y: RIGHT.y, id: 1 }] });
+await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: LEFT.x, y: LEFT.y, id: 1 }] });
 await sleep(900);
 const after = await ballAt(ev);
 await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+const lead = CONFIG.CAMERA.LOOKAHEAD * CONFIG.MAX_SPEED * (H / CONFIG.VIEW_H);
 if (!after) fail('lost the ball again while checking it still rolls');
-else if (after.x - before.x < 60) fail(`after coming back the ball only moved ${(after.x - before.x).toFixed(0)}px`);
-else console.log(`\n5. and it rolls again: ${(after.x - before.x).toFixed(0)}px right`);
+else if (after.x - before.x < lead / 2) {
+  fail(`after coming back, holding left put the ball only ${(after.x - before.x).toFixed(0)}px right of where it was; rolling at full speed puts it about ${lead.toFixed(0)}px`);
+} else console.log(`\n5. and it rolls again: the camera leads it by ${(after.x - before.x).toFixed(0)}px, about ${lead.toFixed(0)} at full speed`);
 
 for (const p of problems) fail(p);
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nDEFLATING AND COMING BACK LOOKS RIGHT');
