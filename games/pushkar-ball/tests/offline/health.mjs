@@ -135,5 +135,24 @@ const world = (checkpoints) => loadLevel({
   if (Math.abs(ball.x - home.x) > 5) fail(`a fall with hearts to spare went to x=${ball.x.toFixed(0)}, not the checkpoint at ${home.x}`);
 }
 
+// --- 7. a fall still relocates even during another hit's invincibility --
+//
+// die() must not be blocked by iframe the way hit() is: a fall physically
+// leaves the play space, so unlike a hazard touch there is no "recover in
+// place" to wait for invincibility to run out. Regression test for a gap
+// found in code review, where die() shared hit()'s iframe gate and a fall
+// during the 0.5s after a hit would sit un-relocated until iframe expired.
+{
+  const level = world();
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+  ball.hit(1);
+  if (ball.iframe <= 0) fail('the hit did not grant invincibility, so this proves nothing');
+  const heartsAfterHit = ball.hearts;
+  ball.die();
+  console.log(`\n7. fell while still invincible from a hit: hearts ${heartsAfterHit} -> ${ball.hearts}, deaths=${ball.deaths}`);
+  if (ball.hearts !== heartsAfterHit - 1) fail(`the fall did not cost a heart: hearts=${ball.hearts}`);
+  if (ball.deaths !== 1) fail(`the fall did not relocate while invincible: deaths=${ball.deaths}`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL HEALTH CHECKS PASSED');
 process.exit(failures ? 1 : 0);

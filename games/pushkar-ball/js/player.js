@@ -96,18 +96,26 @@ export class Ball {
   }
 
   /**
-   * Lose a heart, if the ball is not currently invincible, already relocating,
-   * or has already won. Returns whether a heart was actually lost.
+   * Lose a heart, if the ball is not already relocating or has already won.
+   * Returns whether a heart was actually lost.
    *
-   * The shared gate under `hit()` and `die()`: without it, a ball still
-   * overlapping whatever hit it last — a spike it is deflating on top of, the
-   * bottom of the world it fell through — would keep losing hearts every
-   * single step.
+   * The shared gate under `hit()` and `die()`: without the `dying` and `won`
+   * checks, a ball still overlapping whatever hit it last — a spike it is
+   * deflating on top of, the bottom of the world it fell through — would keep
+   * losing hearts every single step.
+   *
+   * `opts.ignoreIframe` lets `die()` skip the invincibility gate that `hit()`
+   * otherwise respects. A hazard touch's invincibility means "leave the ball
+   * alone for a moment, it just got knocked back and is still in play" — but
+   * a fall has already left the play space, so there is no "recover in
+   * place" to wait for; it must always relocate, even if the ball is still
+   * invincible from a hit moments earlier. Without this, a fall during that
+   * 0.5s window would sit un-relocated, off-screen, until iframe expired.
    */
-  _loseHeart() {
+  _loseHeart(opts = {}) {
     if (this.won) return false;
     if (this.dying > 0) return false;
-    if (this.iframe > 0) return false;
+    if (!opts.ignoreIframe && this.iframe > 0) return false;
     this.hearts--;
     this.hits++;
     this.iframe = CONFIG.HEALTH.IFRAME;
@@ -130,7 +138,7 @@ export class Ball {
    * world, so it always relocates, whether or not that heart was its last.
    */
   die() {
-    if (!this._loseHeart()) return;
+    if (!this._loseHeart({ ignoreIframe: true })) return;
     this._relocate(this.hearts <= 0);
   }
 

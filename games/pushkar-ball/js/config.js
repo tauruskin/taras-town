@@ -153,11 +153,12 @@ export const CONFIG = {
   // ---------------------------------------------------------------------
   // Failing
   // ---------------------------------------------------------------------
-  // There are no lives. Failing sends the ball back to its last checkpoint,
-  // for ever, and this is how long that takes. Short on purpose: this is the
-  // moment a six-year-old is already disappointed, and every extra tenth of a
-  // second is a punishment on top of the setback. Long enough to read as
-  // something that happened, short enough not to be a wait.
+  // How long a relocate takes — the squash-and-respawn sequence `_relocate()`
+  // in player.js drives, whether that is a fall with hearts to spare (back to
+  // the checkpoint) or the level-start relocate once hearts run out (see
+  // HEALTH below). Short on purpose: every extra tenth of a second is a
+  // punishment on top of the setback. Long enough to read as something that
+  // happened, short enough not to be a wait.
   DEFLATE: {
     TIME: 0.42,          // s squashing flat where it stood
     INFLATE: 0.28,       // s swelling back up at home
