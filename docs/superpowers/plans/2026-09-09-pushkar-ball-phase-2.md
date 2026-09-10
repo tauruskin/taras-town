@@ -1608,7 +1608,17 @@ needs a level authored around it."
 
 ---
 
-## Task 5: The flag, the results panel, and the next level
+## Task 5: The flag, the results panel, and the next level — DONE
+
+> Commits `3423255`, `d6843e0` and a tidy-up. Spec review passed; code quality review passed on re-review, each fix mutation-tested.
+>
+> Two departures from this task's code, both judged right: the panel is 200px tall with the level number on its own row, because the layout below left 3px between the digit and the buttons; and the house icon was redrawn, because the one below reads as an up-arrow — the same picture as the jump button.
+>
+> **The flow is not in `main.js`.** Winning, the panel, retry and auto-advance live in DOM-free `js/flow.js`, tested in `progress.mjs` check 6 against the real `Input`. `main.js` keeps the loop, the camera and the drawing, and turns a `'home'` into a navigation. Task 6 and later should build on `flow.js`, not on the state machine sketched below.
+>
+> **The controls are off while the panel is up.** The review found them live underneath it, with 0.7px between retry's tap area and the invisible right button's at 568x320. `input.setControls` fixes that at the source; the panel also lifts clear of the controls as a backstop, which fully protects down to 480px wide.
+>
+> **Still untested:** nothing drives a real win in a browser. That belongs with Task 7, after Task 6 settles the levels.
 
 The level ends at the flag. The flag animates, a panel says what happened, and then the next level starts on its own. Winning never sends the player back to a menu — a child who has just won should not have to navigate anything to keep playing.
 

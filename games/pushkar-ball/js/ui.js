@@ -234,6 +234,12 @@ export const Panel = {
         y = Math.min(y, Math.floor(lowest - buttonsDown));
       }
     }
+    // The lift stops at TOP_MARGIN, which makes 480px the narrowest width it
+    // fully protects: below that the panel cannot rise far enough, and at
+    // 420x280 its buttons' hit circles would overlap the controls'. That is a
+    // backstop giving out, not a bug — the controls are switched off while the
+    // panel is up, which is the real fix — but a screen narrower than 480px is
+    // not one this game is tested on, and this line says so.
     y = Math.max(R.TOP_MARGIN, y);
     return { x: (w - R.PANEL_W) / 2, y, w: R.PANEL_W, h: R.PANEL_H };
   },

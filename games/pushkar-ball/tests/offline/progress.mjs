@@ -415,5 +415,10 @@ const world = (extra = {}) => loadLevel({
   if (starts.join() !== '0,0,1,0') fail(`onStart ran for ${starts.join(', ')}, expected 0, 0, 1, 0`);
 }
 
+// Check 6 installed a fake `window` so the real Input could be constructed in
+// node. Take it away again, so that nothing added after it here inherits a
+// half-built browser and passes or fails because of it.
+delete globalThis.window;
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL PROGRESS CHECKS PASSED');
 process.exit(failures ? 1 : 0);
