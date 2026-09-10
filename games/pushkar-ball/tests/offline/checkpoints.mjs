@@ -255,5 +255,30 @@ const alive = (ball, deaths, what) => {
   if (!flag.taken) fail('a checkpoint crossed mid-jump, at the height of its own flag, did not arm');
 }
 
+// --- 7. reaching a checkpoint refills hearts -----------------------------
+//
+// Added Sep 2026 with the health system: a checkpoint's job used to be only
+// "where a fall sends the ball back to." It is now also "a clean slate" —
+// damage taken on the way to it should not make the stretch AFTER it harder
+// than the level intended.
+{
+  const level = world();
+  const input = stub();
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+  run(ball, level, input, 0.8);
+
+  ball.hit(1);
+  const heartsAfterHit = ball.hearts;
+  if (heartsAfterHit >= CONFIG.HEALTH.HEARTS) fail('the hit did not actually cost a heart, so this proves nothing');
+
+  input.right = true;
+  run(ball, level, input, 2.0);   // past the first checkpoint at x=700
+  input.right = false;
+
+  console.log(`\n7. after a hit (hearts=${heartsAfterHit}) and reaching a checkpoint: hearts=${ball.hearts}`);
+  if (!level.checkpoints[0].taken) fail('the checkpoint was never reached, so this proves nothing');
+  if (ball.hearts !== CONFIG.HEALTH.HEARTS) fail(`hearts did not refill at the checkpoint: ${ball.hearts}`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CHECKPOINT CHECKS PASSED');
 process.exit(failures ? 1 : 0);

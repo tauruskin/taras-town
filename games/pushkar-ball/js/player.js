@@ -365,6 +365,10 @@ export class Ball {
     if (reached) {
       this.home.x = reached.x;
       this.home.y = reached.y - this.r - C.CHECKPOINT.CLEARANCE;
+      // A checkpoint is a clean slate as well as a place to come back to:
+      // damage taken on the way here should not make the stretch ahead
+      // harder than the level intended.
+      this.hearts = C.HEALTH.HEARTS;
     }
 
     // --- fell out of the world -------------------------------------------
