@@ -3,7 +3,7 @@
 // the browser suites tap the world behind and pass or fail for the wrong
 // reason — quietly.
 const { CONFIG } = await import('../../js/config.js');
-const { Buttons, Panel } = await import('../../js/ui.js');
+const { Buttons, Panel, Hearts } = await import('../../js/ui.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -43,6 +43,20 @@ for (const [w, h] of SCREENS) {
 
   // The middle of the screen is not a button, or every tap would move the ball.
   if (Buttons.at(w / 2, h / 3, w, h) !== null) fail(`the middle of a ${w}x${h} screen hit a button`);
+
+  // The hearts HUD, top-left, one per CONFIG.HEALTH.HEARTS. On screen, and
+  // clear of the control band below — Buttons.topEdge is exactly what the
+  // camera already keeps the ball clear of, so the hearts hold to the same
+  // line rather than a second number that could drift from it.
+  for (let i = 0; i < CONFIG.HEALTH.HEARTS; i++) {
+    const p = Hearts.at(i, w, h);
+    if (p.x - CONFIG.HEARTS_UI.R < 0 || p.x + CONFIG.HEARTS_UI.R > w || p.y - CONFIG.HEARTS_UI.R < 0) {
+      fail(`heart ${i} (${p.x.toFixed(0)},${p.y.toFixed(0)}) is off a ${w}x${h} screen`);
+    }
+    if (p.y + CONFIG.HEARTS_UI.R > Buttons.topEdge(w, h)) {
+      fail(`heart ${i} at y=${p.y.toFixed(0)} reaches into the control band, which starts at ${Buttons.topEdge(w, h).toFixed(0)} on ${w}x${h}`);
+    }
+  }
 
   // The results panel's own buttons, held to exactly the same standard. The
   // panel appears on top of the game and advances by itself, so a button of

@@ -352,6 +352,22 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // The hearts HUD
+  // ---------------------------------------------------------------------
+  // Top-left, out of the way of every thumb control, which all live along
+  // the bottom. Reuses the results panel's star colours rather than
+  // inventing a red or pink — the ball is the only red thing anywhere on
+  // purpose (see COLOURS.BALL below), and a heart drawn in that family would
+  // be picked up as a second ball by every browser suite that finds the ball
+  // by its hue.
+  HEARTS_UI: {
+    R: 14,
+    GAP: 10,      // between heart centres
+    EDGE: 20,     // from the left edge of the screen
+    TOP: 20,      // from the top of the screen
+  },
+
+  // ---------------------------------------------------------------------
   // Colours
   // ---------------------------------------------------------------------
   // The ball is the only RED thing anywhere, on purpose: the browser suites

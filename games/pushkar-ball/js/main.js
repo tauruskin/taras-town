@@ -15,7 +15,7 @@ import { CONFIG } from './config.js';
 import { LEVELS } from './levels.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
-import { Buttons, Overlay, Panel } from './ui.js';
+import { Buttons, Overlay, Panel, Hearts } from './ui.js';
 import { Flow } from './flow.js';
 import { drawSpikes } from './hazards.js';
 
@@ -250,6 +250,7 @@ function draw() {
   if (flow.mode === 'won') {
     Panel.draw(ctx, cssW, cssH, { level: level.data.id, stars: flow.stars });
   } else {
+    Hearts.draw(ctx, cssW, cssH, ball.hearts);
     Buttons.draw(ctx, cssW, cssH, input.held());
   }
 }
@@ -442,6 +443,7 @@ function drawBall() {
   const { sx, sy } = ball.squash();
 
   ctx.save();
+  ctx.globalAlpha = Overlay.flash(ball);
   // Squash towards the ground it is lying on, not towards its own middle.
   // Scaling about the centre would sink a deflating ball halfway into the
   // floor as it flattened; lowering the origin by the height it loses keeps

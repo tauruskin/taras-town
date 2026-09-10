@@ -150,6 +150,21 @@ export const Overlay = {
   },
 
   /**
+   * How visible the ball should be while invincible after a hit, 0..1. 1
+   * whenever nothing is happening.
+   *
+   * A step function rather than a fade: at CONFIG.HEALTH.IFRAME's half a
+   * second, a fade barely reads at all, where an on/off flicker is what
+   * tells a player "you cannot be hit again yet" in every game that has
+   * i-frames.
+   */
+  flash(ball) {
+    if (ball.iframe <= 0) return 1;
+    const HZ = 8; // full flickers per second
+    return Math.floor(ball.iframe * HZ * 2) % 2 === 0 ? 0.35 : 1;
+  },
+
+  /**
    * Paint that darkness over everything.
    *
    * Called with the canvas in CSS-pixel space and the world transform off, so
@@ -172,6 +187,41 @@ export const Overlay = {
     ctx.restore();
   },
 };
+
+/**
+ * Hearts — the health HUD, top-left. Its geometry lives here for the same
+ * reason every other on-screen position does: tests ask for it, and no test
+ * may ever contain a coordinate.
+ */
+export const Hearts = {
+  /** Where the i'th heart (0-indexed, filled from the left) sits. */
+  at(i, w, h) {
+    const H = CONFIG.HEARTS_UI;
+    return { x: H.EDGE + H.R + i * (H.R * 2 + H.GAP), y: H.TOP + H.R };
+  },
+
+  /** Draw all of CONFIG.HEALTH.HEARTS, filled from the left up to `hearts`. */
+  draw(ctx, w, h, hearts) {
+    const C = CONFIG.COLOURS;
+    for (let i = 0; i < CONFIG.HEALTH.HEARTS; i++) {
+      const p = Hearts.at(i, w, h);
+      heart(ctx, p.x, p.y, CONFIG.HEARTS_UI.R, i < hearts ? C.STAR_ON : C.STAR_OFF);
+    }
+  },
+};
+
+/** A simple heart: two lobes and a point, filled as one shape. */
+function heart(ctx, cx, cy, r, colour) {
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.5, cy - r * 0.3, r * 0.5, 0, Math.PI * 2);
+  ctx.arc(cx + r * 0.5, cy - r * 0.3, r * 0.5, 0, Math.PI * 2);
+  ctx.moveTo(cx - r, cy - r * 0.1);
+  ctx.lineTo(cx, cy + r);
+  ctx.lineTo(cx + r, cy - r * 0.1);
+  ctx.closePath();
+  ctx.fillStyle = colour;
+  ctx.fill();
+}
 
 /**
  * Panel — the results panel shown when a level is won.
