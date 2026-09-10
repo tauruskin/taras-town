@@ -270,5 +270,56 @@ console.log('\n3. level two without its crate');
   }
 }
 
+// --- 4. exhausting hearts mid-level sends the ball back to its start ------
+//
+// Everything above proves a level can be finished without ever taking a hit.
+// This proves the OTHER path is real too: play level one for real up to its
+// first checkpoint, take three hits by hand (there are no enemies yet to
+// supply them for real, and level one has no spikes before its checkpoint —
+// see levels.js's own note on why), and confirm the ball comes back at the
+// level's spawn with hearts refilled, not at the checkpoint it had already
+// reached.
+console.log('\n4. exhausting hearts mid-level');
+{
+  const data = LEVELS[0];
+  const level = loadLevel(data);
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+  // Level one's own first gap (2950-3150, flat to flat) sits well before its
+  // first checkpoint at x=8750, so getting there for real needs the same
+  // jump-before-a-gap driving every other check in this file already uses —
+  // holding right and never jumping drops the ball into that gap forever.
+  // Reuse the file's own runner rather than inventing a second way to drive.
+  const run = runner(level, 1);
+  let press = false;
+  const input = {
+    left: false, right: false,
+    takeJump() { const j = press; press = false; return j; },
+  };
+  const n = Math.round(60 / CONFIG.STEP);
+  let i = 0;
+  for (; i < n && !level.checkpoints[0].taken; i++) {
+    const want = run(ball);
+    input.left = !!want.left;
+    input.right = !!want.right;
+    if (want.jump) press = true;
+    level.update(CONFIG.STEP);
+    ball.update(CONFIG.STEP, input, level);
+  }
+  if (!level.checkpoints[0].taken) fail('level one: never reached its first checkpoint, so nothing was tested');
+  else {
+    const spawn = { ...ball.spawn };
+    for (let h = 0; h < CONFIG.HEALTH.HEARTS; h++) {
+      ball.hit(1);
+      for (let s = 0; s < Math.round((CONFIG.HEALTH.IFRAME + 0.05) / CONFIG.STEP); s++) {
+        level.update(CONFIG.STEP);
+        ball.update(CONFIG.STEP, { left: false, right: false, takeJump: () => false }, level);
+      }
+    }
+    console.log(`   after 3 hits past checkpoint 0: hearts=${ball.hearts}, x=${ball.x.toFixed(0)} (level start ${spawn.x})`);
+    if (Math.abs(ball.x - spawn.x) > 5) fail(`came back at x=${ball.x.toFixed(0)}, not level one's own start at ${spawn.x}`);
+    if (ball.hearts !== CONFIG.HEALTH.HEARTS) fail(`hearts did not refill: ${ball.hearts}`);
+  }
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nEVERY LEVEL CAN BE FINISHED');
 process.exit(failures ? 1 : 0);
