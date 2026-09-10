@@ -205,9 +205,10 @@ export const LEVELS = [
     spikes: [
       // The rehearsal: narrow, flat, unmissable, right after a checkpoint.
       { x: 900, y: 760, w: 80 },
-      // After the gap, but a long way after it — 450px of flat between the
-      // landing and the teeth. Close behind the landing would make the gap and
-      // the spikes one piece of timing, which is the thing never to ask.
+      // After the gap, but a long way after it — the landing edge is at 1700,
+      // so that is 550px of flat between it and the teeth. Close behind the
+      // landing would make the gap and the spikes one piece of timing, which
+      // is the thing never to ask.
       { x: 2250, y: 760, w: 100 },
       // On the high ground, 250px past the crest of the ramp, so it is in
       // plain view from the top before it has to be jumped.
@@ -219,6 +220,14 @@ export const LEVELS = [
       // for the first time is exactly the moment to lose nothing but seconds,
       // and a patch failed should never send him back to redo the one before
       // it — or the gap.
+      //
+      // Nothing guards the gap at 1500-1700 itself, 720px past this one —
+      // that is deliberate rather than an oversight. The gap is the same
+      // 200px as level one's, already met and already practised there; only
+      // a NEW idea earns its own checkpoint here, which is why every one of
+      // the three below sits on a spike patch and none sits on a gap.
+      // tests/offline/finish.mjs proves the stretch from here is still
+      // completable in one.
       { x: 780, y: 760 },
       { x: 2100, y: 760 },
       { x: 3050, y: 620 },

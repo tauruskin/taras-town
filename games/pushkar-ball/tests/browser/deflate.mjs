@@ -122,21 +122,38 @@ await shoot('3-settled');
 // LOOKAHEAD, because the camera is not clamped here and follows the ball, so
 // the ball's screen position says nothing about how far it went — see
 // jump.mjs's check 3 for what assuming otherwise cost. What it does say is
-// how FAST it is going: the camera aims `LOOKAHEAD` seconds of speed ahead of
-// the ball, so a ball rolling left at full speed sits that far RIGHT of the
-// middle, and a ball that is not rolling sits in the middle. At full speed
-// that is `LOOKAHEAD * MAX_SPEED` world units; half of it is asked for.
+// how FAST it is going: at full speed the ball settles off-centre by a fixed
+// amount, derived below.
+//
+// NOT `LOOKAHEAD * MAX_SPEED`. That treats `camera.x` as though it snapped
+// straight to its target every step, but `update` LERPS toward
+// `ball.x + vx*LOOKAHEAD` at rate `LERP`, and a lerp chasing a target moving
+// at a steady velocity never catches up — it settles into a constant lag of
+// `vx / LERP` behind whatever it is chasing. So at full speed the camera
+// itself trails the moving target by `MAX_SPEED / LERP`, and what is left of
+// the lookahead once that lag is subtracted is the ball's actual steady-state
+// offset from screen centre: `(LOOKAHEAD - 1/LERP) * MAX_SPEED`, in world
+// units, times `scale` for screen pixels. With today's numbers that is about
+// 68px, not the roughly 106px the naive instant-snap formula gives — and this
+// derivation is the reason: get the model wrong and the threshold is wrong by
+// 2x while looking perfectly reasonable, which is exactly the "test is wrong
+// about the harness" trap CLAUDE.md warns about. If LOOKAHEAD or LERP is
+// retuned, this number moves with it; a fixed pixel figure here would not.
+//
+// A generous safety fraction (0.8) on top, since 900ms may not be quite long
+// enough to fully settle and the steady-state formula is itself a limit.
 const LEFT = Buttons.left(W, H);
 const before = await ballAt(ev);
 await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: LEFT.x, y: LEFT.y, id: 1 }] });
 await sleep(900);
 const after = await ballAt(ev);
 await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-const lead = CONFIG.CAMERA.LOOKAHEAD * CONFIG.MAX_SPEED * (H / CONFIG.VIEW_H);
+const C = CONFIG.CAMERA;
+const steadyLead = (C.LOOKAHEAD - 1 / C.LERP) * CONFIG.MAX_SPEED * (H / CONFIG.VIEW_H);
 if (!after) fail('lost the ball again while checking it still rolls');
-else if (after.x - before.x < lead / 2) {
-  fail(`after coming back, holding left put the ball only ${(after.x - before.x).toFixed(0)}px right of where it was; rolling at full speed puts it about ${lead.toFixed(0)}px`);
-} else console.log(`\n5. and it rolls again: the camera leads it by ${(after.x - before.x).toFixed(0)}px, about ${lead.toFixed(0)} at full speed`);
+else if (after.x - before.x < steadyLead * 0.8) {
+  fail(`after coming back, holding left put the ball only ${(after.x - before.x).toFixed(0)}px right of where it was; the camera's steady-state lag at full speed puts it about ${steadyLead.toFixed(0)}px`);
+} else console.log(`\n5. and it rolls again: the camera leads it by ${(after.x - before.x).toFixed(0)}px, about ${steadyLead.toFixed(0)} at full speed`);
 
 for (const p of problems) fail(p);
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nDEFLATING AND COMING BACK LOOKS RIGHT');
