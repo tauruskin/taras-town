@@ -415,9 +415,13 @@ export function loadLevel(data) { return new Level(data); }
  * again would hide that decision rather than force it, which is how a child
  * ends up replaying the last level for ever with no idea why.
  *
- * An INDEX and not an id, because that is what the caller has: main.js holds
- * `levelIndex` into LEVELS, and ids are for the digit on the panel.
+ * An INDEX and not an id, because that is what the caller has: flow.js holds
+ * `levelIndex` into the list, and ids are for the digit on the panel.
+ *
+ * The list is a parameter, defaulting to LEVELS, so that the flow can be
+ * tested on levels built for the purpose — moving on needs somewhere to move
+ * on to, and a test should not depend on how many levels the game has today.
  */
-export function nextLevel(index) {
-  return index + 1 < LEVELS.length ? index + 1 : null;
+export function nextLevel(index, levels = LEVELS) {
+  return index + 1 < levels.length ? index + 1 : null;
 }

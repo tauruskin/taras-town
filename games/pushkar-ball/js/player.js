@@ -90,7 +90,7 @@ export class Ball {
    * gentle one is that the win is the reward and outranks the hazard: nothing
    * should be able to take it back after the flag has been touched. The
    * mechanical one is a freeze. `dying` is decremented only in `update`, and
-   * main.js stops updating the ball once the level is won — so a deflate begun
+   * flow.js stops updating the ball once the level is won — so a deflate begun
    * on the winning step would never finish, and the ball would sit behind the
    * results panel as a flat puddle for as long as the panel was up. Guarding
    * here rather than in the caller means every future way of failing — a saw,

@@ -194,18 +194,48 @@ export const Overlay = {
  */
 export const Panel = {
   /**
-   * The panel itself, centred, and clamped so it always fits.
+   * The panel itself: centred across, and centred down unless that would put
+   * its buttons too near the game's controls, in which case it is lifted.
    *
-   * Clamped rather than scaled: a panel that shrank would take its buttons and
-   * its digit down with it, and both of those are sized for a thumb and an eye
-   * rather than for the window. What the clamp protects against is a screen
-   * shorter than the panel, where the honest answer is to lose the margin.
+   * Fixed size, never clamped or scaled. It was clamped to the screen once,
+   * and that was a quiet lie: its rows are placed from the top (stars, digit)
+   * and from the bottom (buttons), so a panel squeezed much below its own
+   * height would have laid its digit over its buttons without complaint. The
+   * face needs every one of its PANEL_H pixels, and the smallest screen this
+   * game supports is 280px tall, which leaves 80 to spare —
+   * tests/offline/buttons.mjs proves it fits on every screen it knows.
+   *
+   * Lifted, rather than left centred, because on a narrow phone centring puts
+   * retry right beside the right-arrow control. Those controls are switched
+   * off while the panel is up, so a tap there cannot roll the ball — but that
+   * is one switch in input.js, and a layout that is safe even if the switch
+   * is ever forgotten costs nothing. For each panel button and each control
+   * this works out the lowest the button may sit and keep CLEAR of daylight
+   * between their hit circles, and moves the whole panel up by the worst of
+   * them. On the screens a phone actually has that is between 0 and about
+   * 13px; on 480x320 it is most of the way to the top.
+   *
+   * Floored to a whole pixel, which also keeps the result on the safe side of
+   * the float arithmetic the button suite checks it against.
    */
   box(w, h) {
     const R = CONFIG.RESULTS;
-    const pw = Math.min(R.PANEL_W, w - 24);
-    const ph = Math.min(R.PANEL_H, h - 24);
-    return { x: (w - pw) / 2, y: (h - ph) / 2, w: pw, h: ph };
+    const reach = R.BUTTON_R * CONFIG.UI.HIT;
+    const buttonsDown = R.PANEL_H - R.BUTTON_LIFT - R.BUTTON_R;
+    let y = (h - R.PANEL_H) / 2;
+    for (const side of [-1, 1]) {
+      const px = w / 2 + side * buttonSpread();
+      for (const n of NAMES) {
+        const c = Buttons[n](w, h);
+        const need = reach + c.r * CONFIG.UI.HIT + R.CLEAR;
+        const dx = px - c.x;
+        if (Math.abs(dx) >= need) continue;
+        const lowest = c.y - Math.sqrt(need * need - dx * dx);
+        y = Math.min(y, Math.floor(lowest - buttonsDown));
+      }
+    }
+    y = Math.max(R.TOP_MARGIN, y);
+    return { x: (w - R.PANEL_W) / 2, y, w: R.PANEL_W, h: R.PANEL_H };
   },
 
   /** Replay this level. Left of centre, low in the panel. */
@@ -213,7 +243,7 @@ export const Panel = {
     const R = CONFIG.RESULTS;
     const b = Panel.box(w, h);
     return {
-      x: b.x + b.w / 2 - R.BUTTON_R - R.GAP / 2,
+      x: b.x + b.w / 2 - buttonSpread(),
       y: b.y + b.h - R.BUTTON_R - R.BUTTON_LIFT,
       r: R.BUTTON_R,
     };
@@ -224,7 +254,7 @@ export const Panel = {
     const R = CONFIG.RESULTS;
     const b = Panel.box(w, h);
     return {
-      x: b.x + b.w / 2 + R.BUTTON_R + R.GAP / 2,
+      x: b.x + b.w / 2 + buttonSpread(),
       y: b.y + b.h - R.BUTTON_R - R.BUTTON_LIFT,
       r: R.BUTTON_R,
     };
@@ -348,6 +378,17 @@ export const Panel = {
     ctx.fillRect(hm.x - hm.r * 0.14, hm.y + hm.r * 0.18, hm.r * 0.28, hm.r * 0.34);
   },
 };
+
+/**
+ * How far either panel button's centre is from the middle of the panel.
+ * One function, because `box` has to know it to lift the panel clear of the
+ * controls BEFORE the buttons exist, and two copies of the expression would
+ * let the lift and the buttons disagree about where the buttons are.
+ */
+function buttonSpread() {
+  const R = CONFIG.RESULTS;
+  return R.BUTTON_R + R.GAP / 2;
+}
 
 // The order Panel.at walks. Same shape as NAMES above, and the same reason:
 // it only matters if two of them overlap, which the button suite forbids on

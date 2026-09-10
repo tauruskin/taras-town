@@ -8,9 +8,14 @@ const { Buttons, Panel } = await import('../../js/ui.js');
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
 
-// Widest first, then the two small screens a child must still be able to play
-// on. 568x320 is an iPhone SE on its side; 740x280 is a short landscape window.
-const SCREENS = [[844, 390], [568, 320], [740, 280]];
+// Widest first, then the small screens a child must still be able to play on.
+// 568x320 is an iPhone SE on its side; 740x280 is a short landscape window.
+// 480x320 is narrower than any phone we expect, and it is here because it is
+// the screen that proves the panel-versus-controls check below means
+// something: on it the results panel's retry button and the right-arrow
+// control sit almost on top of each other unless the panel moves out of the
+// way.
+const SCREENS = [[844, 390], [568, 320], [740, 280], [480, 320]];
 
 for (const [w, h] of SCREENS) {
   console.log(`\n${w}x${h}`);
@@ -53,6 +58,32 @@ for (const [w, h] of SCREENS) {
       fail(`the panel's ${name} button is off a ${w}x${h} screen`);
     }
     if (Panel.at(b.x, b.y, w, h) !== name) fail(`tapping the middle of the panel's ${name} does not hit it`);
+    // And off-centre, right at the edge of the forgiving radius, and just past
+    // it. Only tapping dead centre let a Panel.at that had shrunk its radius to
+    // a tenth of the drawn one pass — a button a thumb almost never hits.
+    // Straight up, because the other panel button is beside it, not above.
+    const reach = b.r * CONFIG.UI.HIT;
+    if (Panel.at(b.x, b.y - (reach - 1), w, h) !== name) {
+      fail(`a tap ${(reach - 1).toFixed(1)}px above the middle of the panel's ${name} missed it; its hit radius should be ${reach.toFixed(1)}`);
+    }
+    if (Panel.at(b.x, b.y - (reach + 1), w, h) === name) {
+      fail(`a tap ${(reach + 1).toFixed(1)}px above the middle of the panel's ${name} still hit it; its hit radius should be ${reach.toFixed(1)}`);
+    }
+    // The panel's buttons and the game's controls must be clear of each other
+    // by their HIT radii, not just their drawn ones, and by a margin on top.
+    // The controls are switched off while the panel is up, so today a tap on
+    // retry cannot become a held right-arrow — but that switch is one line in
+    // input.js, and this is the backstop that makes forgetting it harmless.
+    // Before the panel learned to move out of the way, retry's hit circle was
+    // 0.7px from the right button's on an iPhone SE and overlapped it by 33px
+    // on 480x320, so a thumb on retry held the ball rolling right instead.
+    for (const [cname, c] of Object.entries(all)) {
+      const need = reach + c.r * CONFIG.UI.HIT + CONFIG.RESULTS.CLEAR;
+      const d = Math.hypot(b.x - c.x, b.y - c.y);
+      if (d < need) {
+        fail(`the panel's ${name} is ${(d - need + CONFIG.RESULTS.CLEAR).toFixed(1)}px from the ${cname} control's hit circle on ${w}x${h}; it needs ${CONFIG.RESULTS.CLEAR}`);
+      }
+    }
     // And it must sit inside the panel it is drawn on, or it is a button
     // floating on the game behind with nothing under it to say it is one.
     if (b.x - b.r < panel.x || b.x + b.r > panel.x + panel.w ||
@@ -75,13 +106,13 @@ for (const [w, h] of SCREENS) {
     fail(`the level number (${numTop.toFixed(0)}..${numBottom.toFixed(0)}) is off the panel on ${w}x${h}`);
   }
   for (const [name, b] of [['retry', pr], ['home', ph]]) {
-    // Either clear of the button vertically, or clear of it horizontally. The
-    // digit sits between the two buttons, so horizontal clearance is what it
-    // actually relies on — but a layout that lifted it above them instead is
-    // just as correct, and this must not fail on it.
-    const clearY = numBottom <= b.y - b.r || numTop >= b.y + b.r;
-    const clearX = Math.abs(num.x - b.x) > b.r + num.size * 0.4;
-    if (!clearY && !clearX) fail(`the level number collides with the panel's ${name} button on ${w}x${h}`);
+    // The digit has a row of its own, above the buttons, and this insists on
+    // exactly that. Vertical clearance only, on purpose: it is the one kind of
+    // clearance that holds however many digits the level number has, and
+    // node cannot measure how wide "12" is.
+    if (numBottom > b.y - b.r) {
+      fail(`the level number (bottom ${numBottom.toFixed(0)}) runs into the panel's ${name} button (top ${(b.y - b.r).toFixed(0)}) on ${w}x${h}`);
+    }
   }
   for (let i = 0; i < 3; i++) {
     const s = Panel.star(i, w, h);

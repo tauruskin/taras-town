@@ -101,6 +101,7 @@ const PRECACHE = [
   './games/pushkar-ball/js/input.js',
   './games/pushkar-ball/js/camera.js',
   './games/pushkar-ball/js/hazards.js',
+  './games/pushkar-ball/js/flow.js',
 ];
 
 self.addEventListener('install', (event) => {

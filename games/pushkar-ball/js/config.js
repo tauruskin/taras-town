@@ -253,9 +253,11 @@ export const CONFIG = {
     // The panel, in CSS pixels. Fixed rather than a fraction of the screen,
     // so it is the same size on a phone and a desktop — everything on it is a
     // thumb target or a digit to be read, and neither of those wants to shrink
-    // because the window did. `Panel.box` clamps it if a screen is somehow
-    // smaller than this, and tests/offline/buttons.mjs checks that everything
-    // on its face still fits when it does.
+    // because the window did. Nor is it clamped to a small screen: its rows
+    // are laid out from the top and from the bottom, so the face needs every
+    // one of PANEL_H's pixels, and a squeezed panel would put its digit over
+    // its buttons without complaint. The smallest screen supported is 280px
+    // tall, and tests/offline/buttons.mjs proves it fits on every one it knows.
     PANEL_W: 300,
     PANEL_H: 200,
 
@@ -284,6 +286,16 @@ export const CONFIG = {
     BUTTON_R: 34,        // the retry and hub buttons
     BUTTON_LIFT: 16,     // from the bottom of the panel to the bottom of them
     GAP: 26,             // between the two of them
+    // Daylight, in CSS pixels, between either panel button's HIT circle and
+    // the hit circle of any game control. The controls are switched off while
+    // the panel is up, so this is a second line of defence rather than the
+    // first — but on a narrow phone the two sets of buttons would otherwise
+    // sit almost on top of each other, and `Panel.box` lifts the whole panel
+    // to keep this much between them.
+    CLEAR: 8,
+    // How close the panel may be pushed to the top of the screen while it is
+    // being lifted clear of the controls.
+    TOP_MARGIN: 8,
   },
 
   // ---------------------------------------------------------------------

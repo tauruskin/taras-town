@@ -25,6 +25,14 @@ export class Input {
     // this file has no business learning about every overlay the game ever
     // grows. Null when there is nothing waiting.
     this._tap = null;
+    // Whether the game's controls are live. Off while the results panel is
+    // up, and then EVERY press is a tap for the panel and none is hit-tested
+    // against Buttons at all. Without this the controls stay live and merely
+    // invisible under the panel: on a narrow phone a thumb on retry landed
+    // inside the right arrow's hit circle and became a held right, and a jab
+    // where jump used to be queued a jump into the next level. Set it through
+    // `setControls`, never directly, because the switch has to drain.
+    this.controls = true;
 
     canvas.addEventListener('pointerdown', (e) => this._down(e));
     canvas.addEventListener('pointermove', (e) => this._move(e));
@@ -60,19 +68,48 @@ export class Input {
   }
 
   _down(e) {
+    if (!this.controls) { this._tap = this._where(e); return; }
     const name = this._hit(e);
     if (!name) {
       // Remembered rather than dropped, so an overlay can ask where the last
       // tap on nothing was. Not preventDefault'd, deliberately: a press that
       // is not on a control is left alone exactly as it was before, so a tap
       // on the world still behaves like a tap on a page.
-      const r = this.canvas.getBoundingClientRect();
-      this._tap = { x: e.clientX - r.left, y: e.clientY - r.top };
+      this._tap = this._where(e);
       return;
     }
     e.preventDefault();
     if (name === 'jump') this._jump = true;
     else this._pointers.set(e.pointerId, name);
+  }
+
+  /** Where a pointer event is, in CSS pixels from the canvas's top-left. */
+  _where(e) {
+    const r = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  /**
+   * Turn the game's controls on or off, and forget every press in flight.
+   *
+   * The draining is the point, and it happens on EVERY switch, both ways.
+   * Turning off, it drops a thumb still resting on the right arrow when the
+   * flag was touched, a jump pressed on the winning step, and a tap on the
+   * world a moment earlier — which would otherwise land on whatever panel
+   * button is now under it. Turning on, it drops a jump pressed on the
+   * keyboard while the panel was up, so a level never begins with a jump
+   * nobody asked for.
+   *
+   * Held KEYS are left alone. The key really is down, and clearing it would
+   * leave a held arrow dead on the new level until it was let go and pressed
+   * again — while the ball is not simulated during the panel, so the key can
+   * do nothing there anyway.
+   */
+  setControls(on) {
+    this.controls = on;
+    this._pointers.clear();
+    this._jump = false;
+    this._tap = null;
   }
 
   /**

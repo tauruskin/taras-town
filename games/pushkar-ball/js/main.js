@@ -12,19 +12,19 @@
  * game and there is not going to be one.
  */
 import { CONFIG } from './config.js';
-import { LEVELS, loadLevel, nextLevel } from './levels.js';
-import { Ball } from './player.js';
+import { LEVELS } from './levels.js';
 import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Buttons, Overlay, Panel } from './ui.js';
+import { Flow } from './flow.js';
 import { drawSpikes } from './hazards.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
 let cssW = 0, cssH = 0;      // the canvas in CSS pixels
-// Rebuilt on every level, so none of these can be const: `startLevel` is the
-// only thing that assigns them. `camera` in particular is declared up here so
+// The current level's world, ball and camera, rebuilt on every level by
+// `levelBegan` and read by the drawing below. `camera` is declared up here so
 // that `resize` can tell it its bias, which happens before the first level
 // exists — a `let` read before assignment is `undefined` rather than an error,
 // which is what the guard in `resize` relies on.
@@ -52,58 +52,56 @@ function resize() {
   viewH = CONFIG.VIEW_H;
   viewW = cssW / scale;
 
-  // How far below the ball the camera aims depends on the screen, because the
-  // two things that want to decide it disagree: the horizon wants a fraction
-  // of the height, and the thumb buttons want a fixed number of pixels. So it
-  // is recomputed here rather than being a constant, and on every resize —
-  // rotating a tablet changes the answer.
-  //
-  // Guarded because `resize` runs once before there is a camera to tell.
-  if (camera) camera.biasY = Camera.biasFor(cssH, scale, CONFIG.BALL.R, cssW);
+  // Rotating a tablet changes where the camera should aim. Guarded because
+  // `resize` runs once before there is a camera to tell.
+  if (camera) aimCamera();
+}
+
+/**
+ * Tell the camera how far below the ball to aim, for this screen.
+ *
+ * It depends on the screen because the two things that want to decide it
+ * disagree: the horizon wants a fraction of the height, and the thumb buttons
+ * want a fixed number of pixels. One function, called from both places that
+ * need it — every resize, and every new camera — so the two cannot drift.
+ */
+function aimCamera() {
+  camera.biasY = Camera.biasFor(cssH, scale, CONFIG.BALL.R, cssW);
 }
 window.addEventListener('resize', resize);
 resize();
 
 const input = new Input(canvas);
 
-// Which level, and whether it is still being played. Two modes, and it should
-// stay that way: a mode is the thing that quietly grows into a tangle, and
-// this file's whole job is to stay thin.
-let levelIndex = 0;
-let mode = 'playing';        // 'playing' until the flag, then 'won'
-let wonFor = 0;              // seconds the results panel has been up
 
 /**
- * Throw away the current level and start the one at `i`.
- *
- * Everything is rebuilt rather than reset, which is why `ball.won` needs no
- * clearing anywhere: a new level is a new ball.
+ * A level has just begun — the first, the next one, or a retry. The flow has
+ * built the world and the ball; the camera is the part that needs the screen,
+ * so it is built here.
  */
-function startLevel(i) {
-  levelIndex = i;
-  level = loadLevel(LEVELS[i]);
-  ball = new Ball(level.spawn.x, level.spawn.y);
+function levelBegan(f) {
+  level = f.level;
+  ball = f.ball;
   camera = new Camera(level);
-
   // The bias BEFORE the snap, and this is the line that is easy to leave out.
-  // `biasY` is not a constant — it is derived per screen, because the horizon
-  // wants a fraction of the height and the thumb buttons want a fixed number
-  // of pixels — and a fresh Camera carries only its own default guess. Setting
-  // it after the snap would leave every level after the first one starting on
-  // that guess: the horizon back at the middle of the screen, and on a short
-  // phone the ball parked under a thumb button. None of which shows up on
-  // level one, because `resize` has already told THAT camera and will not run
-  // again until the phone is rotated.
-  camera.biasY = Camera.biasFor(cssH, scale, CONFIG.BALL.R, cssW);
+  // A fresh Camera carries only its own default guess at `biasY`. Snapping
+  // on that guess would start the level with the horizon back at the middle
+  // of the screen, and on a short phone with the ball parked under a thumb
+  // button. `resize` cannot be relied on to have told it: it only tells the
+  // camera that exists when the screen changes, and this one did not exist
+  // until a moment ago. The bug this prevents would be invisible on level one
+  // in testing and waiting on level two.
+  aimCamera();
   // Snapped, not eased: the first frame of a new level should be the new level
   // and not a swoop in from wherever the last one ended.
   camera.snap(ball);
   camera.update(CONFIG.STEP, ball, viewW, viewH);
-
-  mode = 'playing';
-  wonFor = 0;
 }
-startLevel(0);
+
+// Winning, the results panel, retry and moving on all live in flow.js, where
+// node can test them. This file keeps the loop, the camera and the drawing.
+const flow = new Flow(input, { levels: LEVELS, onStart: levelBegan });
+flow.start(0);
 
 // The world is drawn from the first frame, behind the start panel, so the tap
 // that begins play reveals a level rather than a blank screen. Only the
@@ -143,11 +141,6 @@ function frame(now) {
     accumulator += dt;
     let steps = 0;
     while (accumulator >= CONFIG.STEP && steps < 240) {
-      // The level keeps running while the panel is up, so the platforms carry
-      // on moving behind it. A world that froze the instant you won would look
-      // like the game had crashed at the moment of the reward.
-      level.update(CONFIG.STEP);
-
       // The ball puts itself back at its home when it fails, and the camera
       // has to go with it instead of easing across the whole level after it.
       //
@@ -172,65 +165,33 @@ function frame(now) {
       // suite is where it is checked, by screenshotting the ball just after it
       // comes back: a camera mid-glide puts the ball somewhere a settled
       // camera would not.
-      if (mode === 'playing') {
-        const revivingBefore = ball.reviving;
-        ball.update(CONFIG.STEP, input, level);
-        if (revivingBefore === 0 && ball.reviving > 0) camera.snap(ball);
-        // Latched here and nowhere else, so `wonFor` counts from the step the
-        // flag was touched. The ball is not updated again after this, which is
-        // safe only because a won ball can be neither deflating nor
-        // re-inflating — see the goal check in player.js, which is where that
-        // is made true.
-        if (ball.won) mode = 'won';
-      } else {
-        wonFor += CONFIG.STEP;
-      }
+      //
+      // Only when the flow did not start a new level on this step: a new ball
+      // has `reviving` of 0 and a new camera was snapped in `levelBegan`.
+      const before = ball, revivingBefore = ball.reviving;
+      flow.step(CONFIG.STEP);
+      if (ball === before && revivingBefore === 0 && ball.reviving > 0) camera.snap(ball);
 
       camera.update(CONFIG.STEP, ball, viewW, viewH);
       accumulator -= CONFIG.STEP;
       steps++;
     }
 
-    if (mode === 'won') handlePanel();
+    // Taps once a frame rather than once a step: a tap happened at a moment
+    // of wall-clock time and is not something the fixed-step simulation can
+    // be asked about. The flow ignores any that land while the level is being
+    // played, so there is no need to ask which mode it is in first.
+    const tap = input.takeTap();
+    if (tap && flow.tap(tap.x, tap.y, cssW, cssH) === 'home') {
+      // Relative, with no leading slash, for the same reason the start
+      // screen's own hub button is: GitHub Pages serves from a sub-folder.
+      window.location.href = '../../index.html';
+    }
   }
 
   draw();
 }
 requestAnimationFrame(frame);
-
-/**
- * The results panel: its two buttons, and the fact that it moves on by itself.
- *
- * Auto-advance is the point — a child who has just won should not have to
- * navigate anything to keep playing, and every menu between two levels is a
- * chance to get lost in one. The two buttons exist so that he is not FORCED
- * onward: retry replays the level he just enjoyed, and the house goes back to
- * the hub.
- *
- * Called once a frame rather than once a step. A tap happened at a moment of
- * wall-clock time and is not something the fixed-step simulation can be asked
- * about; running this per step would consume the tap on the first of them and
- * then look for it three more times for nothing.
- */
-function handlePanel() {
-  const tap = input.takeTap();
-  if (tap) {
-    const hit = Panel.at(tap.x, tap.y, cssW, cssH);
-    if (hit === 'retry') { startLevel(levelIndex); return; }
-    // Relative, with no leading slash, for the same reason the start screen's
-    // own hub button is: GitHub Pages serves this from a sub-folder.
-    if (hit === 'home') { window.location.href = '../../index.html'; return; }
-  }
-
-  if (wonFor < CONFIG.RESULTS.HOLD) return;
-
-  const next = nextLevel(levelIndex);
-  // Null means there is nowhere to go, so the last level stays on its panel
-  // rather than promising a level that does not exist. Not a dead end: retry
-  // and the hub are both still on it — and phase 4's level select is where
-  // this will lead instead.
-  if (next !== null) startLevel(next);
-}
 
 // ---------------------------------------------------------------------------
 // Drawing
@@ -286,8 +247,8 @@ function draw() {
   // INSTEAD of the controls, because rolling the ball around behind a results
   // panel is not a thing that should be possible, and because a thumb aiming
   // at the panel's own buttons would otherwise be landing on the jump button.
-  if (mode === 'won') {
-    Panel.draw(ctx, cssW, cssH, { level: LEVELS[levelIndex].id, stars: 1 });
+  if (flow.mode === 'won') {
+    Panel.draw(ctx, cssW, cssH, { level: level.data.id, stars: flow.stars });
   } else {
     Buttons.draw(ctx, cssW, cssH, input.held());
   }
@@ -436,8 +397,9 @@ function drawPlatforms() {
  * leaves a child unsure whether anything happened at all, and until audio
  * arrives in phase 4 this and the panel are the whole of the reward.
  *
- * Driven by `wonFor`, which only advances while the panel is up, so the flag
- * is still before the win and still again the moment the next level begins.
+ * Driven by the flow's `wonFor`, which only advances while the panel is up,
+ * so the flag is still before the win and still again the moment the next
+ * level begins.
  */
 function drawGoal() {
   if (!level.goal) return;
@@ -445,7 +407,7 @@ function drawGoal() {
   const g = level.goal;
   ctx.fillStyle = C.FLAG_POLE;
   ctx.fillRect(g.x - 3, g.y - 90, 6, 90);
-  const wave = mode === 'won' ? Math.sin(wonFor * 9) * 10 : 0;
+  const wave = flow.mode === 'won' ? Math.sin(flow.wonFor * 9) * 10 : 0;
   ctx.beginPath();
   ctx.moveTo(g.x + 3, g.y - 90);
   ctx.lineTo(g.x + 52, g.y - 74 + wave);
