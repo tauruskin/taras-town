@@ -55,7 +55,7 @@ function circleHitsBox(cx, cy, r, b) {
 }
 
 /**
- * Is the ball in any of these spike patches?
+ * Which spike patch this body is touching, or null.
  *
  * Forgiveness lives here, and it is measured off the BALL: the circle tested
  * is `SPIKE.FORGIVE` smaller than the one drawn, so the ball may sink that far
@@ -64,11 +64,8 @@ function circleHitsBox(cx, cy, r, b) {
  * `FORGIVE` must stay below `BALL.R`, or the effective radius clamps to zero
  * and only a ball whose exact centre is inside the picture dies — which reads
  * as spikes that mostly do not work.
- */
-/**
- * Which spike patch this body is touching, or null. The same forgiveness as
- * `hitsSpikes` below — see the comment on `FORGIVE` in config.js — but
- * returning the patch itself rather than a boolean, so a caller can work out
+ *
+ * Returns the patch itself rather than a boolean, so a caller can work out
  * which way to knock the ball back.
  */
 export function spikeHit(body, spikes, cfg) {
@@ -79,6 +76,7 @@ export function spikeHit(body, spikes, cfg) {
   return null;
 }
 
+/** Boolean form of spikeHit, for callers that don't need which patch. */
 export function hitsSpikes(body, spikes, cfg) {
   return !!spikeHit(body, spikes, cfg);
 }

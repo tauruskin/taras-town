@@ -170,6 +170,44 @@ const world = (spikes) => loadLevel({
   if (ball.vy !== -CONFIG.HEALTH.KNOCKBACK_UP) fail(`vy after the hit is ${ball.vy}, expected exactly ${-CONFIG.HEALTH.KNOCKBACK_UP}`);
 }
 
+// --- 3b. and the other direction knocks the other way --------------------
+//
+// Added in review: every check above approaches a patch from the left, so
+// `Level.hazardKnockDir`'s `body.x >= mid ? 1 : -1` only ever exercises the
+// `-1` branch through the real spike-touch path — a sign flip or an inverted
+// comparison there would pass every check above. Mirror of check 3: a ball
+// spawned to the RIGHT of the same kind of patch, rolling left into it, must
+// be knocked back to the right (positive vx).
+{
+  const patch = { x: 800, y: 760, w: 160 };
+  const level = world([patch]);
+  const input = stub();
+  const ball = new Ball(1400, level.spawn.y);
+  run(ball, level, input, 1.0);
+
+  input.left = true;
+  let steps = 0;
+  const limit = Math.round(4 / CONFIG.STEP);
+  while (ball.hits === 0 && steps < limit) {
+    level.update(CONFIG.STEP);
+    ball.update(CONFIG.STEP, input, level);
+    steps++;
+  }
+  input.left = false;
+
+  console.log(`\n3b. touched the patch from the right after ${(steps * CONFIG.STEP).toFixed(2)}s at x=${ball.x.toFixed(2)};` +
+              ` hearts ${CONFIG.HEALTH.HEARTS} -> ${ball.hearts}, vx=${ball.vx.toFixed(0)}, vy=${ball.vy.toFixed(0)}`);
+  if (ball.hits !== 1) fail(`never touched the patch at all within ${(limit * CONFIG.STEP).toFixed(1)}s`);
+  if (ball.hearts !== CONFIG.HEALTH.HEARTS - 1) {
+    fail(`one touch left ${ball.hearts} hearts, expected ${CONFIG.HEALTH.HEARTS - 1}`);
+  }
+  if (ball.deaths !== 0) fail(`one touch with hearts to spare should not relocate the ball; deaths=${ball.deaths}`);
+  // Knocked BACK, not forward: the ball approached from the right, so it must
+  // be pushed further right (and a little up), away from the patch it hit.
+  if (ball.vx !== CONFIG.HEALTH.KNOCKBACK) fail(`vx after the hit is ${ball.vx}, expected exactly ${CONFIG.HEALTH.KNOCKBACK}`);
+  if (ball.vy !== -CONFIG.HEALTH.KNOCKBACK_UP) fail(`vy after the hit is ${ball.vy}, expected exactly ${-CONFIG.HEALTH.KNOCKBACK_UP}`);
+}
+
 // --- 4. rolling past where they are NOT does not kill --------------------
 {
   const level = world([{ x: 1500, y: 760, w: 100 }]);
