@@ -2299,7 +2299,15 @@ screen is a child carried onward with no way to stop it."
 
 ---
 
-## Task 6: Levels two and three
+## Task 6: Levels two and three — DONE
+
+> Commits `915f5a8`, `8a9af84`. Spec review passed with every load-bearing claim independently reproduced (a from-scratch completion script, not the implementer's own, beat both new levels). Code quality review passed on re-review, with the camera-lag fix confirmed against real Chrome, not just arithmetic.
+>
+> **Level one gained two checkpoints it never had**, since it was the only level and nothing had tested a checkpoint-then-fall-then-respawn cycle across a whole level before. Levels two and three were authored, with five deliberate departures from the plan's own data — an extra checkpoint on level two's crate flat (working out the crate takes retries), three checkpoints on level three instead of two (a checkpoint after the second spike patch, not before it, meant failing that patch cost the gap and the first patch too), a stone ledge face that now reaches the floor instead of leaving a gap the hills showed through, both levels resized to end exactly at their boundary wall, and three factually wrong comments corrected (one claimed a patch was "where the ball is fastest"; it wasn't).
+>
+> **Every level is now proven completable by simulation, not asserted by comment**, and that proof lives on permanently in `tests/offline/finish.mjs`: it drives the real ball from spawn to flag 30 different ways per level and from every checkpoint, and separately proves level two is *impossible* without its crate (306 failed attempts, margin pinned). This is the strongest guarantee anywhere in the project that a future edit cannot quietly make a level unfinishable — the one outcome a child cannot tell apart from "this level is just hard."
+>
+> **One test threshold's justifying comment was found to model the wrong physics** — `tests/browser/deflate.mjs` assumed the camera snaps instantly to its lookahead target, when it actually lerps and settles at a steady-state lag of `vx/LERP`. The old threshold happened to pass today only by being blind to `LERP` in a way that would misfire if that number is ever retuned, which `config.js` explicitly invites. Fixed and mutation-confirmed against real Chrome: halving `LERP` made the *old* formula falsely fail a correct 30px measurement, while the corrected formula predicted 30.3px and passed it.
 
 Three levels, each harder than the last and none of them hard. Level 1 already exists and is not touched.
 
