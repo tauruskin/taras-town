@@ -41,20 +41,35 @@ export class Ball {
     // checkpoint reached. Set by whoever constructs the ball, because the ball
     // is handed its position and not the level.
     this.home = { x, y };
+    // The level's actual start, fixed for the ball's whole life — unlike
+    // `home`, this never moves to a checkpoint. It exists so that running out
+    // of hearts can send the ball all the way back, distinctly from the
+    // ordinary "back to the last checkpoint" a single fall still causes.
+    this.spawn = { x, y };
 
-    // Every way of failing, counted together. This used to be `falls`, when
-    // falling out of the world was the only way to fail; a hazard is not a
-    // fall, and two counters for one idea is how they drift apart.
+    // Every way of failing that actually RELOCATES the ball, counted
+    // together — a fall, or running out of hearts. This used to be `falls`,
+    // when falling out of the world was the only way to fail; a hazard used
+    // to relocate the ball too, and now it usually does not, which is what
+    // `hits` below is for.
     this.deaths = 0;
+
+    // Hearts, and every way they are spent. `hits` counts every one, whether
+    // or not it emptied the last heart; `deaths` above counts only the
+    // relocations. A fresh level, or a relocation once hearts hit zero,
+    // refills `hearts` to CONFIG.HEALTH.HEARTS — see `respawn()`.
+    this.hearts = CONFIG.HEALTH.HEARTS;
+    this.hits = 0;
+    this.iframe = 0;          // seconds of invincibility left after a hit
+    // Set the instant hearts reach zero, and read (then cleared) by
+    // `respawn()` to decide whether to come back at the checkpoint or at the
+    // level's own start.
+    this.zeroHearts = false;
   }
 
   /**
-   * Send the ball back to its home — the last checkpoint, or the spawn.
-   *
-   * This is the whole of failing, and it is meant to be: no lives to run out,
-   * no screen to dismiss, no wait beyond the deflate. Being handed the level
-   * back is the least discouraging thing that can happen to a six-year-old,
-   * and it is what the hub's rules ask for.
+   * Send the ball back to its home — the checkpoint, or, once hearts have run
+   * out, the level's own start — and refill hearts if that is why it is here.
    *
    * Every piece of carried state has to go, not just position. A leftover
    * upward velocity launches the ball off the respawn point; a leftover jump
@@ -62,48 +77,80 @@ export class Ball {
    * ride a platform elsewhere in the level.
    */
   respawn() {
-    this.x = this.home.x;
-    this.y = this.home.y;
+    const target = this.zeroHearts ? this.spawn : this.home;
+    this.x = target.x;
+    this.y = target.y;
     this.vx = 0; this.vy = 0;
     this.spin = 0;
     this.grounded = false;
     this.coyote = 0;
     this.buffer = 0;
     this.platform = null;
-    // The deflate's own timers included. Today's only caller has just zeroed
-    // `dying` itself, so this changes nothing — but `respawn` means "put the
-    // ball in a known state", and a second caller (a level transition, say)
-    // that inherited a half-spent deflate would be exactly the class of bug
-    // the paragraph above warns about, arriving from the other side.
     this.dying = 0;
     this.reviving = 0;
+    this.iframe = 0;
+    if (this.zeroHearts) {
+      this.hearts = CONFIG.HEALTH.HEARTS;
+      this.zeroHearts = false;
+    }
   }
 
   /**
-   * Fail. The ball deflates where it stands, then re-inflates at home.
+   * Lose a heart, if the ball is not currently invincible, already relocating,
+   * or has already won. Returns whether a heart was actually lost.
    *
-   * Ignored while already dying, which matters more than it looks: a ball that
-   * dies on a spike is still overlapping that spike, and without this guard it
-   * would re-trigger every single step and never finish deflating.
-   *
-   * Ignored once the level is WON, too, and for two separate reasons. The
-   * gentle one is that the win is the reward and outranks the hazard: nothing
-   * should be able to take it back after the flag has been touched. The
-   * mechanical one is a freeze. `dying` is decremented only in `update`, and
-   * flow.js stops updating the ball once the level is won — so a deflate begun
-   * on the winning step would never finish, and the ball would sit behind the
-   * results panel as a flat puddle for as long as the panel was up. Guarding
-   * here rather than in the caller means every future way of failing — a saw,
-   * a crusher, the fall out of the world at the bottom of this file — inherits
-   * it without having to remember to.
+   * The shared gate under `hit()` and `die()`: without it, a ball still
+   * overlapping whatever hit it last — a spike it is deflating on top of, the
+   * bottom of the world it fell through — would keep losing hearts every
+   * single step.
    */
-  die() {
-    if (this.won) return;
-    if (this.dying > 0) return;
+  _loseHeart() {
+    if (this.won) return false;
+    if (this.dying > 0) return false;
+    if (this.iframe > 0) return false;
+    this.hearts--;
+    this.hits++;
+    this.iframe = CONFIG.HEALTH.IFRAME;
+    return true;
+  }
+
+  /** Begin the squash-and-respawn sequence. `toSpawn` sends it to the level's own start instead of the last checkpoint, and is what a zero-heart fail asks for. */
+  _relocate(toSpawn) {
     this.dying = CONFIG.DEFLATE.TIME;
     this.reviving = 0;
     this.vx = 0; this.vy = 0;
+    this.zeroHearts = toSpawn;
     this.deaths++;
+  }
+
+  /**
+   * The ball has left the play space — fallen out of the level — and must
+   * physically relocate. Costs a heart like anything else, but unlike `hit`
+   * there is no "recover in place" available: the ball is gone from the
+   * world, so it always relocates, whether or not that heart was its last.
+   */
+  die() {
+    if (!this._loseHeart()) return;
+    this._relocate(this.hearts <= 0);
+  }
+
+  /**
+   * Touched a spike (and, once they exist, an enemy) while still inside the
+   * level. With hearts left, this is a flash and a knockback and the ball
+   * stays in play under control; at zero hearts it is the same full
+   * relocation a fall causes, back to the level's start rather than a
+   * checkpoint.
+   *
+   * @param knockDir -1 or 1: which way to push the ball, away from whatever
+   *                  it touched.
+   */
+  hit(knockDir) {
+    if (!this._loseHeart()) return;
+    if (this.hearts <= 0) this._relocate(true);
+    else {
+      this.vx = knockDir * CONFIG.HEALTH.KNOCKBACK;
+      this.vy = -CONFIG.HEALTH.KNOCKBACK_UP;
+    }
   }
 
   /**
@@ -162,6 +209,7 @@ export class Ball {
       return;
     }
     if (this.reviving > 0) this.reviving = Math.max(0, this.reviving - dt);
+    if (this.iframe > 0) this.iframe = Math.max(0, this.iframe - dt);
 
     // A platform we are standing on moved this step, so we move with it. This
     // runs before anything else: the ball should be where the platform put it

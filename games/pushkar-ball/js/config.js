@@ -189,6 +189,26 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Health
+  // ---------------------------------------------------------------------
+  // Three hearts, replacing "any hazard touch is instant" for spikes and
+  // falling out of the level (and, once they exist, enemies) — added Sep
+  // 2026 once this game's audience became 12, not 6. See
+  // docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md.
+  HEALTH: {
+    HEARTS: 3,
+    // Seconds of invincibility after a hit. Without it, rolling across a
+    // spike patch at speed — many steps of contact in a row — could drain
+    // every heart from a single mistake before the ball is even clear of it.
+    IFRAME: 0.5,
+    // A non-fatal hit's knockback, in px/s: away from whatever was touched,
+    // horizontally, plus a small upward bump so it reads as a hop rather
+    // than a shove — a purely horizontal knock is easy to miss at a glance.
+    KNOCKBACK: 260,
+    KNOCKBACK_UP: 200,
+  },
+
+  // ---------------------------------------------------------------------
   // Spikes
   // ---------------------------------------------------------------------
   SPIKE: {
