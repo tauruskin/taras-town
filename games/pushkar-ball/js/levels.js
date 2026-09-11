@@ -464,21 +464,30 @@ export const LEVELS = [
       // afford it. It patrols 7800..9400: 500 units past the end of the
       // spike patch at 7200, which checkpoint one guards, and 400 short of
       // the ramp, so a ball never has spike-timing and roller-timing in the
-      // same moment. Checkpoint one refills hearts just before that patch and
-      // checkpoint two refills them again on the high ground, so the roller
-      // is paid for out of a fresh budget and repaid straight after.
+      // same moment. Checkpoint one refills hearts just before that patch,
+      // so the patch and the roller share one fresh budget of three, and
+      // checkpoint two refills them again on the high ground before anything
+      // else is asked. Running out between the two sends the ball back to the
+      // spawn, roughly 8,000 units behind, not to checkpoint one.
       //
-      // Starting in the middle and heading LEFT, toward an arriving ball, as
-      // level two's roller does — and the direction is what matters most
-      // here: heading right from the same place, finish.mjs's matrix lost
-      // whole runs to it. Heading left, every run at lead 0.7 takes exactly
-      // one heart from it and every run at lead 1 or 1.3 takes none, so it
-      // never leaves a run below 2 of 3. That holds for starts 200 units
-      // either side of 8600 and for a patrol 100 units wider or narrower at
-      // each end — though narrower still, at 7950..9250, runs start being
-      // lost again — and on 230 runs sampling the start delay every 0.1s
-      // across five leads, where every run below lead 1 takes that one heart
-      // and none takes more.
+      // Starting in the middle and heading left, as level two's roller does.
+      // What matters is which way it is heading when the ball reaches it:
+      // met head-on, a late jump costs one heart; caught from behind or at
+      // its turn, a late jump can cost all three. finish.mjs's start delays
+      // span 4.5s, about a fifth of this roller's ~23s patrol, so they only
+      // see what a quick arrival meets — heading left from here, that is
+      // head-on: every lead-0.7 run takes exactly one heart and every run at
+      // lead 1 or 1.3 takes none (heading right, the same matrix lost all ten
+      // of its lead-0.7 runs from the spawn). That holds for starts 200 units
+      // either side of 8600 and for patrols 100 units wider or narrower at
+      // each end; narrower still, at 7950..9250, a lead-0.7 run is lost
+      // again. Swept over a whole patrol instead (start delays 0-23s every
+      // 0.1s, five leads), leads of 0.85 and up still never lose a run or a
+      // second heart, but lead 0.7 loses 72 of 229 — a slow arrival that
+      // also jumps late can lose the run here. That is the roller, not this
+      // spot: the same sweep on the flat before checkpoint one lost 72-73 of
+      // 229 as well, and that flat is kept for the first two spikes a child
+      // ever meets. Level two's roller does no better on the same sweep.
       { kind: 'roller', x: 8600, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7800, to: 9400, dir: -1 },
     ],
 
