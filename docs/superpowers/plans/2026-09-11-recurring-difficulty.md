@@ -298,11 +298,12 @@ Insert an `enemies` array between them, so the block becomes:
       // each end; narrower still, at 7950..9250, a lead-0.7 run is lost
       // again. Swept over a whole patrol instead (start delays 0-23s every
       // 0.1s, five leads), leads of 0.85 and up still never lose a run or a
-      // second heart, but lead 0.7 loses 72 of 229 — a slow arrival that
-      // also jumps late can lose the run here. That is the roller, not this
-      // spot: the same sweep on the flat before checkpoint one lost 72-73 of
-      // 229 as well, and that flat is kept for the first two spikes a child
-      // ever meets. Level two's roller does no better on the same sweep.
+      // second heart, but lead 0.7 loses 72 of 229 — an arrival that meets
+      // it at its turn or from behind, and jumps late, can lose the run here.
+      // That is the roller, not this spot: the same sweep on the flat before
+      // checkpoint one, patrolling 1300..2900, lost 72-73 of 229 as well, and
+      // that flat is kept for the first two spikes a child ever meets. Level
+      // two's roller does no better on the same sweep.
       { kind: 'roller', x: 8600, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7800, to: 9400, dir: -1 },
     ],
 
@@ -383,7 +384,7 @@ EOF
 **Files:**
 - Modify: `docs/superpowers/specs/2026-09-08-pushkar-ball-design.md` (one clarifying paragraph under the "at most one new idea" bullet)
 - Modify: `games/pushkar-ball/tests/offline/finish.mjs` (two stale "level two" references, a header comment and a failure message; and three route comments)
-- Modify: `games/pushkar-ball/js/levels.js` (one stale "level three's … spike patch" in level two's comments)
+- Modify: `games/pushkar-ball/js/levels.js` (one stale "level three's … spike patch" in level two's comments; two optional wording tweaks at the end of level 4's roller comment)
 - Modify: `games/pushkar-ball/tests/README.md` (the `finish` row's stale "level two" references; the `levels` row's missing enemy checks)
 - Modify: `docs/superpowers/specs/2026-09-11-followup-ideas.md` (item 1's status)
 
@@ -527,6 +528,31 @@ which becomes:
       // nothing — the enemy version of level four's first, easy spike patch.
 ```
 
+- [ ] **Step 3c: Two optional wording tweaks from Task 2's re-review**
+
+In `games/pushkar-ball/js/levels.js`, at the end of level 4's roller comment, replace:
+
+```js
+      // second heart, but lead 0.7 loses 72 of 229 — a slow arrival that
+      // also jumps late can lose the run here. That is the roller, not this
+      // spot: the same sweep on the flat before checkpoint one lost 72-73 of
+      // 229 as well, and that flat is kept for the first two spikes a child
+      // ever meets. Level two's roller does no better on the same sweep.
+```
+
+with:
+
+```js
+      // second heart, but lead 0.7 loses 72 of 229 — an arrival that meets
+      // it at its turn or from behind, and jumps late, can lose the run here.
+      // That is the roller, not this spot: the same sweep on the flat before
+      // checkpoint one, patrolling 1300..2900, lost 72-73 of 229 as well, and
+      // that flat is kept for the first two spikes a child ever meets. Level
+      // two's roller does no better on the same sweep.
+```
+
+The losing arrivals are a band (the turn, or catching it from behind), not every slow arrival. Naming the patrol that was tried lets the next person re-run it. The roller entry on the line below must not change.
+
 - [ ] **Step 4: Fix the tests README rows**
 
 In `games/pushkar-ball/tests/README.md`, find the `levels` row:
@@ -604,7 +630,8 @@ spike level "level three"; fixed. The level three and four route
 comments now mention the enemy the runner jumps. The README's levels row now
 mentions the enemy checks it already runs, and its finish row says that
 suite counts deaths rather than hearts - the gap commit 1521e24 had to
-close by hand. Follow-up item 1 is marked done.
+close by hand. Level 4's roller comment names the patrol its
+comparison sweep used. Follow-up item 1 is marked done.
 
 Part of docs/superpowers/plans/2026-09-11-recurring-difficulty.md, Task 3.
 
