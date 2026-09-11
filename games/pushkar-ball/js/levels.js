@@ -347,26 +347,30 @@ export const LEVELS = [
       // enemies, because this level's own job, the crate, is already a
       // puzzle, and the enemy that comes back here should add company, not
       // thinking. It paces 2395..2955 on the flat between the 200px and
-      // 220px gaps, 850-900 units clear of both and nowhere near the crate
-      // flat, so it is never asked for at the same moment as anything else.
+      // 220px gaps, 895 and 845 units clear of them and nowhere near the
+      // crate flat, so it is never asked for at the same moment as anything
+      // else.
       //
       // Before the first checkpoint on purpose. Whatever it costs is given
       // back at checkpoint one, which refills hearts before the level's
       // tightest gap; and the rare sloppy run that loses all three hearts to
-      // it goes back only ~2500 units of flat to the spawn.
+      // it goes back only ~2700 units, over one easy gap, to the spawn.
       //
-      // x=2675 and amplitude 280 were found by sweeping, not guessed, and the
-      // walker is the fussiest enemy to place — the same finding level two's
-      // walker two made. Against finish.mjs's 3-lead-by-10-delay matrix, most
-      // positions tried on this flat cost some run at lead 0.7 all three
-      // hearts; this one never drops below 2 of 3, and neither does any
-      // neighbour 25 units either side or 20 of amplitude either side, so it
-      // is the middle of a passing region rather than its edge. A slower
-      // walker (the optional `speed`) was tried and was worse at every speed,
-      // as it was for walker two. Sampling the start delay every 0.1s rather
-      // than 0.5s still finds 3 runs in 230 at lead 0.7 that lose all three
-      // hearts here — fewer than level two as shipped (8 in 230) on the same
-      // finer sampling.
+      // x=2675 and amplitude 280 were found by sweeping, not guessed — as
+      // level two's walker two also found, a walker's margin is fussy.
+      // Against finish.mjs's 3-lead-by-10-delay matrix, most positions tried
+      // on this flat cost some run at lead 0.7 all three hearts; this one
+      // never drops below 2 of 3, and neither does any neighbour 25 units
+      // either side or 20 of amplitude either side, so it is the middle of a
+      // passing region rather than its edge. The region is narrow, though:
+      // 50 units either side, at 2625 or 2725, some lead-0.7 runs lose all
+      // three hearts again, so do not nudge this without re-checking. A
+      // slower walker (the optional `speed`) was tried and was worse at
+      // every speed, as it was for walker two. Sampling the start delay every
+      // 0.1s and five leads rather than three (230 runs in all) still finds 3
+      // that lose all three hearts here, every one at lead 0.7 — fewer than
+      // level two as shipped on the same sampling (8 in 230, likewise all at
+      // lead 0.7, six of them to its walker one alone).
       { kind: 'walker', x: 2675, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
     ],
 
