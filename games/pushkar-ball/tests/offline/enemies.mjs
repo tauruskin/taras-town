@@ -5,7 +5,8 @@
 // (see levels.js's makeMover); a roller is not, and gets a weaker but still
 // concrete proof instead, in a later task.
 const { CONFIG } = await import('../../js/config.js');
-const { makeWalker, makePopper, enemyHit, projectileHit } = await import('../../js/enemies.js');
+const { makeWalker, makePopper, makeRoller, enemyHit, projectileHit } = await import('../../js/enemies.js');
+const { loadLevel } = await import('../../js/levels.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -138,6 +139,44 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
   if (projectileHit(touchingProj, projEnemies, outsideT) !== null) {
     fail("projectileHit found a projectile outside its launch's flight window");
   }
+}
+
+// --- 4. a roller never leaves its patrol range or falls through the
+// ground ------------------------------------------------------------------
+//
+// The one enemy that is not a closed-form function of time — it rolls
+// through the real physics engine, the same one the player ball uses, so
+// there is no formula to assert its position against. What CAN be asserted,
+// and is the whole point of it being real physics rather than a formula, is
+// that it behaves: it stays inside the range it was authored to patrol, and
+// it never falls through the ground it is rolling on.
+{
+  const level = loadLevel({
+    id: 97, theme: 'hills', bounds: { w: 2400, h: 1080 },
+    spawn: { x: 200, y: 600 },
+    ground: [[[40, 760], [2000, 760]]],
+    boxes: [{ x: 0, y: 0, w: 40, h: 1080 }, { x: 2000, y: 0, w: 40, h: 1080 }],
+    platforms: [],
+  });
+  const r = makeRoller({ kind: 'roller', x: 1000, y: 700, from: 800, to: 1200, dir: 1 }, CONFIG);
+  let minX = r.x, maxX = r.x, t = 0;
+  const n = Math.round(20 / CONFIG.STEP);
+  let fell = false;
+  for (let i = 0; i < n; i++) {
+    level.update(CONFIG.STEP);
+    t += CONFIG.STEP;
+    r.update(CONFIG.STEP, t, level, CONFIG);
+    minX = Math.min(minX, r.x);
+    maxX = Math.max(maxX, r.x);
+    if (r.y - r.r > level.bounds.h) { fell = true; break; }
+  }
+  console.log(`\n4. after ${t.toFixed(1)}s, a roller patrolling 800..1200 ranged ${minX.toFixed(0)}..${maxX.toFixed(0)}`);
+  if (fell) fail(`the roller fell out of the level at t=${t.toFixed(1)}s`);
+  if (minX < 800 - 5 || maxX > 1200 + 5) fail(`the roller left its patrol range: ${minX.toFixed(0)}..${maxX.toFixed(0)}`);
+  if (Math.abs(r.y - (760 - r.r)) > 3) fail(`the roller is not resting on the ground: y=${r.y.toFixed(0)}, expected ~${(760 - r.r).toFixed(0)}`);
+  const box = r.box();
+  if (box.x !== r.x - r.r || box.y !== r.y - r.r) fail(`box() is ${JSON.stringify(box)}, not centred on the roller's own x/y`);
+  if (r.activeProjectile(t) !== null) fail('a roller must never report an active projectile');
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL ENEMY CHECKS PASSED (so far)');

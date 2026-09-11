@@ -12,6 +12,7 @@
  * The roller is the one exception — see makeRoller's own comment.
  */
 import { circleHitsBox } from './hazards.js';
+import { step } from './physics.js';
 
 /**
  * Walker: paces back and forth, `x = patrolCenter + amplitude * sin(t * speed)`.
@@ -97,6 +98,63 @@ export function makePopper(e, cfg) {
     },
   };
   return p;
+}
+
+/**
+ * Roller: a spiky ball that rolls along the ground under real gravity and
+ * ground collision — the same physics engine the player ball uses (see
+ * physics.js's `step`), driven by a scripted horizontal push rather than
+ * player input, reversing at the ends of its patrol range or when it hits a
+ * wall.
+ *
+ * This is the one enemy that is NOT a pure function of level time — its
+ * behaviour comes from the same real collision resolution the player ball
+ * gets, which is the whole point (it behaves like a hazard that happens to
+ * move, the way a ball naturally would on the level's own slopes) but also
+ * means there is no closed form to test its position against. See
+ * tests/offline/enemies.mjs check 4 for the weaker, still concrete proof
+ * this gets instead: it stays inside its patrol range and never falls
+ * through the ground.
+ *
+ * @param e   level data: { x, y, from, to, dir?: 1|-1 }
+ */
+export function makeRoller(e, cfg) {
+  const R = cfg.ENEMY.ROLLER;
+  const r = {
+    kind: 'roller',
+    alive: true,
+    r: R.R,
+    x: e.x,
+    y: e.y,
+    vx: (e.dir ?? 1) * R.SPEED,
+    vy: 0,
+
+    /**
+     * @param level anything with `near(x, y, r)`, exactly what `step` itself
+     *              asks for — the real Level already provides this.
+     */
+    update(dt, t, level, cfg) {
+      if (r.x <= e.from) r.vx = Math.abs(r.vx);
+      if (r.x >= e.to) r.vx = -Math.abs(r.vx);
+      const contacts = step(r, level, dt, cfg);
+      // A near-vertical contact normal means a wall, not the ground —
+      // turn around rather than pushing uselessly into it until the patrol
+      // bound above is reached, which could be a long way off.
+      for (const c of contacts) {
+        if (Math.abs(c.nx) > 0.5) r.vx = -r.vx;
+      }
+    },
+
+    box() {
+      return { x: r.x - r.r, y: r.y - r.r, w: r.r * 2, h: r.r * 2 };
+    },
+
+    /** A roller never throws anything. */
+    activeProjectile(t) {
+      return null;
+    },
+  };
+  return r;
 }
 
 /**

@@ -268,6 +268,10 @@ export const CONFIG = {
       VY0: 520,       // px/s, its upward launch speed
       PERIOD: 3.0,    // s between launches, unless a level authors its own
     },
+    ROLLER: {
+      R: 20,
+      SPEED: 140,     // px/s, its patrol push speed
+    },
   },
 
   // ---------------------------------------------------------------------
