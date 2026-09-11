@@ -189,3 +189,113 @@ export function projectileHit(body, enemies, t) {
   }
   return null;
 }
+
+/**
+ * Draw every alive enemy, and any popper's active projectile.
+ *
+ * Called inside the world transform, so everything here is in world units —
+ * the same calling convention `drawSpikes` in hazards.js already uses.
+ * Projectiles are drawn in their own pass, after every enemy body, so one
+ * always sits on top of the popper that threw it rather than under it.
+ */
+export function drawEnemies(ctx, enemies, time, cfg) {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (e.kind === 'popper') drawPopper(ctx, e, cfg);
+    else drawSpikyBody(ctx, e, cfg);
+  }
+  for (const e of enemies) {
+    if (!e.alive || e.kind !== 'popper') continue;
+    const p = e.activeProjectile(time);
+    if (p) drawProjectile(ctx, p, cfg);
+  }
+}
+
+/** A walker or a roller: a ring of spikes around a angry face. */
+function drawSpikyBody(ctx, e, cfg) {
+  const C = cfg.COLOURS;
+  const n = 8; // spikes around the rim
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2;
+    const a1 = ((i + 0.5) / n) * Math.PI * 2;
+    ctx.lineTo(e.x + Math.cos(a0) * e.r, e.y + Math.sin(a0) * e.r);
+    ctx.lineTo(e.x + Math.cos(a1) * e.r * 1.5, e.y + Math.sin(a1) * e.r * 1.5);
+  }
+  ctx.closePath();
+  ctx.fillStyle = C.ENEMY;
+  ctx.fill();
+  ctx.strokeStyle = C.ENEMY_EDGE;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  drawAngryFace(ctx, e.x, e.y, e.r * 0.5, cfg);
+}
+
+/** A popper: a squat body with two short horns, facing whichever way it throws. */
+function drawPopper(ctx, e, cfg) {
+  const C = cfg.COLOURS;
+  ctx.beginPath();
+  ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+  ctx.fillStyle = C.ENEMY;
+  ctx.fill();
+  ctx.strokeStyle = C.ENEMY_EDGE;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Two short horns on top — the shape difference from drawSpikyBody's full
+  // ring of spikes is what tells a popper apart from a walker at a glance.
+  ctx.beginPath();
+  ctx.moveTo(e.x - e.r * 0.5, e.y - e.r * 0.8);
+  ctx.lineTo(e.x - e.r * 0.3, e.y - e.r * 1.4);
+  ctx.lineTo(e.x - e.r * 0.1, e.y - e.r * 0.8);
+  ctx.moveTo(e.x + e.r * 0.5, e.y - e.r * 0.8);
+  ctx.lineTo(e.x + e.r * 0.3, e.y - e.r * 1.4);
+  ctx.lineTo(e.x + e.r * 0.1, e.y - e.r * 0.8);
+  ctx.closePath();
+  ctx.fillStyle = C.ENEMY_EDGE;
+  ctx.fill();
+
+  drawAngryFace(ctx, e.x, e.y, e.r * 0.5, cfg);
+}
+
+/**
+ * Narrowed eyes and a strip of bared teeth — the "sharper, still unarmed"
+ * look every enemy shares. Shape and expression only, never a held object,
+ * per CLAUDE.md's narrow exception for this game's older audience.
+ */
+function drawAngryFace(ctx, cx, cy, s, cfg) {
+  const C = cfg.COLOURS;
+  ctx.fillStyle = C.ENEMY_EYE;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + side * s * 0.2, cy - s * 0.5);
+    ctx.lineTo(cx + side * s * 0.9, cy - s * 0.2);
+    ctx.lineTo(cx + side * s * 0.9, cy - s * 0.35);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.beginPath();
+  const teeth = 4;
+  for (let i = 0; i <= teeth; i++) {
+    const x = cx - s * 0.6 + (i / teeth) * s * 1.2;
+    const y = cy + s * 0.3 + (i % 2 === 0 ? 0 : s * 0.3);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(cx + s * 0.6, cy + s * 0.15);
+  ctx.lineTo(cx - s * 0.6, cy + s * 0.15);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A popper's lobbed ball — steel, the same as a spike, not a shaped weapon. */
+function drawProjectile(ctx, p, cfg) {
+  const C = cfg.COLOURS;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+  ctx.fillStyle = C.SPIKE;
+  ctx.fill();
+  ctx.strokeStyle = C.SPIKE_EDGE;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}

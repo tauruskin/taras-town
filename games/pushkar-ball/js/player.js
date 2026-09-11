@@ -345,8 +345,15 @@ export class Ball {
     // checkpoints, so a checkpoint standing in a patch of spikes cannot be
     // armed by the same step that kills you — which would make failing there
     // permanent.
-    const knock = level.hazardKnockDir(this);
-    if (knock !== null) this.hit(knock);
+    //
+    // Stomping an enemy is checked FIRST, and if it happens is the only
+    // thing that happens this step: landing on an enemy from above defeats
+    // it instead of costing a heart, and must not also register as a side
+    // hit from the same contact a moment later in the same step.
+    if (!level.stompEnemy(this)) {
+      const knock = level.hazardKnockDir(this);
+      if (knock !== null) this.hit(knock);
+    }
 
     // --- checkpoints ------------------------------------------------------
     //

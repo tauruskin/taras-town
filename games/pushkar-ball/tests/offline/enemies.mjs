@@ -7,6 +7,7 @@
 const { CONFIG } = await import('../../js/config.js');
 const { makeWalker, makePopper, makeRoller, enemyHit, projectileHit } = await import('../../js/enemies.js');
 const { loadLevel } = await import('../../js/levels.js');
+const { Ball } = await import('../../js/player.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -177,6 +178,57 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
   const box = r.box();
   if (box.x !== r.x - r.r || box.y !== r.y - r.r) fail(`box() is ${JSON.stringify(box)}, not centred on the roller's own x/y`);
   if (r.activeProjectile(t) !== null) fail('a roller must never report an active projectile');
+}
+
+// --- 5. stomping a walker defeats it, without costing a heart -------------
+{
+  const level = loadLevel({
+    id: 98, theme: 'hills', bounds: { w: 2400, h: 1080 },
+    spawn: { x: 200, y: 400 },
+    ground: [[[40, 760], [2000, 760]]],
+    boxes: [{ x: 0, y: 0, w: 40, h: 1080 }, { x: 2000, y: 0, w: 40, h: 1080 }],
+    platforms: [],
+    // amplitude 0: the walker holds still, so a drop from directly above
+    // lands on it reliably rather than depending on where its patrol
+    // happens to be when the ball arrives.
+    enemies: [{ kind: 'walker', x: 400, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 0 }],
+  });
+  const input = { left: false, right: false, takeJump: () => false };
+  const ball = new Ball(400, 400); // straight above the walker
+  const n = Math.round(3 / CONFIG.STEP);
+  for (let i = 0; i < n && level.enemies[0].alive; i++) {
+    level.update(CONFIG.STEP);
+    ball.update(CONFIG.STEP, input, level);
+  }
+  console.log(`\n5. dropped straight onto a walker: alive=${level.enemies[0].alive}, hearts=${ball.hearts}, hits=${ball.hits}`);
+  if (level.enemies[0].alive) fail('the walker was never defeated by a drop from directly above');
+  if (ball.hearts !== CONFIG.HEALTH.HEARTS) fail(`stomping cost a heart: hearts=${ball.hearts}`);
+  if (ball.hits !== 0) fail(`stomping registered as a hit: hits=${ball.hits}`);
+}
+
+// --- 6. walking into the side of one costs a heart, like a spike ----------
+{
+  const level = loadLevel({
+    id: 99, theme: 'hills', bounds: { w: 2400, h: 1080 },
+    spawn: { x: 200, y: 600 },
+    ground: [[[40, 760], [2000, 760]]],
+    boxes: [{ x: 0, y: 0, w: 40, h: 1080 }, { x: 2000, y: 0, w: 40, h: 1080 }],
+    platforms: [],
+    enemies: [{ kind: 'walker', x: 800, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 0 }],
+  });
+  const input = { left: false, right: true, takeJump: () => false };
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+  let steps = 0;
+  const limit = Math.round(4 / CONFIG.STEP);
+  while (ball.hits === 0 && steps < limit) {
+    level.update(CONFIG.STEP);
+    ball.update(CONFIG.STEP, input, level);
+    steps++;
+  }
+  console.log(`\n6. walked into a walker's side: hits=${ball.hits}, hearts=${ball.hearts}, enemy alive=${level.enemies[0].alive}`);
+  if (ball.hits !== 1) fail('never took a hit walking into the enemy');
+  if (!level.enemies[0].alive) fail('a side hit should not defeat the enemy');
+  if (ball.hearts !== CONFIG.HEALTH.HEARTS - 1) fail(`hearts is ${ball.hearts}, expected ${CONFIG.HEALTH.HEARTS - 1}`);
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL ENEMY CHECKS PASSED (so far)');

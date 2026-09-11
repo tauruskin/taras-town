@@ -18,6 +18,7 @@ import { Input } from './input.js';
 import { Buttons, Overlay, Panel, Hearts } from './ui.js';
 import { Flow } from './flow.js';
 import { drawSpikes } from './hazards.js';
+import { drawEnemies } from './enemies.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -218,6 +219,7 @@ function draw() {
   drawCrates();
   drawCheckpoints();
   drawSpikes(ctx, level.spikes, CONFIG);
+  drawEnemies(ctx, level.enemies, level.time, CONFIG);
   drawPlatforms();
   drawGoal();
   drawBall();

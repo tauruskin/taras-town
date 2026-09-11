@@ -19,6 +19,7 @@ import { CONFIG } from './config.js';
 // Hazards are geometry, not colliders, so this brings in a hit test and
 // nothing that touches the segment world or the DOM.
 import { hitsSpikes, spikeHit } from './hazards.js';
+import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './enemies.js';
 
 // A note on how long a level is, and how sparse its checkpoints are.
 //
@@ -513,6 +514,13 @@ class Level {
     // does not bounce off a spike; it rolls into one and fails.
     this.spikes = (data.spikes || []).map((s) => ({ x: s.x, y: s.y, w: s.w }));
 
+    // Enemies are the same kind of thing spikes are — not colliders, hit-
+    // tested only — except the roller, which asks the real physics engine
+    // to move it and so needs to know the level (`this`, below) rather than
+    // just its own starting data.
+    const MAKERS = { walker: makeWalker, roller: makeRoller, popper: makePopper };
+    this.enemies = (data.enemies || []).map((e) => MAKERS[e.kind](e, CONFIG));
+
     this.statics = segs;
     this.grid = new SegmentGrid(segs);
     this.movers = (data.platforms || []).map(makeMover);
@@ -522,6 +530,7 @@ class Level {
     this.time += dt;
     for (const m of this.movers) m.update(this.time);
     for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
+    for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
   }
 
   /**
@@ -602,15 +611,44 @@ class Level {
    * If this body is touching a hazard, which way to knock it — away from
    * whatever it touched, as -1 or 1, never 0. Null if nothing was touched.
    *
-   * One question for the whole level, the same shape as `hitsHazard`, so
-   * that when enemies arrive the caller in player.js does not have to learn
-   * a second hazard type.
+   * One question for the whole level, so player.js does not have to learn a
+   * separate case for spikes, enemies, and a popper's own lobbed ball.
+   * Stomping an enemy is NOT handled here — see `stompEnemy`, which player.js
+   * always asks first, so an enemy that has just been stomped this same step
+   * is never also reported as a side hit by this method a moment later.
    */
   hazardKnockDir(body) {
     const s = spikeHit(body, this.spikes, CONFIG);
-    if (!s) return null;
-    const mid = s.x + s.w / 2;
-    return body.x >= mid ? 1 : -1;
+    if (s) {
+      const mid = s.x + s.w / 2;
+      return body.x >= mid ? 1 : -1;
+    }
+    const e = enemyHit(body, this.enemies);
+    if (e) return body.x >= e.x ? 1 : -1;
+    const p = projectileHit(body, this.enemies, this.time);
+    if (p) return body.x >= p.x ? 1 : -1;
+    return null;
+  }
+
+  /**
+   * Is this body landing on top of an alive enemy? If so, defeat it and
+   * return true. False otherwise, including when the body is touching an
+   * enemy in any other way — that is `hazardKnockDir`'s job instead.
+   *
+   * "On top" is a downward-moving body whose centre is still above roughly
+   * the enemy's own top edge when the two first overlap — generous for the
+   * same reason SPIKE.FORGIVE is: a stomp that looked close enough and
+   * wasn't reads as the game cheating.
+   */
+  stompEnemy(body) {
+    const e = enemyHit(body, this.enemies);
+    if (!e) return false;
+    const box = e.box();
+    if (body.vy > 0 && body.y < box.y + CONFIG.ENEMY.STOMP_MARGIN) {
+      e.alive = false;
+      return true;
+    }
+    return false;
   }
 }
 
