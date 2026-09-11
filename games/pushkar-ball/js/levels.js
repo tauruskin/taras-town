@@ -397,9 +397,14 @@ export const LEVELS = [
     // Level four teaches the spike — reshuffled here Sep 2026 from its
     // original home at level three, so crates could move down to level three
     // and enemies could move up to level two. Everything under it — rolling,
-    // gaps, crates, a moving platform, enemies — has already been met.
-    // Geometry below is unchanged from the original level three — only the
-    // id and this comment moved.
+    // gaps, crates, a moving platform, enemies — has already been met. Its
+    // ground, platform, spikes and checkpoints are unchanged from the
+    // original level three.
+    //
+    // It also brings back one thing already taught: a roller, from level
+    // two, on the flat between checkpoint one's spike patch and the ramp —
+    // see `enemies` below. Not a new idea, so it gets no checkpoint of its
+    // own, for the same reason the gap below gets none.
     id: 4,
     theme: 'hills',
     bounds: { w: 15200, h: 1080 },
@@ -450,6 +455,31 @@ export const LEVELS = [
       // On the high ground, in plain view from the top of the ramp before it
       // has to be jumped.
       { x: 11100, y: 620, w: 90 },
+    ],
+
+    enemies: [
+      // A recurring roller, from level two, where it was that level's real
+      // test. It is the most active of the three enemies — the one that has
+      // to be tracked and timed — and this is the later level, so it can
+      // afford it. It patrols 7800..9400: 500 units past the end of the
+      // spike patch at 7200, which checkpoint one guards, and 400 short of
+      // the ramp, so a ball never has spike-timing and roller-timing in the
+      // same moment. Checkpoint one refills hearts just before that patch and
+      // checkpoint two refills them again on the high ground, so the roller
+      // is paid for out of a fresh budget and repaid straight after.
+      //
+      // Starting in the middle and heading LEFT, toward an arriving ball, as
+      // level two's roller does — and the direction is what matters most
+      // here: heading right from the same place, finish.mjs's matrix lost
+      // whole runs to it. Heading left, every run at lead 0.7 takes exactly
+      // one heart from it and every run at lead 1 or 1.3 takes none, so it
+      // never leaves a run below 2 of 3. That holds for starts 200 units
+      // either side of 8600 and for a patrol 100 units wider or narrower at
+      // each end — though narrower still, at 7950..9250, runs start being
+      // lost again — and on 230 runs sampling the start delay every 0.1s
+      // across five leads, where every run below lead 1 takes that one heart
+      // and none takes more.
+      { kind: 'roller', x: 8600, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7800, to: 9400, dir: -1 },
     ],
 
     // Two, not one per patch. The first two patches sit close to spawn and
