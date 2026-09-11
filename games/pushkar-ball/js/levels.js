@@ -229,9 +229,27 @@ export const LEVELS = [
       // options against finish.mjs rather than by any closed-form rule.
       { kind: 'roller', x: 8000, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7100, to: 9000, dir: -1 },
       // Walker two: one more rep of the idea, well clear of the goal and the
-      // gap behind it. Same amplitude as walker one, for the same reason —
-      // see its comment above.
-      { kind: 'walker', x: 10500, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 200 },
+      // gap behind it. Amplitude 300, WIDER than walker one's 200 — a code
+      // review of this level's first draft (same amplitude as walker one)
+      // found that at lead 0.7, checkpoint two's fresh three hearts could
+      // drop to one from THIS encounter alone nine times in ten, in several
+      // cases from two hits in the same pass, with nothing between here and
+      // the goal to absorb a further mistake. That contradicts this comment's
+      // own "lower-stakes" claim. Unlike walker one (which sits far from any
+      // other hazard, so a slower/narrower patrol was fine), walker two is
+      // the last thing between a just-spent checkpoint and the goal, so its
+      // own margin matters more, not less. A narrower or slower walker here
+      // made it WORSE, not better — a walker parked closer to one spot is
+      // more like the popper's original cold-jump problem, and the sweep
+      // that found this value showed smaller amplitudes causing actual
+      // deaths, not fewer of them. 300, verified against finish.mjs's own
+      // 3-lead-by-10-delay matrix with a direct check of hearts after
+      // checkpoint two (not just deaths, which finish.mjs alone does not
+      // track), never drops below 2 of 3 hearts and never costs a death,
+      // with the same margin holding across amplitudes 280-320 and x
+      // 10490-10530 — comfortably off the single lucky value 300/10500
+      // turned out to be, not a coincidence.
+      { kind: 'walker', x: 10500, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 300 },
     ],
 
     // Two, at the two places a real test follows: checkpoint one guards the
