@@ -273,9 +273,15 @@ export const LEVELS = [
     // original home at level two, so enemies could move up to level two
     // instead. Level one has crates and never needs one; here the only way
     // onto the high ledge is to shove a crate under it and jump off the top,
-    // so the idea is learned somewhere it can be practised without a hazard
-    // anywhere in sight. Geometry below is unchanged from the original level
-    // two — only the id and this comment moved.
+    // so the idea is learned somewhere it can be practised with no hazard
+    // anywhere near it. Its ground, boxes and checkpoints are unchanged from
+    // the original level two.
+    //
+    // It also brings back one thing already taught: a walker, from level
+    // two, on the long flat between the first two gaps — see `enemies`
+    // below. Not a new idea, so it gets no checkpoint and no rehearsal of its
+    // own; it is here so that what level two taught does not simply stop
+    // the moment level two ends.
     id: 3,
     theme: 'hills',
     bounds: { w: 13600, h: 1080 },
@@ -335,6 +341,34 @@ export const LEVELS = [
     ],
 
     platforms: [],
+
+    enemies: [
+      // A recurring walker, from level two — the calmest of the three
+      // enemies, because this level's own job, the crate, is already a
+      // puzzle, and the enemy that comes back here should add company, not
+      // thinking. It paces 2395..2955 on the flat between the 200px and
+      // 220px gaps, 850-900 units clear of both and nowhere near the crate
+      // flat, so it is never asked for at the same moment as anything else.
+      //
+      // Before the first checkpoint on purpose. Whatever it costs is given
+      // back at checkpoint one, which refills hearts before the level's
+      // tightest gap; and the rare sloppy run that loses all three hearts to
+      // it goes back only ~2500 units of flat to the spawn.
+      //
+      // x=2675 and amplitude 280 were found by sweeping, not guessed, and the
+      // walker is the fussiest enemy to place — the same finding level two's
+      // walker two made. Against finish.mjs's 3-lead-by-10-delay matrix, most
+      // positions tried on this flat cost some run at lead 0.7 all three
+      // hearts; this one never drops below 2 of 3, and neither does any
+      // neighbour 25 units either side or 20 of amplitude either side, so it
+      // is the middle of a passing region rather than its edge. A slower
+      // walker (the optional `speed`) was tried and was worse at every speed,
+      // as it was for walker two. Sampling the start delay every 0.1s rather
+      // than 0.5s still finds 3 runs in 230 at lead 0.7 that lose all three
+      // hearts here — fewer than level two as shipped (8 in 230) on the same
+      // finer sampling.
+      { kind: 'walker', x: 2675, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
+    ],
 
     // Two, not one per gap. The first sits right before the level's tightest
     // jump — the 260px gap — so failing THAT specific jump costs only that
