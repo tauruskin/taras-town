@@ -325,6 +325,18 @@ harmless and instantly undone.
 If stakes are ever wanted later, they belong in the star rating, which rewards
 doing well rather than punishing doing badly.
 
+**Superseded Sep 2026.** The three paragraphs above explain why phase 2
+shipped with no lives at all, and the reasoning was sound for the audience
+this game had then. Pushkar Ball's actual audience turned out to be 12, not
+6, and at that age a game where nothing can really go wrong reads as boring
+rather than safe. The shipped game now has a three-heart health system —
+still drawn, never a digit, so "almost no text" still holds — where running
+out sends the ball back to the level's own start with hearts refilled,
+rather than ending a run or gating progress the way the rejected five-lives
+draft above did. See
+`docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md` for
+the full reasoning and the design as built.
+
 ## Reaching the flag, and getting to the next level
 
 Touching the flag ends the level. In order: the flag animates and the ball does

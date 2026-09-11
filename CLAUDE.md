@@ -40,6 +40,19 @@ any game added later:
   is about cruelty and fear, not about difficulty: a spike that pops a ball is
   inside it. An earlier wording forbade spikes outright, which was never the
   intent.)
+
+  **Pushkar Ball gets one narrow, named exception, added Sep 2026.** Its actual
+  audience is 12, not 6 — unlike every other game here — and its enemies may
+  look more menacing than "bright and friendly" implies: spikes, horns, jagged
+  silhouettes, angry or narrowed eyes, bared teeth. Shape and expression only.
+  **"No weapons" does not loosen for this exception.** No enemy holds or
+  wields anything, in Pushkar Ball or anywhere else. This exception is
+  Pushkar Ball's alone — Taras Town and any future game keep the 6-year-old
+  reading of this rule exactly as written above, and a future game wanting the
+  same latitude needs its own named exception, not an assumption that this one
+  extends to it. See
+  `docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md`,
+  "Content boundaries: what loosens, what doesn't."
 - **Almost no text.** He may not read fluently. Every control is a picture. The
   only text anywhere is what he types himself (his name), a room code, and a
   level number — digits are the one kind of text he reliably reads. A game's own
