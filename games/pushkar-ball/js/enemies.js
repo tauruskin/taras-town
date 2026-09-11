@@ -140,6 +140,12 @@ export function makeRoller(e, cfg) {
       // A near-vertical contact normal means a wall, not the ground —
       // turn around rather than pushing uselessly into it until the patrol
       // bound above is reached, which could be a long way off.
+      //
+      // This assumes at most one wall-ish contact lands in a single step —
+      // two in the same step would flip twice and net no reversal at all.
+      // Not reachable by anything placed in a level yet (nothing puts a
+      // roller near geometry narrower than its own diameter), but worth
+      // knowing before a level ever does.
       for (const c of contacts) {
         if (Math.abs(c.nx) > 0.5) r.vx = -r.vx;
       }
