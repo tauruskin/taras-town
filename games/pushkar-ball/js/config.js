@@ -246,6 +246,31 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Enemies
+  // ---------------------------------------------------------------------
+  // Three types — see js/enemies.js. None of them chase off-screen or swarm.
+  // Jumping on top of any of them defeats it instead of costing a heart; any
+  // other contact goes through the same Ball.hit() a spike already uses.
+  ENEMY: {
+    // How close, vertically, the ball's centre must be to an enemy's own top
+    // edge before a downward landing counts as a stomp rather than a side
+    // hit, in world units. Generous for the same reason SPIKE.FORGIVE is: a
+    // stomp that looked close enough and wasn't reads as the game cheating.
+    STOMP_MARGIN: 14,
+    WALKER: {
+      R: 22,          // collision and drawing radius
+      SPEED: 1.4,     // rad/s inside the sine — see enemies.js's makeWalker
+    },
+    POPPER: {
+      R: 24,          // the popper's own stationary body
+      PROJ_R: 12,     // the lobbed ball
+      VX: 160,        // px/s, the projectile's horizontal launch speed
+      VY0: 520,       // px/s, its upward launch speed
+      PERIOD: 3.0,    // s between launches, unless a level authors its own
+    },
+  },
+
+  // ---------------------------------------------------------------------
   // The flag, and what happens after it
   // ---------------------------------------------------------------------
   GOAL: {
@@ -405,6 +430,13 @@ export const CONFIG = {
     // is bluer than it is red, so it can never be mistaken for the hero.
     SPIKE: '#B9C4CC',
     SPIKE_EDGE: '#7C8B95',
+    // Violet, not red or pink: r-b is negative for all three of these, so
+    // none of them can ever be picked up as the ball by IS_BALL in
+    // tests/browser/_helpers.mjs, the same reasoning FLAG and the results
+    // panel's colours already follow.
+    ENEMY: '#8B5FBF',
+    ENEMY_EDGE: '#5E3D8A',
+    ENEMY_EYE: '#2A1B40',
     DIM: '#0B1E2A',      // what the screen dims towards during a deflate
     // The results panel. Every one of these was checked by hand against
     // IS_BALL in tests/browser/_helpers.mjs, which calls a pixel the ball when

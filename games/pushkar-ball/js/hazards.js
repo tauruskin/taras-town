@@ -47,8 +47,17 @@ export function spikeBox(s, cfg) {
   };
 }
 
-/** Is this circle touching this rectangle? Closest point, then distance. */
-function circleHitsBox(cx, cy, r, b) {
+/**
+ * Is this circle touching this rectangle? Closest point, then distance.
+ *
+ * Exported (Sep 2026) so enemies.js can reuse it for the same kind of
+ * hit-test a spike already gets — an enemy is a hazard by the same
+ * definition this file's header comment gives: non-colliding, hit-tested,
+ * never a segment. That is a different thing from this file gaining a
+ * connection to physics.js, which it still does not have — see the header
+ * comment above for why that boundary matters.
+ */
+export function circleHitsBox(cx, cy, r, b) {
   const nx = cx < b.x ? b.x : cx > b.x + b.w ? b.x + b.w : cx;
   const ny = cy < b.y ? b.y : cy > b.y + b.h ? b.y + b.h : cy;
   return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r;
