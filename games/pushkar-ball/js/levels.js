@@ -42,6 +42,11 @@ import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './e
 // distances at new positions carries the same guarantee forward rather than
 // staking a new level on freshly-guessed arithmetic. Every level below is
 // re-proven completable by that same suite regardless.
+//
+// Reshuffled again in Sep 2026, days later: enemies moved to level two, so a
+// new level was inserted there and the two levels that followed it (crates,
+// spikes) each moved up by one id. Their own geometry did not change — see
+// each level's own header comment for what moved and why.
 export const LEVELS = [
   {
     id: 1,
@@ -126,11 +131,131 @@ export const LEVELS = [
   },
 
   {
-    // Level two teaches the crate. Level one has crates and never needs one;
-    // here the only way onto the high ledge is to shove a crate under it and
-    // jump off the top, so the idea is learned somewhere it can be practised
-    // without a hazard anywhere in sight.
+    // Level two teaches the enemy — reshuffled here Sep 2026 so it lands as
+    // early as the second level, per the request that "just jumping over
+    // holes" was getting boring. A walker and a popper are met once each on
+    // open, unguarded ground (the same "cheap to fail the first time" rule
+    // every new hazard in this game gets); a roller is the level's one real
+    // test, protected by a checkpoint; the tightest gap and a second walker
+    // close it out, protected by a second checkpoint. Crates, which used to
+    // be taught here, move to level three; spikes move to level four — see
+    // those levels' own header comments.
     id: 2,
+    theme: 'hills',
+    bounds: { w: 13000, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 12800, y: 760 },
+
+    ground: [
+      // Rehearsal, piece one: a walker met on a long, open flat, close enough
+      // to spawn that meeting it for the very first time costs almost
+      // nothing — the enemy version of level three's first, easy spike patch.
+      [[40, 760], [2200, 760]],
+      // A 100px gap — narrower than level one's 200px, and deliberately so:
+      // the popper sits just past its landing edge (see the popper's own
+      // comment below for why), and a wider gap would land the ball well
+      // past the window where the jump that crosses this gap is still
+      // rising fast enough to matter for the popper right after it.
+      [[2300, 760], [4800, 760]],
+      // Rehearsal, piece two: a popper, met once, still before any
+      // checkpoint. The 220px gap after it is a shade wider than the first,
+      // the same graduated step every level in this game already uses.
+      [[5020, 760], [6700, 760]],
+      // The 240px gap, then the level's first real test: a roller, patrolling
+      // open ground with room either side of it. Checkpoint one, placed at
+      // the end of the flat just before this gap, protects this whole piece —
+      // failing the roller costs this piece, not the rehearsal before it.
+      [[6940, 760], [9200, 760]],
+      // The 260px gap — the tightest in the level, already proven completable
+      // at this exact width in the original three levels — then a second,
+      // lower-stakes rep of the walker idea and a long flat home. Checkpoint
+      // two, placed just before this gap, protects this final piece.
+      [[9460, 760], [12960, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 12960, y: 0, w: 40, h: 1080 },
+    ],
+
+    platforms: [],
+
+    enemies: [
+      // Walker one: patrols 200 units either side of x=1200, well clear of
+      // both the spawn and the gap that follows. The plan's first draft used
+      // amplitude 500 — WALKER.SPEED is a fixed angular rate, so a wide
+      // amplitude is also a fast one, and at 500 its peak speed exceeded the
+      // ball's own MAX_SPEED, making the generic runner's fixed jump lead in
+      // finish.mjs unreliable against it. 200 matches the amplitude
+      // tests/offline/enemies.mjs already exercises for its own walker
+      // fixtures and is the value finish.mjs's 30-way, every-checkpoint pass
+      // actually settled on.
+      { kind: 'walker', x: 1200, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 200 },
+      // Popper: lobs back toward an oncoming ball (dir: -1), on the default
+      // period. Placed just past the first gap's landing edge, deliberately
+      // sitting in the FLAT TOP of the arc of the jump that crosses that
+      // gap — not its steep rising or falling side — because a popper's
+      // body sits far closer to the ground than a spike's silhouette (its
+      // hitbox is a full circle roughly its own diameter tall) and the
+      // runner's fixed jump lead in finish.mjs, tuned against a spike, does
+      // not by itself gain enough height to clear a popper's body cleanly.
+      // Riding near the apex of the GAP's own jump instead gives a wide,
+      // forgiving margin that survives the walker's own hit before it
+      // (which perturbs exactly how many simulation steps the ball takes to
+      // settle back to rolling speed, and so exactly where along the jump's
+      // arc it is when it reaches the gap). This moved twice: first from the
+      // middle of the open flat (x=3600), which finish.mjs proved an
+      // unrecoverable wall at lead 0.7 — no residual lift from any earlier
+      // jump, so the ball never gains enough height in the runner's lead to
+      // clear the body at all, grazes every attempt, and never gets past;
+      // then from x=2500, just past the landing edge on the arc's STEEP
+      // falling side, which finish.mjs also proved unreliable once the
+      // walker's own hit was in the picture — a few percent of the run's
+      // 30 lead/delay combinations landed the ball just enough earlier or
+      // later along that steep part of the arc to graze it after all.
+      { kind: 'popper', x: 2350, y: 760 - CONFIG.ENEMY.POPPER.R, dir: -1 },
+      // Roller: the level's real test, patrolling a wide stretch (1900
+      // units) of flat with room to spare from the gaps at either end and
+      // from checkpoint two — there is no version of meeting it that also
+      // asks for gap-timing at the same instant. Widened from the plan's
+      // original 1600-unit range, and started moving left (dir: -1) rather
+      // than right, after finish.mjs proved the first draft an occasional
+      // wall at lead 0.7 near the very end of a 30-way, every-checkpoint
+      // pass: a roller's exact position when the ball arrives depends on
+      // how much level time has already passed, which itself depends on
+      // exactly how the walker and popper before it were each met, so
+      // reliably dodging it took both a wider range to patrol and a
+      // different starting direction, found by exhaustively trying the
+      // options against finish.mjs rather than by any closed-form rule.
+      { kind: 'roller', x: 8000, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7100, to: 9000, dir: -1 },
+      // Walker two: one more rep of the idea, well clear of the goal and the
+      // gap behind it. Same amplitude as walker one, for the same reason —
+      // see its comment above.
+      { kind: 'walker', x: 10500, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 200 },
+    ],
+
+    // Two, at the two places a real test follows: checkpoint one guards the
+    // roller (and the 240px gap right before it); checkpoint two guards the
+    // level's tightest gap and the final stretch. The rehearsal before
+    // checkpoint one — both enemies met for the first time, and two already-
+    // practised gaps — is deliberately unguarded, the same rule every level
+    // in this game already follows for a new idea's first, cheap-to-fail
+    // appearance.
+    checkpoints: [
+      { x: 6600, y: 760 },
+      { x: 9100, y: 760 },
+    ],
+  },
+
+  {
+    // Level three teaches the crate — reshuffled here Sep 2026 from its
+    // original home at level two, so enemies could move up to level two
+    // instead. Level one has crates and never needs one; here the only way
+    // onto the high ledge is to shove a crate under it and jump off the top,
+    // so the idea is learned somewhere it can be practised without a hazard
+    // anywhere in sight. Geometry below is unchanged from the original level
+    // two — only the id and this comment moved.
+    id: 3,
     theme: 'hills',
     bounds: { w: 13600, h: 1080 },
     spawn: { x: 180, y: 560 },
@@ -210,9 +335,13 @@ export const LEVELS = [
   },
 
   {
-    // Level three introduces the spike, and nothing else. Everything under it
-    // — rolling, gaps, crates, a moving platform — has already been met.
-    id: 3,
+    // Level four teaches the spike — reshuffled here Sep 2026 from its
+    // original home at level three, so crates could move down to level three
+    // and enemies could move up to level two. Everything under it — rolling,
+    // gaps, crates, a moving platform, enemies — has already been met.
+    // Geometry below is unchanged from the original level three — only the
+    // id and this comment moved.
+    id: 4,
     theme: 'hills',
     bounds: { w: 15200, h: 1080 },
     spawn: { x: 180, y: 560 },

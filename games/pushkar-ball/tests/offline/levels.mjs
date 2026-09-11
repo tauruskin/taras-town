@@ -230,6 +230,43 @@ for (const data of LEVELS) {
     const overlaps = authored.spikes.some((s) => c.x < s.x + s.w && c.x + c.w > s.x);
     if (overlaps) fail(`level ${data.id}: crate ${i} shares its stretch of ground with spikes`);
   }
+
+  // --- 11. an enemy's own range never leaves the level bounds -------------
+  //
+  // A walker or roller authored to patrol past the edge of the level would
+  // wander into geometry that does not exist — the same class of mistake
+  // check 4 already catches for moving platforms.
+  for (const [i, e] of (data.enemies || []).entries()) {
+    if (e.kind === 'walker') {
+      const lo = e.x - e.amplitude, hi = e.x + e.amplitude;
+      if (lo < 0 || hi > authored.bounds.w) {
+        fail(`level ${data.id}: walker ${i} patrols ${lo.toFixed(0)}..${hi.toFixed(0)}, outside the level`);
+      }
+    } else if (e.kind === 'roller') {
+      if (e.from < 0 || e.to > authored.bounds.w) {
+        fail(`level ${data.id}: roller ${i} patrols ${e.from}..${e.to}, outside the level`);
+      }
+    } else if (e.kind === 'popper') {
+      if (e.x < 0 || e.x > authored.bounds.w) {
+        fail(`level ${data.id}: popper ${i} at x=${e.x} is outside the level`);
+      }
+    }
+  }
+
+  // --- 12. nothing may hurt you where you arrive ---------------------------
+  //
+  // The same rule check 8 already applies to spikes, extended to enemies: an
+  // enemy overlapping the spawn or a checkpoint is an unfinishable level.
+  {
+    const { enemyHit } = await import('../../js/enemies.js');
+    for (const a of arrivals) {
+      const probe = { x: a.x, y: a.y, r: CONFIG.BALL.R * 2.5 };
+      if (enemyHit(probe, authored.enemies)) fail(`level ${data.id}: an enemy is on top of ${a.what}`);
+    }
+  }
+  if (authored.enemies.length) {
+    console.log(`   ${authored.enemies.length} enemy/enemies; none patrol outside the level, none overlap the spawn or a checkpoint`);
+  }
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL LEVEL CHECKS PASSED');

@@ -65,8 +65,16 @@ function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
  *
  * `lead` scales how early it jumps, which is how a run is made sloppy on
  * purpose. The obstacles come from the level: the end of any ground line that
- * no other line carries on from, every spike patch, and every crate that is
- * still in the way.
+ * no other line carries on from, every spike patch, every crate that is
+ * still in the way, and every alive enemy.
+ *
+ * An enemy is treated exactly like a spike here — jumped over, not avoided by
+ * any smarter means. Landing on one from above still defeats it (a bonus, not
+ * a problem for this check); an occasional side graze costs a heart, which
+ * three hearts of budget easily absorbs across a run. Nothing here tries to
+ * dodge a popper's lobbed projectile specifically, for the same reason: it is
+ * meant to be a minor tap, not a precision dodge, and the same heart budget
+ * covers it.
  */
 function runner(level, lead) {
   const lines = level.data.ground || [];
@@ -82,6 +90,7 @@ function runner(level, lead) {
     const ahead = (x, d) => x - ball.x > 0 && x - ball.x < d * lead;
     if (edges.some((x) => ahead(x, 20))) want.jump = true;
     if (level.spikes.some((s) => ahead(s.x, 70))) want.jump = true;
+    if (level.enemies.some((e) => e.alive && ahead(e.x, 70))) want.jump = true;
     // A crate is jumped onto and rolled off, never pushed along by the runner:
     // pushing is slow and that is not the question here.
     if (level.crates.some((c) => ahead(c.x, 40) && ball.y > c.y)) want.jump = true;
@@ -130,9 +139,16 @@ const ROUTES = {
     };
   },
 
-  // Level two: run to the flat below the ledge, shove the crate against the
+  // Level two: nothing but running and jumping — over gaps and every enemy
+  // it meets. There is no crate or platform puzzle here; the generic runner
+  // is the whole route, the same shape level three (spikes) already used.
+  2: (level, lead) => runner(level, lead),
+
+  // Level three: run to the flat below the ledge, shove the crate against the
   // ledge's face, back off, hop onto the crate and jump from it to the ledge.
-  2: (level, lead) => {
+  // Moved here from level two in the Sep 2026 curriculum reshuffle — the
+  // route body is unchanged, only its key moved with the level.
+  3: (level, lead) => {
     const run = runner(level, lead);
     const crate = level.crates[0];
     const face = level.walls.find((w) => w.h < level.bounds.h);  // the ledge's stone face
@@ -162,9 +178,10 @@ const ROUTES = {
     };
   },
 
-  // Level three: nothing but running and jumping. The platform across its gap
-  // is the second way over, not the only one.
-  3: (level, lead) => runner(level, lead),
+  // Level four: nothing but running and jumping. The platform across its gap
+  // is the second way over, not the only one. Moved here from level three in
+  // the Sep 2026 curriculum reshuffle — unchanged otherwise.
+  4: (level, lead) => runner(level, lead),
 };
 
 // A spread wide enough to be sloppy, not so wide it is somebody else's route:
@@ -223,7 +240,7 @@ for (const data of LEVELS) {
   if (data.checkpoints?.length) console.log(`   level ${data.id}: finished from each of its ${data.checkpoints.length} checkpoints`);
 }
 
-// --- 3. level two cannot be finished without its crate ----------------------
+// --- 3. level three cannot be finished without its crate --------------------
 //
 // It is the level that teaches the crate, and a ledge a strong jump can reach
 // teaches nothing: the child simply never learns there was another way. So
@@ -236,10 +253,14 @@ for (const data of LEVELS) {
 // jump brings the centre to about 649. That is 49px short, measured here
 // rather than trusted from a comment — and if a change to the jump eats most
 // of it, this says so before the level quietly stops needing the crate.
-console.log('\n3. level two without its crate');
+//
+// Moved here from level two in the Sep 2026 curriculum reshuffle — only the
+// id this check looks up changed; the level's own geometry and this
+// arithmetic did not.
+console.log('\n3. level three without its crate');
 {
-  const data = LEVELS.find((l) => l.id === 2);
-  if (!data) fail('there is no level 2');
+  const data = LEVELS.find((l) => l.id === 3);
+  if (!data) fail('there is no level 3');
   else {
     const bare = { ...data, boxes: data.boxes.filter((b) => !b.movable) };
     const face = bare.boxes.find((b) => b.h < data.bounds.h);
