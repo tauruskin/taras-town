@@ -49,6 +49,10 @@ Out of scope, for a later spec:
 - The toy-factory theme's specific hazards. Level 5 keeps its "combine
   everything" role but gets only a light pass here; its factory-specific
   content is Phase B's job.
+- Everything in `docs/superpowers/specs/2026-09-11-followup-ideas.md`
+  (enemies/difficulty recurring past level 2, more content in level 1, hill
+  height, deliberate jump-gates, a stomp bounce effect) — feedback captured
+  after Phase A shipped, not yet brainstormed.
 
 ## Content boundaries: what loosens, what doesn't
 
