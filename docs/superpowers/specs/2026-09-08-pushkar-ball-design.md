@@ -225,7 +225,9 @@ running the game.
 
 Level count: five. One and two teach rolling and jumping on hills; three
 introduces moving platforms and spikes; four moves indoors to the toy factory
-with saws and conveyors; five combines everything.
+with saws and conveyors; five combines everything. *(Superseded by the Sep
+2026 reshuffles — see
+`docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md`.)*
 
 **A level should be long enough to be worth sitting down for.** Levels one
 through three's first draft (phase 2) ran 3,500-4,800 world units — 15-25

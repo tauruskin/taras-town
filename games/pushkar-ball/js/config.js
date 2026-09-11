@@ -193,8 +193,8 @@ export const CONFIG = {
   // Health
   // ---------------------------------------------------------------------
   // Three hearts, replacing "any hazard touch is instant" for spikes and
-  // falling out of the level (and, once they exist, enemies) — added Sep
-  // 2026 once this game's audience became 12, not 6. See
+  // falling out of the level (and covering enemies, which arrived with it) —
+  // added Sep 2026 once this game's audience became 12, not 6. See
   // docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md.
   HEALTH: {
     HEARTS: 3,

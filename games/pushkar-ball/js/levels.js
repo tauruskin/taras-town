@@ -23,10 +23,11 @@ import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './e
 
 // A note on how long a level is, and how sparse its checkpoints are.
 //
-// Levels 1-3 below were rewritten in Sep 2026 after the first three shipped —
-// they were roughly 4000-4800 units wide, about 15-25 seconds of real play,
-// and level three had a checkpoint before every one of its three spike
-// patches. Both were wrong. A "round" should be long enough to be worth
+// Levels one, three and four below (then numbered 1-3) were rewritten in Sep
+// 2026 after the first three shipped — they were roughly 4000-4800 units
+// wide, about 15-25 seconds of real play, and the spike level, then level
+// three, had a checkpoint before every one of its three spike patches. Both
+// were wrong. A "round" should be long enough to be worth
 // sitting down for — these run 13,600-16,800 units, roughly 3.5-4x the
 // originals, which is 60-100+ seconds of unhurried play rather than a blink.
 // And a checkpoint belongs before the single hardest STRETCH of a level, not
@@ -94,8 +95,8 @@ export const LEVELS = [
       // here that a jump cannot already reach, and saying otherwise in a
       // comment would be the easiest kind of lie to leave behind. They are
       // here so the mechanic is in a child's hands from the first level and so
-      // the game exercises it; the level that is built around a crate belongs
-      // with level two, where the geometry is drawn for it.
+      // the game exercises it; the level that is built around a crate is
+      // level three, where the geometry is drawn for it.
       // What a crate can do is proved in tests/offline/crates.mjs, on a level
       // built for the purpose, with a ledge the jump provably cannot reach.
       { x: 2450, y: 660, w: 100, h: 100, movable: true },

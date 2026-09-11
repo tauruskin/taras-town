@@ -2,7 +2,8 @@
 
 Captured 2026-09-11, right after Phase A (health system, enemies, the
 level-2 curriculum reshuffle) shipped, from feedback on the deployed game.
-**None of this is brainstormed or spec'd yet.** Each item below needs its
+**Unless an item below says otherwise, none of this is brainstormed or
+spec'd yet.** Each item below needs its
 own design pass — clarifying questions, 2-3 approaches, an approved design —
 before an implementation plan gets written, the same process every other
 piece of this game has gone through. This file exists only so the ideas
@@ -16,16 +17,15 @@ scoped to levels 3 and 4 only (a walker recurs in level 3, a roller in level
 4); level 5 and any further escalation stay a later design. Implemented by
 `docs/superpowers/plans/2026-09-11-recurring-difficulty.md`.
 
-The Sep 2026 curriculum reshuffle teaches each idea once and moves on:
-level 2 is enemies, level 3 is crates-only, level 4 is spikes-only, and
-nothing from level 2 ever reappears after it. Feedback: later levels should
-keep bringing back earlier ideas — enemies included — rather than retiring
-each one the moment the next level's new idea shows up. Needs a design pass
-on how this interacts with the existing "at most one new idea per level"
-rule (`CLAUDE.md` and the original design spec) — recurrence of an
-already-taught idea is presumably fine under that rule since it isn't a NEW
-idea, but the curriculum table and level 5's "combine everything" role
-likely need rethinking together with this.
+As it stood after the Sep 2026 curriculum reshuffle, each idea was taught
+once and dropped: level 2 was enemies, level 3 crates-only, level 4
+spikes-only, and nothing from level 2 ever reappeared after it. Feedback:
+later levels should keep bringing back earlier ideas — enemies included —
+rather than retiring each one the moment the next level's new idea shows
+up. The design pass settled how this sits with the "at most one new idea
+per level" rule — recurrence of an already-taught idea was always allowed,
+and the original design spec now says so — and left the curriculum table
+and level 5's "combine everything" role for a later design.
 
 ## 2. Level 1 needs more obstacles
 

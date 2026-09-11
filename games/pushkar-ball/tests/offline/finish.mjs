@@ -71,11 +71,13 @@ function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
  *
  * An enemy is treated exactly like a spike here — jumped over, not avoided by
  * any smarter means. Landing on one from above still defeats it (a bonus, not
- * a problem for this check); an occasional side graze costs a heart, which
- * three hearts of budget easily absorbs across a run. Nothing here tries to
- * dodge a popper's lobbed projectile specifically, for the same reason: it is
- * meant to be a minor tap, not a precision dodge, and the same heart budget
- * covers it.
+ * a problem for this check); a side graze costs a heart, and a run only fails
+ * here if it dies — falls, or loses all three hearts in one stretch between
+ * checkpoints. It counts deaths, not hearts, so how close a placement comes to
+ * that has to be checked by hand — level two's walker two and level three's
+ * walker both were. Nothing here tries to dodge a popper's lobbed projectile
+ * specifically: it is meant to be a minor tap, not a precision dodge, and the
+ * same heart budget covers it.
  */
 function runner(level, lead) {
   const lines = level.data.ground || [];
@@ -192,6 +194,12 @@ const ROUTES = {
 // jumping at 70% to 130% of the chosen lead, and starting at any of ten points
 // through a platform's cycle, which is how the moving parts are met out of
 // step with each other.
+//
+// Ten points over 4.5s cover a whole cycle of every platform here (4-5s), a
+// walker (about 4.5s) and a popper (3s), but only a fifth or so of a roller's
+// 23-27s patrol, so a roller is only ever met where a quick arrival finds it.
+// Level four's roller comment in levels.js has what a whole-patrol sweep
+// shows.
 const LEADS = [0.7, 1, 1.3];
 const DELAYS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5];
 
@@ -297,13 +305,12 @@ console.log('\n3. level three without its crate');
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------
 //
-// Everything above proves a level can be finished without ever taking a hit.
-// This proves the OTHER path is real too: play level one for real up to its
-// first checkpoint, take three hits by hand (there are no enemies yet to
-// supply them for real, and level one has no spikes before its checkpoint —
-// see levels.js's own note on why), and confirm the ball comes back at the
-// level's spawn with hearts refilled, not at the checkpoint it had already
-// reached.
+// Everything above proves a level can be finished without ever running out
+// of hearts. This proves the OTHER path is real too: play level one for real
+// up to its first checkpoint, take three hits by hand (level one has no
+// spikes and no enemies to supply them for real), and confirm the ball comes
+// back at the level's spawn with hearts refilled, not at the checkpoint it
+// had already reached.
 console.log('\n4. exhausting hearts mid-level');
 {
   const data = LEVELS[0];
