@@ -22,8 +22,9 @@ So if a suite fails after you apply a step, **first diff your edit against the p
 
 - **The walker is the fussy one to place**, as level 2 already found. On level 3's first long flat, most positions tried cost some lead-0.7 runs all three hearts. x=2675 with amplitude 280 is the centre of the one region where every neighbour ±25 in x and ±20 in amplitude also passes with a minimum of 2 hearts. A slower walker (the optional `speed` field) was tried at 0.8, 1.0 and 1.2 rad/s and was worse at every speed, just as walker two found.
 - **The roller's direction matters more than its position.** Heading left (toward the arriving ball), it passes for any start from 8400 to 8800 and any patrol from 7700–9500 to 7900–9300. Heading right from the same spots cost whole runs.
+- **The roller, over a whole patrol.** *(Added after Task 2's review.)* finish.mjs's start delays only span 4.5s, about a fifth of the roller's ~23s patrol, so they only see what a quick arrival meets. Swept over the whole patrol, lead 0.7 loses 72 of 229 runs when it catches the roller from behind or at its turn, while leads of 0.85 and up never lose one. The rate is the same before checkpoint one (72–73 of 229), so it is a property of the roller and not of this spot. Level 2's shipped roller does no better. The roller's comment says all this.
 - **Finer sampling.** With the start delay sampled every 0.1s instead of finish.mjs's 0.5s, and five leads instead of three:
-  - the roller passes 230 of 230;
+  - the roller passes 230 of 230, within finish.mjs's own 4.5s window;
   - the walker passes 227 of 230, and the 3 failures are all at lead 0.7;
   - level 2 as shipped passes only 222 of 230 on that same finer sampling.
 
@@ -278,21 +279,30 @@ Insert an `enemies` array between them, so the block becomes:
       // afford it. It patrols 7800..9400: 500 units past the end of the
       // spike patch at 7200, which checkpoint one guards, and 400 short of
       // the ramp, so a ball never has spike-timing and roller-timing in the
-      // same moment. Checkpoint one refills hearts just before that patch and
-      // checkpoint two refills them again on the high ground, so the roller
-      // is paid for out of a fresh budget and repaid straight after.
+      // same moment. Checkpoint one refills hearts just before that patch,
+      // so the patch and the roller share one fresh budget of three, and
+      // checkpoint two refills them again on the high ground before anything
+      // else is asked. Running out between the two sends the ball back to the
+      // spawn, roughly 8,000 units behind, not to checkpoint one.
       //
-      // Starting in the middle and heading LEFT, toward an arriving ball, as
-      // level two's roller does — and the direction is what matters most
-      // here: heading right from the same place, finish.mjs's matrix lost
-      // whole runs to it. Heading left, every run at lead 0.7 takes exactly
-      // one heart from it and every run at lead 1 or 1.3 takes none, so it
-      // never leaves a run below 2 of 3. That holds for starts 200 units
-      // either side of 8600 and for a patrol 100 units wider or narrower at
-      // each end — though narrower still, at 7950..9250, runs start being
-      // lost again — and on 230 runs sampling the start delay every 0.1s
-      // across five leads, where every run below lead 1 takes that one heart
-      // and none takes more.
+      // Starting in the middle and heading left, as level two's roller does.
+      // What matters is which way it is heading when the ball reaches it:
+      // met head-on, a late jump costs one heart; caught from behind or at
+      // its turn, a late jump can cost all three. finish.mjs's start delays
+      // span 4.5s, about a fifth of this roller's ~23s patrol, so they only
+      // see what a quick arrival meets — heading left from here, that is
+      // head-on: every lead-0.7 run takes exactly one heart and every run at
+      // lead 1 or 1.3 takes none (heading right, the same matrix lost all ten
+      // of its lead-0.7 runs from the spawn). That holds for starts 200 units
+      // either side of 8600 and for patrols 100 units wider or narrower at
+      // each end; narrower still, at 7950..9250, a lead-0.7 run is lost
+      // again. Swept over a whole patrol instead (start delays 0-23s every
+      // 0.1s, five leads), leads of 0.85 and up still never lose a run or a
+      // second heart, but lead 0.7 loses 72 of 229 — a slow arrival that
+      // also jumps late can lose the run here. That is the roller, not this
+      // spot: the same sweep on the flat before checkpoint one lost 72-73 of
+      // 229 as well, and that flat is kept for the first two spikes a child
+      // ever meets. Level two's roller does no better on the same sweep.
       { kind: 'roller', x: 8600, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7800, to: 9400, dir: -1 },
     ],
 
@@ -372,7 +382,8 @@ EOF
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-09-08-pushkar-ball-design.md` (one clarifying paragraph under the "at most one new idea" bullet)
-- Modify: `games/pushkar-ball/tests/offline/finish.mjs` (two stale "level two" references: a header comment and a failure message)
+- Modify: `games/pushkar-ball/tests/offline/finish.mjs` (two stale "level two" references, a header comment and a failure message; and three route comments)
+- Modify: `games/pushkar-ball/js/levels.js` (one stale "level three's … spike patch" in level two's comments)
 - Modify: `games/pushkar-ball/tests/README.md` (the `finish` row's stale "level two" references; the `levels` row's missing enemy checks)
 - Modify: `docs/superpowers/specs/2026-09-11-followup-ideas.md` (item 1's status)
 
@@ -449,6 +460,73 @@ Replace with:
     if (won) fail(`level 3 was finished without its crate ${won} time(s) of ${tries} — the ledge no longer needs it`);
 ```
 
+- [ ] **Step 3b: Fix the remaining stale route and level comments**
+
+Found by Task 2's review, and the same kind of leftover. In `games/pushkar-ball/tests/offline/finish.mjs`, level two's route comment:
+
+```js
+  // Level two: nothing but running and jumping — over gaps and every enemy
+  // it meets. There is no crate or platform puzzle here; the generic runner
+  // is the whole route, the same shape level three (spikes) already used.
+```
+
+becomes:
+
+```js
+  // Level two: nothing but running and jumping — over gaps and every enemy
+  // it meets. There is no crate or platform puzzle here; the generic runner
+  // is the whole route, the same shape level four (spikes) uses.
+```
+
+Level three's route comment:
+
+```js
+  // Level three: run to the flat below the ledge, shove the crate against the
+  // ledge's face, back off, hop onto the crate and jump from it to the ledge.
+  // Moved here from level two in the Sep 2026 curriculum reshuffle — the
+  // route body is unchanged, only its key moved with the level.
+```
+
+becomes:
+
+```js
+  // Level three: run to the flat below the ledge, jumping its walker on the
+  // way, shove the crate against the ledge's face, back off, hop onto the
+  // crate and jump from it to the ledge. Moved here from level two in the
+  // Sep 2026 curriculum reshuffle — the route body is unchanged, only its key
+  // moved with the level; the walker needs nothing of its own, since the
+  // runner jumps any enemy ahead.
+```
+
+Level four's route comment:
+
+```js
+  // Level four: nothing but running and jumping. The platform across its gap
+  // is the second way over, not the only one. Moved here from level three in
+  // the Sep 2026 curriculum reshuffle — unchanged otherwise.
+```
+
+becomes:
+
+```js
+  // Level four: nothing but running and jumping — over its gap, its spikes
+  // and its one roller. The platform across its gap is the second way over,
+  // not the only one. Moved here from level three in the Sep 2026 curriculum
+  // reshuffle — unchanged otherwise.
+```
+
+And in `games/pushkar-ball/js/levels.js`, level two's first ground comment ends:
+
+```js
+      // nothing — the enemy version of level three's first, easy spike patch.
+```
+
+which becomes:
+
+```js
+      // nothing — the enemy version of level four's first, easy spike patch.
+```
+
 - [ ] **Step 4: Fix the tests README rows**
 
 In `games/pushkar-ball/tests/README.md`, find the `levels` row:
@@ -510,7 +588,7 @@ Expected: all 14 suites pass. Only comments and a failure string changed in test
 - [ ] **Step 7: Commit**
 
 ```bash
-git add docs/superpowers/specs/2026-09-08-pushkar-ball-design.md games/pushkar-ball/tests/offline/finish.mjs games/pushkar-ball/tests/README.md docs/superpowers/specs/2026-09-11-followup-ideas.md
+git add docs/superpowers/specs/2026-09-08-pushkar-ball-design.md games/pushkar-ball/tests/offline/finish.mjs games/pushkar-ball/js/levels.js games/pushkar-ball/tests/README.md docs/superpowers/specs/2026-09-11-followup-ideas.md
 git commit -m "$(cat <<'EOF'
 Clarify the one-new-idea rule, and fix stale level-two references
 
@@ -521,7 +599,9 @@ an idea's first appearance only.
 
 finish.mjs's header comment, its check-3 failure message and the tests
 README still called the crate level "level two" after the Sep 2026
-reshuffle moved it to level three; fixed. The README's levels row now
+reshuffle moved it to level three, and two comments still called the
+spike level "level three"; fixed. The level three and four route
+comments now mention the enemy the runner jumps. The README's levels row now
 mentions the enemy checks it already runs, and its finish row says that
 suite counts deaths rather than hearts - the gap commit 1521e24 had to
 close by hand. Follow-up item 1 is marked done.
@@ -632,7 +712,8 @@ Tell the user:
 - Level 3 now brings back a walker on its first long flat, and level 4 brings back a roller between its checkpointed spike patch and the ramp.
 - The original design spec now says in writing that recurrence was always allowed.
 - Include the verification numbers: both levels finish 30 ways and from every checkpoint, and neither drops below 2 of 3 hearts anywhere in a neighbourhood around the chosen values.
-- Mention the three stale "level two" references fixed on the way.
+- Mention the stale level-number references fixed on the way.
+- Flag the roller finding from Task 2's review as a possible follow-up. It is not a regression, since level 2's shipped roller behaves the same. Swept over a roller's whole ~23s patrol, a late-jumping ball that catches it from behind or at its turn can lose all three hearts, and running out of hearts sends it back to the spawn. finish.mjs's 4.5s of start delays never sees that part of a roller's patrol. Two things are worth a design conversation: whether a roller should be that punishing, and whether finish.mjs should sweep a roller's full lap.
 - Note what remains: follow-up items 2–5 are still unbrainstormed and were deliberately not started.
 - Flag one thing noticed and left alone: `games/pushkar-ball/README.md`'s "What is here" section still describes phase 1 (it says hazards, enemies, checkpoints and lives are "deliberately absent"). It is long out of date, and the user may want it rewritten as its own small task.
 
