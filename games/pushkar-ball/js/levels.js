@@ -246,9 +246,12 @@ export const LEVELS = [
       // 3-lead-by-10-delay matrix with a direct check of hearts after
       // checkpoint two (not just deaths, which finish.mjs alone does not
       // track), never drops below 2 of 3 hearts and never costs a death,
-      // with the same margin holding across amplitudes 280-320 and x
+      // with the same margin holding across amplitudes 280-300 at any x in
       // 10490-10530 — comfortably off the single lucky value 300/10500
-      // turned out to be, not a coincidence.
+      // turned out to be, not a coincidence. (Re-review found the margin
+      // does NOT extend cleanly all the way to 320: two cells right at
+      // amplitude 310-320, x=10490, delay=0.5 die. The shipped value,
+      // 300/10500, sits well clear of that edge.)
       { kind: 'walker', x: 10500, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 300 },
     ],
 
