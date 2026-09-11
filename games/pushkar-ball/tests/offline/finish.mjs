@@ -71,10 +71,11 @@ function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
  *
  * An enemy is treated exactly like a spike here — jumped over, not avoided by
  * any smarter means. Landing on one from above still defeats it (a bonus, not
- * a problem for this check); a side graze costs a heart, and a run only fails
- * here if it dies — falls, or loses all three hearts in one stretch between
- * checkpoints. It counts deaths, not hearts, so how close a placement comes to
- * that has to be checked by hand — level two's walker two and level three's
+ * a problem for this check); a side graze costs a heart, and that alone does
+ * not fail a run here — a run fails if it dies (falls, or loses all three
+ * hearts in one stretch between checkpoints) or never reaches the flag. It
+ * counts deaths, not hearts, so how close a placement comes to losing all
+ * three has to be checked by hand — level two's walker two and level three's
  * walker both were. Nothing here tries to dodge a popper's lobbed projectile
  * specifically: it is meant to be a minor tap, not a precision dodge, and the
  * same heart budget covers it.

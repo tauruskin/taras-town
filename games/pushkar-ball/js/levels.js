@@ -24,17 +24,17 @@ import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './e
 // A note on how long a level is, and how sparse its checkpoints are.
 //
 // Levels one, three and four below (then numbered 1-3) were rewritten in Sep
-// 2026 after the first three shipped — they were roughly 4000-4800 units
-// wide, about 15-25 seconds of real play, and the spike level, then level
-// three, had a checkpoint before every one of its three spike patches. Both
-// were wrong. A "round" should be long enough to be worth
-// sitting down for — these run 13,600-16,800 units, roughly 3.5-4x the
-// originals, which is 60-100+ seconds of unhurried play rather than a blink.
-// And a checkpoint belongs before the single hardest STRETCH of a level, not
-// before every individual jump: each level below carries exactly two,
-// positioned to break the level into large, roughly even pieces so one
-// mistake costs a third of the level, not the whole run, but a run of easy,
-// already-practised ground in between never gets flagged just for existing.
+// 2026 after the first three shipped — they were roughly 4000-4800 units wide,
+// about 15-25 seconds of real play, and the spike level, then level three, had
+// a checkpoint before every one of its three spike patches. Both were wrong. A
+// "round" should be long enough to be worth sitting down for — these run
+// 13,600-16,800 units, roughly 3.5-4x the originals, which is 60-100+ seconds
+// of unhurried play rather than a blink. And a checkpoint belongs before the
+// single hardest STRETCH of a level, not before every individual jump: each
+// level below carries exactly two, positioned to break the level into large,
+// roughly even pieces so one mistake costs a third of the level, not the whole
+// run, but a run of easy, already-practised ground in between never gets
+// flagged just for existing.
 //
 // The gap widths reused here (200, 220, 240, 260) and the spike widths
 // (70-100) are not new numbers — they are exactly the ones the original three

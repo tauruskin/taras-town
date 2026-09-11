@@ -144,10 +144,9 @@ export class Ball {
 
   /**
    * Touched a spike or an enemy while still inside the level. With hearts
-   * left, this is a flash and a knockback and the ball
-   * stays in play under control; at zero hearts it is the same full
-   * relocation a fall causes, back to the level's start rather than a
-   * checkpoint.
+   * left, this is a flash and a knockback and the ball stays in play under
+   * control; at zero hearts it is the same full relocation a fall causes,
+   * back to the level's start rather than a checkpoint.
    *
    * @param knockDir -1 or 1: which way to push the ball, away from whatever
    *                  it touched.
