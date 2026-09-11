@@ -112,26 +112,30 @@ Insert an `enemies` array between `platforms: [],` and the checkpoints comment, 
       // enemies, because this level's own job, the crate, is already a
       // puzzle, and the enemy that comes back here should add company, not
       // thinking. It paces 2395..2955 on the flat between the 200px and
-      // 220px gaps, 850-900 units clear of both and nowhere near the crate
-      // flat, so it is never asked for at the same moment as anything else.
+      // 220px gaps, 895 and 845 units clear of them and nowhere near the
+      // crate flat, so it is never asked for at the same moment as anything
+      // else.
       //
       // Before the first checkpoint on purpose. Whatever it costs is given
       // back at checkpoint one, which refills hearts before the level's
       // tightest gap; and the rare sloppy run that loses all three hearts to
-      // it goes back only ~2500 units of flat to the spawn.
+      // it goes back only ~2700 units, over one easy gap, to the spawn.
       //
-      // x=2675 and amplitude 280 were found by sweeping, not guessed, and the
-      // walker is the fussiest enemy to place — the same finding level two's
-      // walker two made. Against finish.mjs's 3-lead-by-10-delay matrix, most
-      // positions tried on this flat cost some run at lead 0.7 all three
-      // hearts; this one never drops below 2 of 3, and neither does any
-      // neighbour 25 units either side or 20 of amplitude either side, so it
-      // is the middle of a passing region rather than its edge. A slower
-      // walker (the optional `speed`) was tried and was worse at every speed,
-      // as it was for walker two. Sampling the start delay every 0.1s rather
-      // than 0.5s still finds 3 runs in 230 at lead 0.7 that lose all three
-      // hearts here — fewer than level two as shipped (8 in 230) on the same
-      // finer sampling.
+      // x=2675 and amplitude 280 were found by sweeping, not guessed — as
+      // level two's walker two also found, a walker's margin is fussy.
+      // Against finish.mjs's 3-lead-by-10-delay matrix, most positions tried
+      // on this flat cost some run at lead 0.7 all three hearts; this one
+      // never drops below 2 of 3, and neither does any neighbour 25 units
+      // either side or 20 of amplitude either side, so it is the middle of a
+      // passing region rather than its edge. The region is narrow, though:
+      // 50 units either side, at 2625 or 2725, some lead-0.7 runs lose all
+      // three hearts again, so do not nudge this without re-checking. A
+      // slower walker (the optional `speed`) was tried and was worse at
+      // every speed, as it was for walker two. Sampling the start delay every
+      // 0.1s and five leads rather than three (230 runs in all) still finds 3
+      // that lose all three hearts here, every one at lead 0.7 — fewer than
+      // level two as shipped on the same sampling (8 in 230, likewise all at
+      // lead 0.7, six of them to its walker one alone).
       { kind: 'walker', x: 2675, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
     ],
 
@@ -280,12 +284,15 @@ Insert an `enemies` array between them, so the block becomes:
       //
       // Starting in the middle and heading LEFT, toward an arriving ball, as
       // level two's roller does — and the direction is what matters most
-      // here. Against finish.mjs's matrix, heading right from the same place
-      // cost whole runs; heading left, it costs at most one heart, only on
-      // the sloppiest jumps (a lead below 1), and never drops below 2 of 3 —
-      // for any start 200 units either side of 8600, for a patrol 100 units
-      // wider or narrower at each end, and on a sampling of start delays five
-      // times finer than finish.mjs's own.
+      // here: heading right from the same place, finish.mjs's matrix lost
+      // whole runs to it. Heading left, every run at lead 0.7 takes exactly
+      // one heart from it and every run at lead 1 or 1.3 takes none, so it
+      // never leaves a run below 2 of 3. That holds for starts 200 units
+      // either side of 8600 and for a patrol 100 units wider or narrower at
+      // each end — though narrower still, at 7950..9250, runs start being
+      // lost again — and on 230 runs sampling the start delay every 0.1s
+      // across five leads, where every run below lead 1 takes that one heart
+      // and none takes more.
       { kind: 'roller', x: 8600, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7800, to: 9400, dir: -1 },
     ],
 
@@ -346,10 +353,10 @@ patrolling 7800..9400, between checkpoint one's spike patch and the ramp,
 roller-timing never land in the same moment. Checkpoints refill hearts on
 either side of it.
 
-Heading left from x=8600 it costs at most one heart, only on finish.mjs's
-sloppiest jumps, and never drops below 2 of 3 - for starts 8400-8800 and
-patrols 100 units wider or narrower too. Heading right from the same place
-cost whole runs. Level geometry is unchanged; only the enemies array and
+Heading left from x=8600 it takes exactly one heart on each of
+finish.mjs's lead-0.7 runs and none at lead 1 or 1.3, never leaving a run
+below 2 of 3 - for starts 8400 and 8800 and patrols 100 units wider or
+narrower too. Heading right from the same place cost whole runs. Level geometry is unchanged; only the enemies array and
 the header comment were added.
 
 Part of docs/superpowers/plans/2026-09-11-recurring-difficulty.md, Task 2.
