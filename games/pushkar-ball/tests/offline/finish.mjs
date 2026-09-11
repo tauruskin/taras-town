@@ -15,12 +15,13 @@
 // child, and would break on the first harmless tweak to anything.
 //
 // Most of the driving is one generic runner that reads the level's own data:
-// roll right, and jump a little before any gap edge, spike patch or crate
-// ahead. Only the two things a runner cannot do by rolling right get a script
-// of their own — riding level one's platform to its last ledge, and working
-// level two's crate — and those scripts are the proof that those levels can be
-// done. If you move the geometry they are written against, move them too; if
-// a new level has no route, this suite says so rather than passing.
+// roll right, and jump a little before any gap edge, spike patch, crate or
+// enemy ahead. Only the two things a runner cannot do by rolling right get a
+// script of their own — riding level one's platform to its last ledge, and
+// working level three's crate — and those scripts are the proof that those
+// levels can be done. If you move the geometry they are written against, move
+// them too; if a new level has no route, this suite says so rather than
+// passing.
 //
 // Then from every checkpoint too, because a checkpoint is a new start: one
 // placed so close to a patch that a ball respawning from rest cannot get over
@@ -141,13 +142,15 @@ const ROUTES = {
 
   // Level two: nothing but running and jumping — over gaps and every enemy
   // it meets. There is no crate or platform puzzle here; the generic runner
-  // is the whole route, the same shape level three (spikes) already used.
+  // is the whole route, the same shape level four (spikes) uses.
   2: (level, lead) => runner(level, lead),
 
-  // Level three: run to the flat below the ledge, shove the crate against the
-  // ledge's face, back off, hop onto the crate and jump from it to the ledge.
-  // Moved here from level two in the Sep 2026 curriculum reshuffle — the
-  // route body is unchanged, only its key moved with the level.
+  // Level three: run to the flat below the ledge, jumping its walker on the
+  // way, shove the crate against the ledge's face, back off, hop onto the
+  // crate and jump from it to the ledge. Moved here from level two in the
+  // Sep 2026 curriculum reshuffle — the route body is unchanged, only its key
+  // moved with the level; the walker needs nothing of its own, since the
+  // runner jumps any enemy ahead.
   3: (level, lead) => {
     const run = runner(level, lead);
     const crate = level.crates[0];
@@ -178,9 +181,10 @@ const ROUTES = {
     };
   },
 
-  // Level four: nothing but running and jumping. The platform across its gap
-  // is the second way over, not the only one. Moved here from level three in
-  // the Sep 2026 curriculum reshuffle — unchanged otherwise.
+  // Level four: nothing but running and jumping — over its gap, its spikes
+  // and its one roller. The platform across its gap is the second way over,
+  // not the only one. Moved here from level three in the Sep 2026 curriculum
+  // reshuffle — unchanged otherwise.
   4: (level, lead) => runner(level, lead),
 };
 
@@ -279,7 +283,7 @@ console.log('\n3. level three without its crate');
         if (ball.won) won++;
       }
     }
-    if (won) fail(`level 2 was finished without its crate ${won} time(s) of ${tries} — the ledge no longer needs it`);
+    if (won) fail(`level 3 was finished without its crate ${won} time(s) of ${tries} — the ledge no longer needs it`);
     else if (best - need < 30) {
       fail(`without the crate a ball gets its centre to y=${best.toFixed(0)} beside the ledge, within ${(best - need).toFixed(0)}px of the ${need} it needs — too close to be sure it needs the crate`);
     } else {

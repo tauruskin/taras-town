@@ -9,11 +9,12 @@ piece of this game has gone through. This file exists only so the ideas
 aren't lost before that happens. Nothing here should be implemented from
 this file directly.
 
-## 1. Enemies (and difficulty generally) should recur across levels — SPEC'D
+## 1. Enemies (and difficulty generally) should recur across levels — DONE
 
 See `docs/superpowers/specs/2026-09-11-recurring-difficulty-design.md` —
 scoped to levels 3 and 4 only (a walker recurs in level 3, a roller in level
-4); level 5 and any further escalation stay a later design.
+4); level 5 and any further escalation stay a later design. Implemented by
+`docs/superpowers/plans/2026-09-11-recurring-difficulty.md`.
 
 The Sep 2026 curriculum reshuffle teaches each idea once and moves on:
 level 2 is enemies, level 3 is crates-only, level 4 is spikes-only, and

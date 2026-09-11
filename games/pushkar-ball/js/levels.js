@@ -149,7 +149,7 @@ export const LEVELS = [
     ground: [
       // Rehearsal, piece one: a walker met on a long, open flat, close enough
       // to spawn that meeting it for the very first time costs almost
-      // nothing — the enemy version of level three's first, easy spike patch.
+      // nothing — the enemy version of level four's first, easy spike patch.
       [[40, 760], [2200, 760]],
       // A 100px gap — narrower than level one's 200px, and deliberately so:
       // the popper sits just past its landing edge (see the popper's own
@@ -483,11 +483,12 @@ export const LEVELS = [
       // each end; narrower still, at 7950..9250, a lead-0.7 run is lost
       // again. Swept over a whole patrol instead (start delays 0-23s every
       // 0.1s, five leads), leads of 0.85 and up still never lose a run or a
-      // second heart, but lead 0.7 loses 72 of 229 — a slow arrival that
-      // also jumps late can lose the run here. That is the roller, not this
-      // spot: the same sweep on the flat before checkpoint one lost 72-73 of
-      // 229 as well, and that flat is kept for the first two spikes a child
-      // ever meets. Level two's roller does no better on the same sweep.
+      // second heart, but lead 0.7 loses 72 of 229 — an arrival that meets
+      // it at its turn or from behind, and jumps late, can lose the run here.
+      // That is the roller, not this spot: the same sweep on the flat before
+      // checkpoint one, patrolling 1300..2900, lost 72-73 of 229 as well, and
+      // that flat is kept for the first two spikes a child ever meets. Level
+      // two's roller does no better on the same sweep.
       { kind: 'roller', x: 8600, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7800, to: 9400, dir: -1 },
     ],
 

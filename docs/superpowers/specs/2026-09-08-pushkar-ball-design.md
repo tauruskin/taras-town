@@ -252,6 +252,14 @@ What it means concretely:
 - **Every level introduces at most one new idea**, and introduces it somewhere
   safe — where failing costs a few seconds, not a checkpoint's progress — before
   it is ever asked for somewhere that matters.
+
+  This restricts what's *new*, not what's *present* — a level may, and later
+  ones generally should, also feature an idea already taught in an earlier
+  level, so long as it doesn't ask for precise timing on it at the same moment
+  as anything else (see the next rule). The "somewhere safe" clause above
+  applies only to an idea's first appearance anywhere in the game, not to every
+  level that later reuses it. *(Clarified Sep 2026 — see
+  `docs/superpowers/specs/2026-09-11-recurring-difficulty-design.md`.)*
 - **No level requires precise timing on more than one thing at once.** A moving
   platform over a gap is fine. A moving platform over a gap with a saw on it is
   two things, and belongs in different levels.
