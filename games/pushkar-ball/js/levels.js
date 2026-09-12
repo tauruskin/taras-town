@@ -137,8 +137,9 @@ export const LEVELS = [
       // is never met at the same moment as anything else. It can cost a
       // heart, never a fall. finish.mjs's runner jumps it without losing a
       // heart at every lead and start delay it tries, and so does a finer
-      // sweep (five leads, a start every 0.1s) with the patch moved 100 units
-      // either way or widened to 90.
+      // sweep (five leads, a start every 0.1s; a scratch check, see the
+      // Appendix of docs/superpowers/plans/2026-09-12-livelier-level-one.md)
+      // with the patch moved 100 units either way or widened to 90.
       { x: 5400, y: 760, w: 70 },
     ],
 
@@ -148,10 +149,11 @@ export const LEVELS = [
     // stone block, the spike patch, the second hill — have no checkpoint at
     // all: none of it is the level's hard part, it is the level's ROLLING,
     // and a checkpoint there would only be banking progress nobody was going
-    // to lose. That is also why nothing on that stretch can be failed by a
-    // fall except the first gap, which the level has always had. The two
-    // below sit right before the two stretches that can actually be failed:
-    // the second and third gaps, and the final hill-then-platform approach.
+    // to lose. Because nothing guards it, everything added to that stretch
+    // can cost at most a heart, never a fall; its one fall is the first gap,
+    // which the level has always had. The two below sit right before the two
+    // stretches where failing costs the most: the second and third gaps, and
+    // the final hill-then-platform approach.
     checkpoints: [
       { x: 8750, y: 760 },
       { x: 13750, y: 760 },
@@ -517,8 +519,8 @@ export const LEVELS = [
       // it at its turn or from behind, and jumps late, can lose the run here.
       // That is the roller, not this spot: the same sweep on the flat before
       // checkpoint one, patrolling 1300..2900, lost 72-73 of 229 as well, and
-      // that flat is kept for the first two spikes a child ever meets. Level
-      // two's roller does no better on the same sweep.
+      // that flat is kept for the level's first two spikes. Level two's
+      // roller does no better on the same sweep.
       { kind: 'roller', x: 8600, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7800, to: 9400, dir: -1 },
     ],
 
