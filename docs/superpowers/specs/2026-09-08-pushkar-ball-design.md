@@ -266,7 +266,9 @@ What it means concretely:
   One named exception, and only one: level one also shows a single narrow
   spike patch on open ground, a first look at what level four teaches. It is
   level one's alone and not a precedent — a future level that wants to
-  preview a later idea needs its own named decision. *(Added Sep 2026 — see
+  preview a later idea needs its own named decision. (Level one's crates are
+  not a second one: they are its own vocabulary, present but never required,
+  and level three is where a crate is first needed.) *(Added Sep 2026 — see
   `docs/superpowers/specs/2026-09-12-livelier-level-one-design.md`.)*
 - **No level requires precise timing on more than one thing at once.** A moving
   platform over a gap is fine. A moving platform over a gap with a saw on it is

@@ -138,7 +138,8 @@ export const LEVELS = [
       { x: 16275, y: 740, w: 170, h: 28, axis: 'x', dist: 85, period: 5.0, phase: 0 },
       // A lift over the flat between the second gap and the third. Nothing
       // needs it; it is here so vertical movers are exercised by the game
-      // and not only by the tests.
+      // and not only by the tests. It cannot be boarded from the ground; see
+      // follow-up item 6 in docs/superpowers/specs/2026-09-11-followup-ideas.md.
       { x: 9700, y: 470, w: 150, h: 28, axis: 'y', dist: 120, period: 4.0, phase: 0.25 },
     ],
 

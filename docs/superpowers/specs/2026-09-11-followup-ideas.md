@@ -2,13 +2,14 @@
 
 Captured 2026-09-11, right after Phase A (health system, enemies, the
 level-2 curriculum reshuffle) shipped, from feedback on the deployed game.
-**Unless an item below says otherwise, none of this is brainstormed or
-spec'd yet.** Each item below needs its
-own design pass — clarifying questions, 2-3 approaches, an approved design —
-before an implementation plan gets written, the same process every other
-piece of this game has gone through. This file exists only so the ideas
-aren't lost before that happens. Nothing here should be implemented from
-this file directly.
+Items 6–8 were added 2026-09-12 from measurements during the build, not
+from feedback. **Unless an item below says otherwise, none of this is
+brainstormed or spec'd yet.** Each item below needs its own design pass —
+clarifying questions, 2-3 approaches, an approved design — before an
+implementation plan gets written, the same process every other piece of
+this game has gone through. This file exists only so the ideas aren't
+lost before that happens. Nothing here should be implemented from this
+file directly.
 
 ## 1. Enemies (and difficulty generally) should recur across levels — DONE
 
@@ -36,13 +37,13 @@ third gap, a third crate and a two-step stone staircase in the middle third.
 Implemented by `docs/superpowers/plans/2026-09-12-livelier-level-one.md`.
 
 As it stood before that design, it read as sparse — two proven gaps and two
-crates that nothing in the level actually needs (the crates are there "so
+crates that nothing in the level actually needed (the crates were there "so
 the mechanic is in a child's hands," per the level's own comment, not
-because the level asks for them). Needs a design pass on what a livelier
-level 1 looks like without breaking its job as the rolling-and-jumping
-tutorial — it's still the first thing a player meets, so the existing
-"nothing here is hard, and difficulty rises one level at a time" rule still
-applies in full.
+because the level asked for them). It needed a design pass on what a
+livelier level 1 looks like without breaking its job as the
+rolling-and-jumping tutorial — it was still the first thing a player met,
+so the existing "nothing here is hard, and difficulty rises one level at
+a time" rule applied in full.
 
 ## 3. Ground/hill height should come down roughly 20%
 
@@ -83,37 +84,50 @@ half-designed and just never built.
 ## 6. Level 1's lift cannot be boarded
 
 Found during the livelier-level-one work, Sep 2026, and older than it. The
-vertical lift over level 1's flat at 9700 never comes lower than a top of
-y=590, and a jump from the flat at 760 brings the ball's centre to about 609
-and its bottom to about 629 — so the ball bumps the lift's underside and can
-never get on. A sweep of take-off points and jump times across its whole
-4-second cycle found no boarding at all. Nothing needs the lift, so nothing is
-broken, but he can see a moving platform he can never ride. Needs a small
-design decision: lower its travel so it can be boarded, or accept it as
-scenery.
+vertical lift at x=9700, over level 1's flat between the second and third
+gaps, never brings its top lower than y=590, and a jump from the flat at
+y=760 brings the ball's centre to about 610 and its bottom to about 630.
+So the ball's bottom never gets above the lift's top, and near the bottom
+of the lift's travel the ball bumps its underside. A sweep of take-off
+points and jump times across its whole 4-second cycle found no boarding at
+all. Nothing needs the lift, so nothing is broken, but he can see a moving
+platform he can never ride. Needs a small design decision: lower its
+travel so it can be boarded, or accept it as scenery.
 
 ## 7. What a walker or a roller costs a late jumper
 
 Measured while planning the livelier-level-one work, Sep 2026, and during the
 recurring-difficulty work before it. Over a walker's whole cycle (start
 delays 0–4.6s every 0.1s), a late jump — finish.mjs's lead 0.7 — loses two or
-all three hearts on about 6–11 of 47 arrivals, for every shipped walker (level
-2's walker one 11, level 3's walker 6). Over a roller's whole ~23s patrol,
-lead 0.7 loses the whole run on 72 of 229. Losing all three hearts always
-sends the ball back to the level's start, and a checkpoint cannot soften that.
+all three hearts on about 6–11 of 47 arrivals, for every shipped walker
+(level 2's walker one 11, its walker two 8, level 3's walker 6). Over level
+4's roller's whole ~23s patrol, lead 0.7 loses the whole run on 72 of 229;
+level 2's roller does no better. Losing all three hearts always sends the
+ball back to the level's start, and a checkpoint cannot soften that.
 finish.mjs's ten start delays sample only a few phases and never see most of
 this. Worth a design conversation: whether an enemy should be able to cost a
 late jumper that much, and whether finish.mjs should sweep an enemy's whole
 cycle.
 
+## 8. Losing every heart resets the ball's start but not its checkpoint
+
+Found while reviewing the livelier-level-one work, Sep 2026, and older than
+it. When the ball runs out of hearts it goes back to the level's spawn
+with hearts refilled (`player.js`), but its respawn home stays at the last
+checkpoint it took. So the next fall anywhere, even into the first gap,
+puts it back at that checkpoint, ahead of where it was. Harmless, arguably
+a kindness, but no doc describes it and `tests/offline/checkpoints.mjs`
+does not pin it either way. Needs a decision: keep it and write it down
+(and test it), or reset home to the spawn too.
+
 ## Where this fits
 
 None of the items above conflicts with anything already shipped in Phase A.
-Items 1 and 2 are done; items 3–7 are each still their own design pass.
+Items 1 and 2 are done; items 3–8 are each still their own design pass.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one
 named exception to the one-new-idea rule, level 1's spike patch, which is
-level 1's alone. Phase B
-(saws, conveyors, crushers, launchers, ice/sticky surfaces, the toy-factory
-theme) from `docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md`
-is still separately queued and unrelated to this list.
+level 1's alone. Phase B (saws, conveyors, crushers, launchers, ice/sticky
+surfaces, the toy-factory theme) from
+`docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md` is
+still separately queued and unrelated to this list.

@@ -39,12 +39,11 @@ do was cost one heart. Measured while planning, over a walker's whole cycle
 (start delays 0–4.6s every 0.1s, five leads), a late jumper at lead 0.7 loses
 two or all three hearts on 7 of 47 arrivals at x=5400 with the amplitudes that
 suit that flat (250 or 300; 11 or more of 47 at 200 or below). That is not a
-property of this level: the shipped
-walkers do the same (level two's walker one loses two or three on 11 of 47,
-level three's walker on 6). A walker is a sine of level time, so moving it
-only changes which of `finish.mjs`'s ten start delays happen to land on a bad
-phase — the matrix passing at some x and failing 100 units away is sampling
-luck, not a safe region.
+property of this level: the shipped walkers do the same (level two's walker
+one loses two or three on 11 of 47, level three's walker on 6). A walker is
+a sine of level time, so moving it only changes which of `finish.mjs`'s ten
+start delays happen to land on a bad phase — the matrix passing at some x
+and failing 100 units away is sampling luck, not a safe region.
 
 Losing all three hearts always sends the ball back to the level's spawn, and a
 checkpoint cannot soften that. On hill one's plateau, near the spawn, it was
@@ -162,9 +161,11 @@ already ships.
   steps; section 4's note that level one "has no spikes" is corrected.
 - **`tests/README.md`**, the `finish` row: the runner's list of what it jumps
   gains stone steps.
-- **`2026-09-11-followup-ideas.md`**: item 2 marked spec'd, pointing here. Its
+- **`2026-09-11-followup-ideas.md`**: item 2 marked done, pointing here. Its
   stale "Where this fits" section, which still treats item 1 as open, is
-  brought up to date in the same edit.
+  brought up to date in the same edit. Reviews during the build added items
+  6–8 (the lift, what enemies cost a late jumper, and the heart-reset
+  quirk).
 
 ## What changes in code
 
@@ -206,9 +207,9 @@ or any other game file. No new mechanic.
 
 - Levels two, three and four's geometry.
 - Any new obstacle type, mechanic or config number.
-- Follow-up items 3–5 (hill height, jump-only gates, a stomp bounce), each its
-  own design pass.
+- Follow-up items 3–5 (hill height, jump-only gates, a stomp bounce) and
+  6–8, each its own design pass.
 - What a walker costs a late jumper, in every level that has one. "Why not a
   walker" above is a measurement worth a design conversation alongside the
   roller trade-off from the recurring-difficulty work, not something this spec
-  changes.
+  changes. It is now follow-up item 7.
