@@ -71,12 +71,17 @@ export const LEVELS = [
         [3150, 760], [3500, 760], [3650, 840], [3850, 840], [4000, 760], [4600, 760],
         [6400, 760], [6900, 540], [7500, 540], [8000, 760], [8850, 760],
       ],
-      // After the 240px second gap: a second bowl, another long flat, a third
-      // and tallest hill, then flat to the final approach. The vertical lift
-      // sits somewhere in the long flat between the bowl and the hill —
-      // nothing needs it, same as the first level ever had.
+      // After the 240px second gap: a flat with the vertical lift over it
+      // (nothing needs the lift, same as the first level ever had), then a
+      // third gap. It is 200px, the width the first one already proved, and
+      // it comes after checkpoint one, so missing it costs a short trip back
+      // to that flag rather than the whole level.
+      [[9090, 760], [10150, 760]],
+      // Then a second bowl, another long flat with a crate and a two-step
+      // stone staircase on it (see `boxes`), a third and tallest hill, and
+      // flat to the final approach.
       [
-        [9090, 760], [10600, 760], [10950, 760], [11100, 840], [11300, 840], [11450, 760], [12200, 760],
+        [10350, 760], [10600, 760], [10950, 760], [11100, 840], [11300, 840], [11450, 760], [12200, 760],
         [13800, 760], [14350, 520], [15000, 520], [15550, 760], [16200, 760],
       ],
       // The last ledge. Nothing but the moving platform reaches it.
@@ -89,7 +94,7 @@ export const LEVELS = [
       // it" stays true everywhere.
       { x: 0, y: 0, w: 40, h: 1080 },
       { x: 16760, y: 0, w: 40, h: 1080 },
-      // Two wooden crates, and both can be pushed. Jump them, roll over them
+      // Three wooden crates, and all can be pushed. Jump them, roll over them
       // at speed, or shove them about.
       //
       // Nothing in THIS level needs a crate to be finished — there is no spot
@@ -110,6 +115,14 @@ export const LEVELS = [
       // insists every ground segment faces up. 60 tall, so a jump, which
       // lifts the ball 131, clears it with more than twice the height needed.
       { x: 4250, y: 700, w: 200, h: 60 },
+      // The third crate, on the long flat after the second bowl, 600 clear of
+      // the staircase ahead and well clear of the third gap behind.
+      { x: 11800, y: 660, w: 100, h: 100, movable: true },
+      // A two-step stone staircase: a wide step 60 tall, and a narrower one
+      // 60 taller standing on its middle. Up, up, and back down. No step is
+      // more than 60 above what the ball stands on, the same as the block.
+      { x: 12500, y: 700, w: 400, h: 60 },
+      { x: 12600, y: 640, w: 200, h: 60 },
     ],
 
     platforms: [
@@ -120,9 +133,9 @@ export const LEVELS = [
       // deliberately: tests/offline/finish.mjs's route for this level reads
       // level.movers[0] to find it, and mover order follows platform order.
       { x: 16275, y: 740, w: 170, h: 28, axis: 'x', dist: 85, period: 5.0, phase: 0 },
-      // A lift over the long flat between the first bowl and the second hill.
-      // Nothing needs it; it is here so vertical movers are exercised by the
-      // game and not only by the tests.
+      // A lift over the flat between the second gap and the third. Nothing
+      // needs it; it is here so vertical movers are exercised by the game
+      // and not only by the tests.
       { x: 9700, y: 470, w: 150, h: 28, axis: 'y', dist: 120, period: 4.0, phase: 0.25 },
     ],
 
@@ -150,10 +163,10 @@ export const LEVELS = [
     // all: none of it is the level's hard part, it is the level's ROLLING,
     // and a checkpoint there would only be banking progress nobody was going
     // to lose. Because nothing guards it, everything added to that stretch
-    // can cost at most a heart, never a fall; its one fall is the first gap,
-    // which the level has always had. The two below sit right before the two
-    // stretches where failing costs the most: the second and third gaps, and
-    // the final hill-then-platform approach.
+    // can cost at most a heart a touch, never a fall; its one fall is the
+    // first gap, which the level has always had. The two below sit right
+    // before the two stretches where failing costs the most: the second and
+    // third gaps, and the final hill-then-platform approach.
     checkpoints: [
       { x: 8750, y: 760 },
       { x: 13750, y: 760 },
