@@ -119,8 +119,7 @@ export const LEVELS = [
       // The third crate, on the long flat after the second bowl, 600 clear of
       // the staircase ahead and well clear of the third gap behind. Shoved a
       // long way back it can end up in the second bowl, resting on a slope;
-      // that is not a trap, since the ball can still jump past it, and retry
-      // puts every crate back.
+      // that is not a trap, since the ball can still jump past it.
       { x: 11800, y: 660, w: 100, h: 100, movable: true },
       // A two-step stone staircase: a wide step 60 tall, and a narrower one
       // 60 taller standing on its middle. Up, up, and back down. No step is
