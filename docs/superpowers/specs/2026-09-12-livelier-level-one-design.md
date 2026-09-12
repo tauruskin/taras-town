@@ -62,11 +62,16 @@ running out of hearts, sends the ball back to spawn. So:
   fall** — a stone block and the spike patch. The spike patch may cost a heart
   per touch but never a fall, and the runner in `finish.mjs` never loses one to
   it.
-- **The one new gap goes after checkpoint one**, where missing it costs a short
-  trip back to 8750.
+- **The one new gap goes after checkpoint one**, where a miss costs a heart
+  and a short trip back to 8750. As anywhere, a third heart lost since that
+  flag goes back to the start: every fall spends a heart, and a checkpoint
+  refills them only the first time it is taken.
 - **Crates stay away from gaps and from the spike patch.** A crate pushed into
   a gap returns to where the level put it, but that is still confusing to
-  watch; and `levels.mjs` forbids a crate sharing ground with spikes.
+  watch; and `levels.mjs` forbids a crate overlapping a spike patch where the
+  level puts it. The third crate can be shoved back into the second bowl,
+  where it rests on a slope; that is not a trap, since the ball can still
+  jump past it.
 - **Steps are stone boxes, not ground.** A vertical riser in a ground polyline
   has its solid side facing sideways and fails the `levels` suite, which
   requires every polyline segment's normal to point up. Level three's ledge

@@ -184,6 +184,11 @@ currently teaches crate-pushing. Levels reorder instead:
 | 4 | *(unbuilt)* | **spikes** (moved from 3) |
 | 5 | *(unbuilt, "combine everything")* | unchanged in role; toy-factory-specific content (saws, conveyors) deferred to Phase B |
 
+*(Sep 2026: level 1 also shows one narrow spike patch on open ground, a named
+exception to the one-new-idea rule — see
+`docs/superpowers/specs/2026-09-12-livelier-level-one-design.md`. Level 4 is
+still where spikes are taught.)*
+
 Levels 2 and 3's existing geometry (ground, boxes, platforms) carries over
 largely as-is between their old and new roles — level 3's current layout
 becomes level 4's spike content, level 2's current crate layout becomes level

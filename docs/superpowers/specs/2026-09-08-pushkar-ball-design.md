@@ -262,6 +262,12 @@ What it means concretely:
   applies only to an idea's first appearance anywhere in the game, not to every
   level that later reuses it. *(Clarified Sep 2026 — see
   `docs/superpowers/specs/2026-09-11-recurring-difficulty-design.md`.)*
+
+  One named exception, and only one: level one also shows a single narrow
+  spike patch on open ground, a first look at what level four teaches. It is
+  level one's alone and not a precedent — a future level that wants to
+  preview a later idea needs its own named decision. *(Added Sep 2026 — see
+  `docs/superpowers/specs/2026-09-12-livelier-level-one-design.md`.)*
 - **No level requires precise timing on more than one thing at once.** A moving
   platform over a gap is fine. A moving platform over a gap with a saw on it is
   two things, and belongs in different levels.

@@ -27,15 +27,22 @@ per level" rule — recurrence of an already-taught idea was always allowed,
 and the original design spec now says so — and left the curriculum table
 and level 5's "combine everything" role for a later design.
 
-## 2. Level 1 needs more obstacles
+## 2. Level 1 needs more obstacles — DONE
 
-Read as sparse right now — two proven gaps and two crates that nothing in
-the level actually needs (the crates are there "so the mechanic is in a
-child's hands," per the level's own comment, not because the level asks for
-them). Needs a design pass on what a livelier level 1 looks like without
-breaking its job as the rolling-and-jumping tutorial — it's still the first
-thing a player meets, so the existing "nothing here is hard, and difficulty
-rises one level at a time" rule still applies in full.
+See `docs/superpowers/specs/2026-09-12-livelier-level-one-design.md`. Every
+existing piece of level 1 stays put; a stone block and one small spike patch
+(a named preview of level 4's idea) go in the unguarded first third, and a
+third gap, a third crate and a two-step stone staircase in the middle third.
+Implemented by `docs/superpowers/plans/2026-09-12-livelier-level-one.md`.
+
+As it stood before that design, it read as sparse — two proven gaps and two
+crates that nothing in the level actually needs (the crates are there "so
+the mechanic is in a child's hands," per the level's own comment, not
+because the level asks for them). Needs a design pass on what a livelier
+level 1 looks like without breaking its job as the rolling-and-jumping
+tutorial — it's still the first thing a player meets, so the existing
+"nothing here is hard, and difficulty rises one level at a time" rule still
+applies in full.
 
 ## 3. Ground/hill height should come down roughly 20%
 
@@ -73,13 +80,40 @@ checking against the original phase-3 design language ("pops into a few
 triangles when bounced on") for whether a particle-style pop was already
 half-designed and just never built.
 
+## 6. Level 1's lift cannot be boarded
+
+Found during the livelier-level-one work, Sep 2026, and older than it. The
+vertical lift over level 1's flat at 9700 never comes lower than a top of
+y=590, and a jump from the flat at 760 brings the ball's centre to about 609
+and its bottom to about 629 — so the ball bumps the lift's underside and can
+never get on. A sweep of take-off points and jump times across its whole
+4-second cycle found no boarding at all. Nothing needs the lift, so nothing is
+broken, but he can see a moving platform he can never ride. Needs a small
+design decision: lower its travel so it can be boarded, or accept it as
+scenery.
+
+## 7. What a walker or a roller costs a late jumper
+
+Measured while planning the livelier-level-one work, Sep 2026, and during the
+recurring-difficulty work before it. Over a walker's whole cycle (start
+delays 0–4.6s every 0.1s), a late jump — finish.mjs's lead 0.7 — loses two or
+all three hearts on about 6–11 of 47 arrivals, for every shipped walker (level
+2's walker one 11, level 3's walker 6). Over a roller's whole ~23s patrol,
+lead 0.7 loses the whole run on 72 of 229. Losing all three hearts always
+sends the ball back to the level's start, and a checkpoint cannot soften that.
+finish.mjs's ten start delays sample only a few phases and never see most of
+this. Worth a design conversation: whether an enemy should be able to cost a
+late jumper that much, and whether finish.mjs should sweep an enemy's whole
+cycle.
+
 ## Where this fits
 
-None of the five above conflicts with anything already shipped in Phase A.
-Item 1 has the widest blast radius — it touches the curriculum table and
-possibly level 5's role — so it's worth resolving first if these are
-tackled in order, since it may change what "more obstacles in level 1" or
-"enemies recurring" concretely means for the levels that follow. Phase B
+None of the items above conflicts with anything already shipped in Phase A.
+Items 1 and 2 are done; items 3–7 are each still their own design pass.
+Item 1 settled the one question that could have reshaped the others — an
+idea already taught may recur in any later level — and item 2 added one
+named exception to the one-new-idea rule, level 1's spike patch, which is
+level 1's alone. Phase B
 (saws, conveyors, crushers, launchers, ice/sticky surfaces, the toy-factory
 theme) from `docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md`
 is still separately queued and unrelated to this list.
