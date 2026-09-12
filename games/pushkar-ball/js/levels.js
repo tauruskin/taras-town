@@ -736,7 +736,8 @@ class Level {
     // Boxes come in two kinds and it matters which. A `movable` one is a
     // wooden crate: it is a body that moves, so it must stay OUT of the static
     // grid, which is built once and never rebuilt. Everything else is scenery
-    // — in level one, the boundary walls — and is baked in like the ground.
+    // — in level one, the boundary walls and its stone steps — and is baked
+    // in like the ground.
     this.walls = (data.boxes || []).filter((b) => !b.movable);
     this.crates = (data.boxes || []).filter((b) => b.movable).map(makeCrate);
     for (const b of this.walls) segs.push(...boxSegments(b.x, b.y, b.w, b.h));

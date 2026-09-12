@@ -15,11 +15,10 @@
 // child, and would break on the first harmless tweak to anything.
 //
 // Most of the driving is one generic runner that reads the level's own data:
-// roll right, and jump a little before any gap edge, spike patch, crate,
-// stone step or enemy ahead. Only the two things a runner cannot do by
-// rolling right get a
-// script of their own — riding level one's platform to its last ledge, and
-// working level three's crate — and those scripts are the proof that those
+// roll right, and jump a little before any gap edge, spike patch, crate, stone
+// step or enemy ahead. Only the two things a runner cannot do by rolling right
+// get a script of their own — riding level one's platform to its last ledge,
+// and working level three's crate — and those scripts are the proof that those
 // levels can be done. If you move the geometry they are written against, move
 // them too; if a new level has no route, this suite says so rather than
 // passing.
@@ -101,8 +100,8 @@ function runner(level, lead) {
     if (level.crates.some((c) => ahead(c.x, 40) && ball.y > c.y)) want.jump = true;
     // A low stone box, a step like level one's block and staircase, is met
     // the same way, since it cannot be pushed at all. Full-height boxes are
-    // the level's end walls and are never ahead of anything. Level three's
-    // ledge face is a low stone box too, but its route stops using the runner
+    // the level's end walls, which there is no hopping. Level three's ledge
+    // face is a shorter stone box too, but its route stops using the runner
     // well before the ball gets near it.
     if (level.walls.some((w) => w.h < level.bounds.h && ahead(w.x, 40) && ball.y > w.y)) want.jump = true;
     return want;
