@@ -74,8 +74,9 @@ export const LEVELS = [
       // After the 240px second gap: a flat with the vertical lift over it
       // (nothing needs the lift, same as the first level ever had), then a
       // third gap. It is 200px, the width the first one already proved, and
-      // it comes after checkpoint one, so missing it costs a short trip back
-      // to that flag rather than the whole level.
+      // it comes after checkpoint one, so a miss costs a heart and a short
+      // trip back to that flag. As anywhere, a third heart lost since the
+      // flag goes back to the start.
       [[9090, 760], [10150, 760]],
       // Then a second bowl, another long flat with a crate and a two-step
       // stone staircase on it (see `boxes`), a third and tallest hill, and
@@ -116,7 +117,10 @@ export const LEVELS = [
       // lifts the ball 131, clears it with more than twice the height needed.
       { x: 4250, y: 700, w: 200, h: 60 },
       // The third crate, on the long flat after the second bowl, 600 clear of
-      // the staircase ahead and well clear of the third gap behind.
+      // the staircase ahead and well clear of the third gap behind. Shoved a
+      // long way back it can end up in the second bowl, resting on a slope;
+      // that is not a trap, since the ball can still jump past it, and retry
+      // puts every crate back.
       { x: 11800, y: 660, w: 100, h: 100, movable: true },
       // A two-step stone staircase: a wide step 60 tall, and a narrower one
       // 60 taller standing on its middle. Up, up, and back down. No step is
