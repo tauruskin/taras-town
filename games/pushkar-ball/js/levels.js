@@ -63,9 +63,10 @@ export const LEVELS = [
       // hill (up, along, down): rolling and slopes, before anything at all is
       // asked of the player.
       [[40, 760], [1100, 760], [1450, 600], [1800, 600], [2150, 760], [2950, 760]],
-      // After a 200px gap: a bowl, a long flat run with nothing in it — pure
-      // rolling, the kind of stretch a long level needs and a short one has no
-      // room for — then a second, bigger hill and a flat to the second gap.
+      // After a 200px gap: a bowl, then a long flat with two small things on
+      // it, well apart: a stone block to hop onto and off (see `boxes`) and
+      // the game's first spike patch (see `spikes`). Then a second, bigger
+      // hill and a flat to the second gap.
       [
         [3150, 760], [3500, 760], [3650, 840], [3850, 840], [4000, 760], [4600, 760],
         [6400, 760], [6900, 540], [7500, 540], [8000, 760], [8850, 760],
@@ -125,14 +126,32 @@ export const LEVELS = [
       { x: 9700, y: 470, w: 150, h: 28, axis: 'y', dist: 120, period: 4.0, phase: 0.25 },
     ],
 
+    spikes: [
+      // The game's first spike patch, and level one's one preview of a later
+      // level's idea. It is a named exception to "at most one new idea per
+      // level", recorded in
+      // docs/superpowers/specs/2026-09-12-livelier-level-one-design.md, and
+      // it is not a precedent. Level four is where spikes are taught; this is
+      // one narrow patch, level four's own rehearsal width, on open flat
+      // ground 950 units past the stone block and 930 short of hill two, so it
+      // is never met at the same moment as anything else. It can cost a
+      // heart, never a fall. finish.mjs's runner jumps it without losing a
+      // heart at every lead and start delay it tries, and so does a finer
+      // sweep (five leads, a start every 0.1s) with the patch moved 100 units
+      // either way or widened to 90.
+      { x: 5400, y: 760, w: 70 },
+    ],
+
     // Two, breaking the level into three pieces of roughly a third each
     // rather than guarding every gap. The first ~8700 units — the first hill,
-    // both crates' worth of terrain, the first gap and bowl, the second hill —
-    // have no checkpoint at all: none of it is the level's hard part, it is
-    // the level's ROLLING, and a checkpoint there would only be banking
-    // progress nobody was going to lose. The two below sit right before the
-    // two stretches that can actually be failed: the second gap, and the
-    // final hill-then-platform approach.
+    // the first two crates' worth of terrain, the first gap and bowl, the
+    // stone block, the spike patch, the second hill — have no checkpoint at
+    // all: none of it is the level's hard part, it is the level's ROLLING,
+    // and a checkpoint there would only be banking progress nobody was going
+    // to lose. That is also why nothing on that stretch can be failed by a
+    // fall except the first gap, which the level has always had. The two
+    // below sit right before the two stretches that can actually be failed:
+    // the second and third gaps, and the final hill-then-platform approach.
     checkpoints: [
       { x: 8750, y: 760 },
       { x: 13750, y: 760 },
@@ -406,9 +425,10 @@ export const LEVELS = [
     // Level four teaches the spike — reshuffled here Sep 2026 from its
     // original home at level three, so crates could move down to level three
     // and enemies could move up to level two. Everything under it — rolling,
-    // gaps, crates, a moving platform, enemies — has already been met. Its
-    // ground, platform, spikes and checkpoints are unchanged from the
-    // original level three.
+    // gaps, crates, a moving platform, enemies — has already been met, and
+    // so has one narrow spike patch, glimpsed once on open ground in level
+    // one; this is where spikes are taught. Its ground, platform, spikes and
+    // checkpoints are unchanged from the original level three.
     //
     // It also brings back one thing already taught: a roller, from level
     // two, on the flat between checkpoint one's spike patch and the ramp —
@@ -426,10 +446,11 @@ export const LEVELS = [
     ground: [
       // A long flat with the first two patches on it, in the open, well
       // before any checkpoint. The first is close enough to spawn that
-      // meeting a spike for the very first time costs almost nothing even
-      // without a flag to catch it — that is the safe rehearsal the rule
-      // asks for. The second is the same idea, met a second time, still on
-      // easy ground, before the level asks for anything else at once.
+      // meeting a spike here costs almost nothing even without a flag to
+      // catch it: the safe rehearsal the rule asks for, and a reminder of the
+      // one patch level one showed. The second is the same idea, met again,
+      // still on easy ground, before the level asks for anything else at
+      // once.
       [[40, 760], [5200, 760]],
       // After a 200px gap — the same size as level one's, already met and
       // already practised there — a long flat with the third patch on it,

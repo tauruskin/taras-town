@@ -315,7 +315,8 @@ console.log('\n3. level three without its crate');
 // Everything above proves a level can be finished without ever running out
 // of hearts. This proves the OTHER path is real too: play level one for real
 // up to its first checkpoint, take three hits by hand (level one has no
-// spikes and no enemies to supply them for real), and confirm the ball comes
+// enemies, and the runner clears its one spike patch without a touch, so
+// nothing there supplies them for real), and confirm the ball comes
 // back at the level's spawn with hearts refilled, not at the checkpoint it
 // had already reached.
 console.log('\n4. exhausting hearts mid-level');
