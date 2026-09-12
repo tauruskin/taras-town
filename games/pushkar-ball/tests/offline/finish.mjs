@@ -15,8 +15,9 @@
 // child, and would break on the first harmless tweak to anything.
 //
 // Most of the driving is one generic runner that reads the level's own data:
-// roll right, and jump a little before any gap edge, spike patch, crate or
-// enemy ahead. Only the two things a runner cannot do by rolling right get a
+// roll right, and jump a little before any gap edge, spike patch, crate,
+// stone step or enemy ahead. Only the two things a runner cannot do by
+// rolling right get a
 // script of their own — riding level one's platform to its last ledge, and
 // working level three's crate — and those scripts are the proof that those
 // levels can be done. If you move the geometry they are written against, move
@@ -66,8 +67,8 @@ function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
  *
  * `lead` scales how early it jumps, which is how a run is made sloppy on
  * purpose. The obstacles come from the level: the end of any ground line that
- * no other line carries on from, every spike patch, every crate that is
- * still in the way, and every alive enemy.
+ * no other line carries on from, every spike patch, every crate or low stone
+ * step that is still in the way, and every alive enemy.
  *
  * An enemy is treated exactly like a spike here — jumped over, not avoided by
  * any smarter means. Landing on one from above still defeats it (a bonus, not
@@ -98,6 +99,12 @@ function runner(level, lead) {
     // A crate is jumped onto and rolled off, never pushed along by the runner:
     // pushing is slow and that is not the question here.
     if (level.crates.some((c) => ahead(c.x, 40) && ball.y > c.y)) want.jump = true;
+    // A low stone box, a step like level one's block and staircase, is met
+    // the same way, since it cannot be pushed at all. Full-height boxes are
+    // the level's end walls and are never ahead of anything. Level three's
+    // ledge face is a low stone box too, but its route stops using the runner
+    // well before the ball gets near it.
+    if (level.walls.some((w) => w.h < level.bounds.h && ahead(w.x, 40) && ball.y > w.y)) want.jump = true;
     return want;
   };
 }

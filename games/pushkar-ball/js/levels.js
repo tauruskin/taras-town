@@ -101,6 +101,14 @@ export const LEVELS = [
       // built for the purpose, with a ledge the jump provably cannot reach.
       { x: 2450, y: 660, w: 100, h: 100, movable: true },
       { x: 8300, y: 660, w: 110, h: 100, movable: true },
+      // A low stone block on the long flat after the first bowl: hop up, roll
+      // across, drop off. Stone, not wood, so it cannot be pushed, which keeps
+      // "wood means you can push it" true. A step is a box rather than a bend
+      // in the ground for the reason level three's ledge face gives: a
+      // vertical ground segment faces sideways, and levels.mjs rightly
+      // insists every ground segment faces up. 60 tall, so a jump, which
+      // lifts the ball 131, clears it with more than twice the height needed.
+      { x: 4250, y: 700, w: 200, h: 60 },
     ],
 
     platforms: [
