@@ -396,33 +396,34 @@ function drawPlatforms() {
 
 /**
  * The bounce pad: two posts holding up a springy surface that squashes flat
- * the instant it is touched and eases back out, reusing the same
- * squash/stretch language `Ball.squash()` already gives the ball itself for
- * its own deflate animation — a second object speaking a visual language
- * the game already has, not a new one.
+ * the instant it is touched and eases back out — the same squash-then-
+ * recover IDEA `Ball.squash()` gives the ball its own deflate animation,
+ * though the mechanics differ: the ball deforms its shape on two axes,
+ * this pad only moves a fixed-size ellipse up and down on one.
  *
  * `p.squashT` counts down in `Level.update`, set by player.js the instant a
  * bounce happens; this function only ever reads it.
  */
 function drawPads() {
-  const C = CONFIG.COLOURS, B = CONFIG.BOUNCE;
+  const C = CONFIG.COLOURS;
+  const B = CONFIG.BOUNCE;
   for (const p of level.pads) {
-    const t = p.squashT > 0 ? p.squashT / B.SQUASH_TIME : 0;
+    const t = p.squashT / B.SQUASH_TIME;
     const lift = B.POST_H * (1 - t * B.SQUASH);
     const topY = p.y - lift;
 
     ctx.strokeStyle = C.BOUNCE_POST;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = B.POST_LINE_W;
     ctx.beginPath();
-    ctx.moveTo(p.x + 10, p.y);
-    ctx.lineTo(p.x + 10, topY);
-    ctx.moveTo(p.x + p.w - 10, p.y);
-    ctx.lineTo(p.x + p.w - 10, topY);
+    ctx.moveTo(p.x + B.POST_INSET, p.y);
+    ctx.lineTo(p.x + B.POST_INSET, topY);
+    ctx.moveTo(p.x + p.w - B.POST_INSET, p.y);
+    ctx.lineTo(p.x + p.w - B.POST_INSET, topY);
     ctx.stroke();
 
     ctx.fillStyle = C.BOUNCE_PAD;
     ctx.beginPath();
-    ctx.ellipse(p.x + p.w / 2, topY, p.w / 2, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x + p.w / 2, topY, p.w / 2, B.PAD_RY, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 }

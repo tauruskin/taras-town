@@ -179,6 +179,9 @@ export const CONFIG = {
     // easing out immediately, so there is no separate "stay flat" phase to
     // give its own duration.
     SQUASH_TIME: 0.14,
+    POST_INSET: 10,       // drawn posts sit this far in from each edge
+    POST_LINE_W: 5,       // drawn posts' stroke width
+    PAD_RY: 9,            // drawn pad ellipse's vertical radius
   },
 
   // ---------------------------------------------------------------------
