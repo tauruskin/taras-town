@@ -113,6 +113,12 @@ checkpoint. Hearts refill to three. This is deliberately the harsher of the
 two setbacks in the game, and it is what makes checkpoints and hearts each do
 a distinct job instead of one making the other redundant.
 
+The harshness holds past that one respawn: every checkpoint already taken on
+the level un-arms at the same moment, so the ball's next ordinary fall can no
+longer fall back on checkpoint credit it earned before the run-out — it has
+to earn a checkpoint again to get anything better than the level's start. See
+`docs/superpowers/specs/2026-09-13-zero-hearts-checkpoint-reset-design.md`.
+
 ### Checkpoints' new job
 
 Checkpoints keep their existing role of being the physical respawn point after

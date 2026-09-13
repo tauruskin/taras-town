@@ -109,16 +109,17 @@ this. Worth a design conversation: whether an enemy should be able to cost a
 late jumper that much, and whether finish.mjs should sweep an enemy's whole
 cycle.
 
-## 8. Losing every heart resets the ball's start but not its checkpoint
+## 8. Losing every heart resets the ball's start but not its checkpoint — DONE
 
-Found while reviewing the livelier-level-one work, Sep 2026, and older than
-it. When the ball runs out of hearts it goes back to the level's spawn
-with hearts refilled (`player.js`), but its respawn home stays at the last
-checkpoint it took. So the next fall anywhere, even into the first gap,
-puts it back at that checkpoint, ahead of where it was. Harmless, arguably
-a kindness, but no doc describes it and `tests/offline/checkpoints.mjs`
-does not pin it either way. Needs a decision: keep it and write it down
-(and test it), or reset home to the spawn too.
+When the ball runs out of hearts it goes back to the level's spawn with
+hearts refilled (`player.js`), but its respawn home used to stay at the last
+checkpoint it took, so the next fall anywhere put it back at that checkpoint
+instead of the spawn. See
+`docs/superpowers/specs/2026-09-13-zero-hearts-checkpoint-reset-design.md` —
+`respawn()` now resets `home` to spawn and un-takes every checkpoint on a
+zero-hearts fail, so the setback holds until a checkpoint is earned again.
+Implemented by
+`docs/superpowers/plans/2026-09-13-zero-hearts-checkpoint-reset.md`.
 
 ## Where this fits
 
