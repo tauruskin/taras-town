@@ -1,4 +1,4 @@
-# Pressure switch + gate (level 6) and a richer shared background
+# Pressure switch + gate (level 6) and a richer shared background — DONE
 
 First sub-project out of the Red Ball 4-inspired follow-up list (see the
 brainstorming session that produced this doc for the full list and the
@@ -135,12 +135,14 @@ the physics suites reason about; it's draw-only.
 
 ## Where this fits
 
-This is the first of several independent follow-up mechanics from the Red
-Ball 4-inspired list. The rest (see-saws/weight puzzles, moving carts,
-buoyancy/floating crates, timed triggers, key-lock doors, laser boundaries,
-gravity-warping, and smarter enemy variants) remain unscoped and will each
-get their own brainstorming pass, in whatever order is chosen when this one
-ships. Gravity-warping is flagged as the largest lift of the remaining set —
+This was the first of several independent follow-up mechanics from the Red
+Ball 4-inspired list, implemented by
+`docs/superpowers/plans/2026-09-13-pressure-switch-and-scenery.md`. The rest
+(see-saws/weight puzzles, moving carts, buoyancy/floating crates, timed
+triggers, key-lock doors, laser boundaries, gravity-warping, and smarter
+enemy variants) remain unscoped and will each get their own brainstorming
+pass, in whatever order is chosen next. Gravity-warping is flagged as the
+largest lift of the remaining set —
 `config.js`/`physics.js`/`levels.js`/`player.js`/`camera.js` are DOM-free
 specifically so the offline suite can simulate real arithmetic, and gravity
 direction (`ny < 0` is "up") is assumed throughout knockback, camera bias,

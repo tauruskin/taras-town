@@ -476,7 +476,21 @@ export const CONFIG = {
   CLOUDS: {
     COUNT: 4,
     FACTOR: 0.08,       // parallax factor, slower than any hill band
-    TOP: 0.14,          // screen fraction
+    // Screen fraction. Clouds drift horizontally through every x a long
+    // level's camera.x can produce — that is the whole point of the
+    // wrap-around trick — so the only way to keep one off the top-left
+    // hearts HUD is for their band to never overlap it vertically at
+    // either mandated screen size, not to rely on where the drift happens
+    // to be at any one moment. It shipped at 0.14, whose un-staggered row
+    // spans y 30-60 (568x320) and 24-54 (740x280) in CSS px — both cutting
+    // straight through the hearts' own 23-48, so a level long enough to
+    // wrap a cloud through x0-124 (any level, given enough travel) put a
+    // cloud on top of a heart, caught during Task 9's visual pass on level
+    // 6. 0.26 clears the hearts' bottom (48) by 10px on the shorter
+    // 740x280 screen's un-staggered row — the tighter of the two sizes —
+    // with the staggered row and the taller 568x320 screen clearing by
+    // more, and stays well above GROUND_AT's 60%-of-screen target.
+    TOP: 0.26,          // screen fraction
     STAGGER: 34,        // every other cloud sits this much lower
     SIZE: 46,
   },
