@@ -636,7 +636,7 @@ export const LEVELS = [
 
     // Two, at the same "roughly a third of the level" boundaries every
     // other level uses them at. The first guards the roller, the real test
-    // in the level's middle third; the second guards the wall gate — 400
+    // in the level's middle third; the second guards the wall gate — 290
     // units of runway before the pad at 11140, comfortably more than the
     // ~55 units a standing start needs to reach full speed, so a checkpoint
     // respawn is never short of room to build up speed again before the
