@@ -54,10 +54,10 @@ Out of scope, for a later spec:
   everything" role is now built — see
   docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md —
   with its factory-specific visual theme still Phase B's job.
-- Everything in `docs/superpowers/specs/2026-09-11-followup-ideas.md`
-  (enemies/difficulty recurring past level 2, more content in level 1, hill
-  height, deliberate jump-gates, a stomp bounce effect) — feedback captured
-  after Phase A shipped, not yet brainstormed.
+- Two items from `docs/superpowers/specs/2026-09-11-followup-ideas.md`
+  remain not yet brainstormed: hill height and a stomp bounce effect.
+  Enemies/difficulty recurring past level 2, more content in level 1, and
+  deliberate jump-gates — also from that list — are since done.
 
 ## Content boundaries: what loosens, what doesn't
 

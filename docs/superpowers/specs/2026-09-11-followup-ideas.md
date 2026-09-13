@@ -45,16 +45,17 @@ rolling-and-jumping tutorial — it was still the first thing a player met,
 so the existing "nothing here is hard, and difficulty rises one level at
 a time" rule applied in full.
 
-## 3. Ground/hill height should come down roughly 20%
+## 3. Ground/hill height should come down roughly 20% — DONE
 
 Screenshot feedback showed the live game reading as very flat, with one
-small hill and a long flat horizon. Before implementing, this needs one
-clarifying question the request doesn't yet answer: does "20% less high"
-mean the height of hill ELEVATION CHANGES specifically (the 600-vs-760-style
-numbers already in the ground data), or how much of the vertical screen the
-ground fill occupies (which is a camera/`CONFIG.CAMERA.GROUND_AT` question,
-not a level-data question)? Those are different systems and the fix differs
-depending on which one the complaint is actually about.
+small hill and a long flat horizon. Turned out to be a camera framing
+question, not a level-data one: measured against real screen sizes,
+`CONFIG.CAMERA.GROUND_AT` was already overridden by the button-clearance
+floor on every phone size this project checks, and only mattered on
+roomy windows — which is where the flatness was actually being seen.
+Lowered from 0.73 to 0.60. See
+`docs/superpowers/specs/2026-09-13-lower-horizon-design.md` and
+`docs/superpowers/plans/2026-09-13-lower-horizon.md`.
 
 ## 4. "Must jump to proceed" gates — DONE
 
@@ -130,7 +131,7 @@ Implemented by
 ## Where this fits
 
 None of the items above conflicts with anything already shipped in Phase A.
-Items 1, 2, 4, 6 and 8 are done; items 3, 5 and 7 are each still their own
+Items 1, 2, 3, 4, 6 and 8 are done; items 5 and 7 are each still their own
 design pass.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one
