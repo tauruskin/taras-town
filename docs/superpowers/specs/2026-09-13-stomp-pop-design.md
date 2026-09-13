@@ -55,15 +55,32 @@ The `true` branch is empty. It becomes:
     }
 ```
 
-`STOMP_BOUNCE` is a new `CONFIG.ENEMY` field, proposed at **550px/s**
-(`550² / (2·2200) ≈ 69px` — about half a normal jump's 131px reach: a
-noticeable, satisfying hop, clearly weaker than a real jump since it costs
-no button press and no skill beyond landing the stomp itself, which the
-game already requires). Chosen by feel, the same way this project's other
-purely-cosmetic-feeling numbers (`DEFLATE`'s timings, `HEALTH.KNOCKBACK_UP`)
-were — not derived from a wall to clear or a gap to cross, since nothing
-here needs to satisfy a hard constraint the way the bounce pad's velocity
-did.
+`STOMP_BOUNCE` is a new `CONFIG.ENEMY` field. An initial guess of 550px/s
+(`550² / (2·2200) ≈ 69px`, about half a normal jump's 131px reach) turned out
+to be wrong once actually tested against `finish.mjs`: level 2's enemies —
+walker one, the popper, the roller, and walker two — were placed by
+exhaustive sweeps against that same suite (see each enemy's own comment in
+`levels.js` for how narrow some of those margins already are, e.g. walker
+two's amplitude window of 280–300), and forcing a fixed upward velocity
+the instant an incidental "bonus" stomp happens (per `finish.mjs`'s own
+comment, a stomp mid-jump is meant to be "a bonus, not a problem for this
+check") perturbs the ball's arrival timing at whichever margin comes next
+just enough to break one of those already-tight windows. At 550, `lead 0.7
+delay 0.5` failed to finish level 2 cleanly. A binary search against the
+same suite found the break point between 380 (passes) and 390 (fails);
+**300px/s** (`≈ 20px` of hop) was chosen with real margin below that,
+confirmed to pass the full offline suite including every `finish.mjs`
+sweep. It reads as a smaller, gentler hop than the original guess, not the
+"about half a jump" figure first proposed — a real player is unlikely to
+notice or mind the difference between a 69px and a 20px bounce, and no
+hard constraint (a wall to clear, a gap to cross) ties this number down
+the way the bounce pad's velocity was tied to its wall.
+
+This is a case for the numbers, not the level: level 2's already-tuned
+enemy placements are not touched by this change, on purpose — reopening
+that tuning was judged out of proportion for what this follow-up asks for,
+and the bounce's own magnitude was always going to be chosen by feel
+regardless.
 
 No other jump mechanic changes: no chain-jump ability, no double jump, no
 new aerial control. The bounce is automatic and singular, matching the
@@ -90,10 +107,11 @@ now flying apart instead of standing still.
     // The little hop a stomp gives the ball, and the handful of triangles
     // that fly off the defeated enemy — a reward this time, not a setback,
     // so it borrows HEALTH.KNOCKBACK_UP's one-line-override idiom rather
-    // than adding a new kind of impulse. Chosen by feel: nothing here has
-    // to satisfy a wall to clear or a gap to cross the way the bounce
-    // pad's velocity did.
-    STOMP_BOUNCE: 550,     // px/s upward impulse on a successful stomp
+    // than adding a new kind of impulse. 300, not the ~550 first guessed:
+    // a bonus stomp mid-jump perturbs the ball's timing at whatever margin
+    // comes next, and level 2's already-tuned enemies broke at 390+ against
+    // finish.mjs. 300 has real margin below that break point.
+    STOMP_BOUNCE: 300,     // px/s upward impulse on a successful stomp
     POP: {
       COUNT: 6,            // triangles flying off, evenly spaced
       SPEED: 180,          // px/s outward
