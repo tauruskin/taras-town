@@ -124,7 +124,7 @@ Implemented by
 ## Where this fits
 
 None of the items above conflicts with anything already shipped in Phase A.
-Items 1 and 2 are done; items 3–8 are each still their own design pass.
+Items 1, 2 and 8 are done; items 3–7 are each still their own design pass.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one
 named exception to the one-new-idea rule, level 1's spike patch, which is
