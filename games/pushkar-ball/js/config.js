@@ -450,6 +450,13 @@ export const CONFIG = {
     WALL_EDGE: '#78868F',
     PLATFORM: '#B0BEC5',
     PLATFORM_EDGE: '#78909C',
+    // Bright and unlike anything else drawn, on purpose: the pad is a new
+    // idea and should not be mistaken for a stone step or a crate at a
+    // glance. The posts stay stone-grey — matching this game's existing
+    // colour language that grey means fixed and immovable — since the pad
+    // as a whole cannot be pushed or climbed, only bounced off.
+    BOUNCE_PAD: '#FF9F1C',
+    BOUNCE_POST: '#9E9E9E',
     BALL: '#E8402A',
     BALL_LIGHT: '#FF8A72',
     BALL_MARK: '#A32615',
