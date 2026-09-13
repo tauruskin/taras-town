@@ -228,6 +228,7 @@ function draw() {
   drawPlatforms();
   drawPads();
   drawGates();
+  drawBeams();
   drawGoal();
   drawBall();
 
@@ -588,6 +589,33 @@ function drawGates() {
     ctx.fillRect(g.x, g.y, g.w, g.h);
     ctx.fillStyle = C.WALL_EDGE;
     ctx.fillRect(g.x, g.y, g.w, 6);
+  }
+}
+
+/**
+ * The balance beam: a plank rotated to its current angle around its own
+ * fulcrum, plus a small stone wedge underneath as the pivot. Stone-family
+ * grey, like a gate — the beam itself cannot be pushed, only ridden or
+ * weighed down by a crate — never wood, which in this game always means
+ * "you can push this".
+ */
+function drawBeams() {
+  const C = CONFIG.COLOURS;
+  for (const b of level.beams) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.angle);
+    ctx.fillStyle = C.BEAM;
+    ctx.fillRect(-b.halfLength, -10, b.halfLength * 2, 20);
+    ctx.restore();
+
+    ctx.fillStyle = C.BEAM_PIVOT;
+    ctx.beginPath();
+    ctx.moveTo(b.x - 16, b.y + 18);
+    ctx.lineTo(b.x + 16, b.y + 18);
+    ctx.lineTo(b.x, b.y - 2);
+    ctx.closePath();
+    ctx.fill();
   }
 }
 
