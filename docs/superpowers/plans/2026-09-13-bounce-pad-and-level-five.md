@@ -574,7 +574,7 @@ closing `];`:
 
     enemies: [
       // A walker, recurring, on the same flat as the crate and the spikes.
-      { kind: 'walker', x: 6200, y: 760 - CONFIG.ENEMY.WALKER.R, from: 5900, to: 6600 },
+      { kind: 'walker', x: 6200, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 300 },
       // The roller, level five's one real test, protected by checkpoint
       // one just before it — the same role it plays in level four.
       { kind: 'roller', x: 8200, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7300, to: 9300, dir: -1 },
