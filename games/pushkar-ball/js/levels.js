@@ -924,6 +924,12 @@ class Level {
     const MAKERS = { walker: makeWalker, roller: makeRoller, popper: makePopper };
     this.enemies = (data.enemies || []).map((e) => MAKERS[e.kind](e, CONFIG));
 
+    // Purely decorative: the triangles a stomp scatters. Nothing else in
+    // the game ever reads this array — physics, hazards and every other
+    // system are blind to it, the same way hazards are blind to a level's
+    // checkpoints.
+    this.particles = [];
+
     this.statics = segs;
     this.grid = new SegmentGrid(segs);
     this.movers = (data.platforms || []).map(makeMover);
@@ -935,6 +941,12 @@ class Level {
     for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
     for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
     for (const p of this.pads) p.squashT = Math.max(0, p.squashT - dt);
+    for (const p of this.particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+    }
+    this.particles = this.particles.filter((p) => p.life > 0);
   }
 
   /**
@@ -1050,6 +1062,23 @@ class Level {
     const box = e.box();
     if (body.vy > 0 && body.y < box.y + CONFIG.ENEMY.STOMP_MARGIN) {
       e.alive = false;
+      // Fixed, evenly-spaced angles around the enemy's own position — not
+      // randomised, so a level looks identical on every attempt, the same
+      // reason moving platforms are a sine of level time rather than
+      // integrated physics. Six pieces, 60° apart: the same ring
+      // arrangement drawSpikyBody already draws its eight spikes in, just
+      // fewer, and now flying apart instead of standing still.
+      const P = CONFIG.ENEMY.POP;
+      for (let i = 0; i < P.COUNT; i++) {
+        const a = (i / P.COUNT) * Math.PI * 2;
+        this.particles.push({
+          x: e.x, y: e.y,
+          vx: Math.cos(a) * P.SPEED,
+          vy: Math.sin(a) * P.SPEED,
+          angle: a,
+          life: P.LIFE,
+        });
+      }
       return true;
     }
     return false;

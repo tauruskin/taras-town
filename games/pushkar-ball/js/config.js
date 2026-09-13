@@ -291,6 +291,20 @@ export const CONFIG = {
     // hit, in world units. Generous for the same reason SPIKE.FORGIVE is: a
     // stomp that looked close enough and wasn't reads as the game cheating.
     STOMP_MARGIN: 14,
+    // The little hop a stomp gives the ball, and the handful of triangles
+    // that fly off the defeated enemy — a reward this time, not a setback,
+    // so it borrows HEALTH.KNOCKBACK_UP's one-line-override idiom rather
+    // than adding a new kind of impulse. An initial guess of 550 broke
+    // level 2's already-tuned enemy placements against finish.mjs (a bonus
+    // mid-jump stomp perturbs arrival timing at whatever margin comes
+    // next); 300 was found by a binary search against the same suite and
+    // has real margin below the 390 break point.
+    STOMP_BOUNCE: 300,     // px/s upward impulse on a successful stomp
+    POP: {
+      COUNT: 6,            // triangles flying off, evenly spaced
+      SPEED: 180,          // px/s outward
+      LIFE: 0.45,          // s before a piece is gone
+    },
     WALKER: {
       R: 22,          // collision and drawing radius
       SPEED: 1.4,     // rad/s inside the sine — see enemies.js's makeWalker

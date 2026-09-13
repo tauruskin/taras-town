@@ -204,6 +204,35 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
   if (level.enemies[0].alive) fail('the walker was never defeated by a drop from directly above');
   if (ball.hearts !== CONFIG.HEALTH.HEARTS) fail(`stomping cost a heart: hearts=${ball.hearts}`);
   if (ball.hits !== 0) fail(`stomping registered as a hit: hits=${ball.hits}`);
+
+  // The reward: an automatic little hop, and a handful of triangles flying
+  // off — see docs/superpowers/specs/2026-09-13-stomp-pop-design.md.
+  console.log(`   vy=${ball.vy.toFixed(1)} (want ${-CONFIG.ENEMY.STOMP_BOUNCE}), ` +
+              `particles=${level.particles.length} (want ${CONFIG.ENEMY.POP.COUNT})`);
+  if (Math.abs(ball.vy - (-CONFIG.ENEMY.STOMP_BOUNCE)) > 1) {
+    fail(`vy after the stomp is ${ball.vy.toFixed(1)}, expected exactly ${-CONFIG.ENEMY.STOMP_BOUNCE}`);
+  }
+  if (level.particles.length !== CONFIG.ENEMY.POP.COUNT) {
+    fail(`expected ${CONFIG.ENEMY.POP.COUNT} particles right after the stomp, got ${level.particles.length}`);
+  } else {
+    // Fixed, evenly-spaced angles — not random. A level should look
+    // identical on every attempt, the same reason moving platforms are a
+    // sine of level time rather than integrated physics.
+    const angles = level.particles.map((p) => Math.atan2(p.vy, p.vx)).sort((a, b) => a - b);
+    const step = (Math.PI * 2) / CONFIG.ENEMY.POP.COUNT;
+    let evenlySpaced = true;
+    for (let i = 1; i < angles.length; i++) {
+      if (Math.abs((angles[i] - angles[i - 1]) - step) > 0.01) evenlySpaced = false;
+    }
+    if (!evenlySpaced) fail("the pop's particles are not evenly spaced — is something randomised that should not be?");
+  }
+
+  // And gone for good once their lifetime is up — nothing here is meant to
+  // persist.
+  const seconds = CONFIG.ENEMY.POP.LIFE + 0.1;
+  for (let i = 0; i < Math.round(seconds / CONFIG.STEP); i++) level.update(CONFIG.STEP);
+  console.log(`   after ${seconds.toFixed(2)}s more: ${level.particles.length} particle(s) left (want 0)`);
+  if (level.particles.length !== 0) fail(`particles should all be gone by now; ${level.particles.length} remain`);
 }
 
 // --- 6. walking into the side of one costs a heart, like a spike ----------

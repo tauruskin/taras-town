@@ -384,7 +384,12 @@ export class Ball {
     // thing that happens this step: landing on an enemy from above defeats
     // it instead of costing a heart, and must not also register as a side
     // hit from the same contact a moment later in the same step.
-    if (!level.stompEnemy(this)) {
+    if (level.stompEnemy(this)) {
+      // The reward half of a stomp: an automatic little hop, no button
+      // press needed, the same one-line-override idiom hit() uses for a
+      // hazard's knockback below — just upward and welcome this time.
+      this.vy = -C.ENEMY.STOMP_BOUNCE;
+    } else {
       const knock = level.hazardKnockDir(this);
       if (knock !== null) this.hit(knock);
     }
