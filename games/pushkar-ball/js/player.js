@@ -285,6 +285,26 @@ export class Ball {
     this.platform = platform;
     this.coyote = grounded ? C.COYOTE : Math.max(0, this.coyote - dt);
 
+    // --- bounce pad ---------------------------------------------------------
+    //
+    // Landing on a pad launches immediately, with no jump button needed and
+    // no rest in between. It must not leave `grounded`, `coyote` or
+    // `platform` as if this were an ordinary landing:
+    //   - a lingering coyote window would let a jump pressed a moment later
+    //     fire (using the coyote time this same landing just granted) and
+    //     overwrite this velocity with the far weaker JUMP_V;
+    //   - a lingering `platform` would make next call's "carry the
+    //     platform's motion" line, right at the top of this function, add
+    //     `undefined` to the ball's position — a pad has no dx/dy/vx/vy,
+    //     the same class of bug crates hit before they got those fields.
+    if (platform && platform.bounce) {
+      this.vy = -C.BOUNCE.V;
+      this.grounded = false;
+      this.coyote = 0;
+      this.platform = null;
+      platform.squashT = C.BOUNCE.SQUASH_TIME;
+    }
+
     this.spin += (this.vx / this.r) * dt;
 
     // --- shove a crate ----------------------------------------------------

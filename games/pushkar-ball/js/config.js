@@ -151,6 +151,37 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // The bounce pad
+  // ---------------------------------------------------------------------
+  // A trampoline: landing on its top launches the ball straight up, no
+  // button press needed and no timing window to miss. It cannot be stood
+  // on — every contact bounces. V is chosen so it clears a wall no ordinary
+  // jump can: JUMP_V's own 760 only ever reaches 131px, but V here reaches
+  // roughly V² / (2·GRAVITY) ≈ 327px on its own — and that arithmetic was
+  // checked by actually simulating a ball bouncing off a stand-in pad at a
+  // stone wall, not trusted alone. See
+  // docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md.
+  BOUNCE: {
+    V: 1200,        // px/s upward impulse on contact
+    W: 100,         // width, world units — a crate's own footprint
+    // How far the pad's solid box extends DOWN from its ground anchor,
+    // matching the moving platforms' own thickness. It is embedded in the
+    // ground it sits on and only its top, flush with that ground, is ever
+    // reachable — which is what lets a level place one directly in a
+    // rolling path with no step to climb first.
+    H: 28,
+    POST_H: 20,           // drawn support posts, above the ground
+    SQUASH: 0.5,          // fraction of drawn height it flattens to on contact
+    // How long the whole squash-and-spring-back animation takes, drawn as a
+    // straight-line ease from flattened back to full height. One number
+    // rather than a separate squash/release pair: unlike the ball's own
+    // deflate (which holds flat before swelling back), a trampoline starts
+    // easing out immediately, so there is no separate "stay flat" phase to
+    // give its own duration.
+    SQUASH_TIME: 0.14,
+  },
+
+  // ---------------------------------------------------------------------
   // Failing
   // ---------------------------------------------------------------------
   // How long a relocate takes — the squash-and-respawn sequence `_relocate()`

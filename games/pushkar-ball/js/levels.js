@@ -776,6 +776,34 @@ class Level {
     this.time = 0;
 
     const segs = [];
+
+    // Bounce pads sit flush with the ground they stand on — `y` is the same
+    // ground-anchor convention checkpoints and spikes already use — and the
+    // pad's own solid box extends DOWN from it, into the ground, not up.
+    // Rolling onto one is exactly as smooth as rolling onto ordinary ground:
+    // no step, no jump needed to reach it. Only the top is ever reachable;
+    // the rest is buried under the ground it sits on. Tagged with the pad
+    // itself as `owner`, the same mechanism movers and crates already use,
+    // which is how player.js tells "this contact is a pad" from an
+    // ordinary wall.
+    //
+    // Built BEFORE the ground below, and not after it alongside the walls,
+    // because a pad is authored flush with the ground polyline that runs
+    // under it — the two are exactly colinear where the pad sits, not just
+    // touching. `resolve()` in physics.js corrects the ball against the
+    // first segment at a given position and then, correctly, treats an
+    // already-satisfied identical duplicate as no contact at all; whichever
+    // of the two colinear segments is checked first therefore wins the tie
+    // and is the one the ball's contact list actually reports. Ground has
+    // to lose that tie, or a pad would sit under a plain, un-owned ground
+    // contact for ever and never launch anything.
+    this.pads = (data.pads || []).map((p) => ({ x: p.x, y: p.y, w: p.w, bounce: true, squashT: 0 }));
+    for (const p of this.pads) {
+      const padSegs = boxSegments(p.x, p.y, p.w, CONFIG.BOUNCE.H);
+      for (const s of padSegs) s.owner = p;
+      segs.push(...padSegs);
+    }
+
     for (const line of data.ground || []) {
       for (let i = 0; i < line.length - 1; i++) {
         const s = segment(line[i][0], line[i][1], line[i + 1][0], line[i + 1][1]);
@@ -821,6 +849,7 @@ class Level {
     for (const m of this.movers) m.update(this.time);
     for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
     for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
+    for (const p of this.pads) p.squashT = Math.max(0, p.squashT - dt);
   }
 
   /**
