@@ -431,7 +431,8 @@ function drawPads() {
 
 /**
  * The pop: a handful of small triangles flying off a just-defeated enemy,
- * shrinking and fading as they go. `level.particles` is built once per
+ * each pointing outward at its own fixed angle, shrinking and fading as
+ * they go. `level.particles` is built once per
  * stomp in `Level.stompEnemy` and advanced every step in `Level.update`;
  * this function only ever reads it, the same read-only relationship
  * `drawPads` has with `level.pads`.
@@ -444,7 +445,7 @@ function drawParticles() {
   const P = CONFIG.ENEMY.POP;
   for (const p of level.particles) {
     const t = p.life / P.LIFE;
-    const s = 14 * t;
+    const s = P.SIZE * t;
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);

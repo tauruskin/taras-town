@@ -304,6 +304,7 @@ export const CONFIG = {
       COUNT: 6,            // triangles flying off, evenly spaced
       SPEED: 180,          // px/s outward
       LIFE: 0.45,          // s before a piece is gone
+      SIZE: 14,            // each triangle's drawn size at full life, px
     },
     WALKER: {
       R: 22,          // collision and drawing radius
