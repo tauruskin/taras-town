@@ -437,6 +437,12 @@ export const CONFIG = {
   // slower than the world the band moves, and TOP is where it sits as a
   // fraction of screen height.
   PARALLAX: [
+    // Farthest first: `drawParallax` draws in array order, so this must
+    // come before HILL_FAR or it would paint over it instead of sitting
+    // behind it. Slower (a smaller factor) and higher (a smaller top) than
+    // HILL_FAR, for the usual parallax reason things farther away move less
+    // and sit higher in the frame.
+    { colour: 'HILL_FARTHEST', factor: 0.12, top: 0.52, amp: 55, span: 200 },
     { colour: 'HILL_FAR', factor: 0.25, top: 0.62, amp: 40, span: 140 },
     { colour: 'HILL_NEAR', factor: 0.45, top: 0.74, amp: 30, span: 95 },
   ],
@@ -480,6 +486,12 @@ export const CONFIG = {
   COLOURS: {
     SKY_TOP: '#4FC3F7',
     SKY_LOW: '#B3E5FC',
+    // A third, farthest band behind the existing two, for more depth. Pale
+    // and desaturated relative to HILL_FAR/HILL_NEAR, the way real distant
+    // hills read hazier — and, checked against IS_BALL in
+    // tests/browser/_helpers.mjs the same way every colour here is: r-b is
+    // small and negative, nowhere near being mistaken for the ball.
+    HILL_FARTHEST: '#CFE8DA',
     HILL_FAR: '#8ED6A0',
     HILL_NEAR: '#63BE7B',
     GROUND: '#7ED957',
