@@ -196,25 +196,14 @@ const ROUTES = {
   // reshuffle — unchanged otherwise.
   4: (level, lead) => runner(level, lead),
 
-  // Level five: the generic runner handles everything except the wall gate,
-  // since nothing about a pad flush with the ground looks like an edge, a
-  // spike, a crate, or a step to it — it just runs the ball straight over
-  // both pads and into the wall. So the route is the generic runner right
-  // up to the wall, then a deliberate approach: keep rolling into the
-  // second pad, which launches automatically (no jump needed, matching how
-  // a real player would discover it), and steer straight through the
-  // resulting arc.
-  5: (level, lead) => {
-    const run = runner(level, lead);
-    const wallX = 11360;
-    return (ball) => {
-      if (ball.x < wallX - 400) return run(ball);
-      // Past this point, just keep holding right: the pad does the rest,
-      // and there is nothing here for the runner's own checks (edges,
-      // spikes, crates, steps) to react to.
-      return { right: true };
-    };
-  },
+  // Level five: the generic runner handles it all, gate included. Once
+  // grounded contact with the second pad launches the ball, the runner's
+  // own obstacle checks (edges, spikes, crates, steps) all gate on
+  // `ball.grounded`, so mid-air past the pad it already just holds right —
+  // the same thing a bespoke override would do, verified by running the
+  // plain runner alone across every lead/delay combination with zero
+  // failures before settling on this.
+  5: (level, lead) => runner(level, lead),
 };
 
 // A spread wide enough to be sloppy, not so wide it is somebody else's route:
@@ -345,14 +334,16 @@ console.log('\n3b. level five without its gate pad');
     else {
       const bare = { ...data, pads: data.pads.filter((p) => p !== gatePad) };
       const wallX = 11360;
-      let cleared = 0, tries = 0;
+      let cleared = 0, tries = 0, closest = Infinity;
       for (let from = wallX - 700; from <= wallX - 100; from += 20) {
         tries++;
         const { ball } = play({ ...bare, spawn: { x: from, y: 600 } }, () => (b) => ({ right: true }), { seconds: 6 });
+        closest = Math.min(closest, wallX - ball.x);
         if (ball.x > wallX + 60) cleared++;
       }
       if (cleared) fail(`level 5 was cleared past the wall without its gate pad ${cleared} time(s) of ${tries} — the wall no longer needs it`);
-      else console.log(`   ${tries} tries without it, none got past the wall at x=${wallX}`);
+      else if (closest > 40) fail(`without the pad, the closest any attempt got to the wall was ${closest.toFixed(0)}px short — this proves nothing about needing the pad`);
+      else console.log(`   ${tries} tries without it, none got past the wall at x=${wallX} (closest approach ${closest.toFixed(0)}px short)`);
     }
   }
 }
