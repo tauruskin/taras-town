@@ -138,8 +138,20 @@ export const LEVELS = [
       { x: 16275, y: 740, w: 170, h: 28, axis: 'x', dist: 85, period: 5.0, phase: 0 },
       // A lift over the flat between the second gap and the third. Nothing
       // needs it; it is here so vertical movers are exercised by the game
-      // and not only by the tests. It cannot be boarded from the ground; see
-      // follow-up item 6 in docs/superpowers/specs/2026-09-11-followup-ideas.md.
+      // and not only by the tests.
+      //
+      // It is deliberately unreachable — background motion, not a mechanic —
+      // and that is a decision, not an oversight. Lowering it enough for a
+      // jump to catch it (verified by simulation, not just arithmetic: the
+      // ball's own jump only ever reaches y=629, but landing needs the
+      // lift's low point past y=710 — a ball rising into its underside just
+      // gets blocked, it cannot end up above the platform any other way)
+      // also lowers it into a standing ball's head at y=720, so a child just
+      // standing underneath gets visibly jittered by it twice a cycle.
+      // Shrinking the platform's own height makes that worse, not better.
+      // No number here reconciles "a jump can reach it" with "it leaves a
+      // standing ball alone." See
+      // docs/superpowers/specs/2026-09-13-lift-boarding-design.md.
       { x: 9700, y: 470, w: 150, h: 28, axis: 'y', dist: 120, period: 4.0, phase: 0.25 },
     ],
 

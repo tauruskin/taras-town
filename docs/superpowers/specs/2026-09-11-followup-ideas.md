@@ -81,18 +81,25 @@ checking against the original phase-3 design language ("pops into a few
 triangles when bounced on") for whether a particle-style pop was already
 half-designed and just never built.
 
-## 6. Level 1's lift cannot be boarded
+## 6. Level 1's lift cannot be boarded — DONE
 
 Found during the livelier-level-one work, Sep 2026, and older than it. The
 vertical lift at x=9700, over level 1's flat between the second and third
 gaps, never brings its top lower than y=590, and a jump from the flat at
-y=760 brings the ball's centre to about 610 and its bottom to about 630.
-So the ball's bottom never gets above the lift's top, and near the bottom
-of the lift's travel the ball bumps its underside. A sweep of take-off
-points and jump times across its whole 4-second cycle found no boarding at
-all. Nothing needs the lift, so nothing is broken, but he can see a moving
-platform he can never ride. Needs a small design decision: lower its
-travel so it can be boarded, or accept it as scenery.
+y=760 brings the ball's centre to about 610 and its bottom to about 630. So
+the ball's bottom never gets above the lift's top, and near the bottom of
+the lift's travel the ball bumps its underside. A sweep of take-off points
+and jump times across its whole 4-second cycle found no boarding at all.
+Nothing needs the lift, so nothing is broken, but he can see a moving
+platform he can never ride.
+
+Kept as scenery, on purpose, after simulation (not just arithmetic) showed
+why lowering it doesn't have a good answer: it only becomes reachable once
+its low point passes y≈710, and at that depth its underside sweeps down
+through a *standing* ball's head (y=720) twice a cycle, visibly jittering a
+child who isn't even jumping. Shrinking the platform makes the needed depth
+worse, not better. See
+`docs/superpowers/specs/2026-09-13-lift-boarding-design.md`.
 
 ## 7. What a walker or a roller costs a late jumper
 
@@ -124,7 +131,8 @@ Implemented by
 ## Where this fits
 
 None of the items above conflicts with anything already shipped in Phase A.
-Items 1, 2 and 8 are done; items 3–7 are each still their own design pass.
+Items 1, 2, 6 and 8 are done; items 3, 4, 5 and 7 are each still their own
+design pass.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one
 named exception to the one-new-idea rule, level 1's spike patch, which is
