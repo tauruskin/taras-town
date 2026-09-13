@@ -267,6 +267,27 @@ for (const data of LEVELS) {
   if (authored.enemies.length) {
     console.log(`   ${authored.enemies.length} enemy/enemies; none patrol outside the level, none overlap the spawn or a checkpoint`);
   }
+
+  // --- 13. ground polylines are listed left to right ----------------------
+  //
+  // Check 2 already checks that points within one polyline don't go
+  // backwards. drawWater() in main.js draws a decorative water band under the
+  // gap between each consecutive pair of ground entries, and it assumes those
+  // entries are themselves listed in x-order — it computes a gap's width as
+  // the next polyline's first x minus the previous polyline's last x, with no
+  // clamping. Two adjacent entries touching (gap width 0) is normal — that's
+  // how a level joins two floors with no water between them — but a next
+  // entry starting BEFORE the previous one ends is not: that is two ground
+  // entries listed out of order, and it would hand drawWater a negative gap
+  // width with nothing here to catch it.
+  const ground = data.ground || [];
+  for (let i = 0; i < ground.length - 1; i++) {
+    const prevEnd = ground[i][ground[i].length - 1];
+    const nextStart = ground[i + 1][0];
+    if (nextStart[0] < prevEnd[0]) {
+      fail(`level ${data.id}: ground polyline ${i + 1} starts at x=${nextStart[0]}, before polyline ${i} ends at x=${prevEnd[0]} — drawWater assumes ground entries are listed left to right`);
+    }
+  }
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL LEVEL CHECKS PASSED');
