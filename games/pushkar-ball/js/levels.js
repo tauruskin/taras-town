@@ -34,7 +34,12 @@ import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './e
 // level below carries exactly two, positioned to break the level into large,
 // roughly even pieces so one mistake costs a third of the level, not the whole
 // run, but a run of easy, already-practised ground in between never gets
-// flagged just for existing.
+// flagged just for existing. Level six is a deliberate exception with only
+// one: everything before its checkpoint is already-practised warm-up, not
+// this level's hard part, and everything after its one real puzzle is flat
+// ground with nothing left to fail — so a second checkpoint would guard
+// nothing either side of the one that's there. See level six's own header
+// comment.
 //
 // The gap widths reused here (200, 220, 240, 260) and the spike widths
 // (70-100) are not new numbers — they are exactly the ones the original three
@@ -704,9 +709,12 @@ export const LEVELS = [
     platforms: [],
 
     enemies: [
-      // A recurring walker, well clear of the step (1300 units) and of the
-      // puzzle stretch (3400 units) — never met at the same moment as
-      // anything else.
+      // A recurring walker, well clear of the step and of the puzzle stretch
+      // — never met at the same moment as anything else. Edge to patrol
+      // extent: the step's right edge (3200 + 200 = 3400) to the walker's
+      // nearest reach (4500 - 280 = 4220) is 820 units; the walker's
+      // farthest reach (4500 + 280 = 4780) to the puzzle stretch's start
+      // (7900) is 3120 units.
       { kind: 'walker', x: 4500, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
     ],
 
