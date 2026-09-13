@@ -804,6 +804,9 @@ class Level {
       segs.push(...padSegs);
     }
 
+    // Pads above must stay ordered before this loop (see the comment there)
+    // — moving them after it would silently un-launch any pad flush with
+    // the ground, with no error anywhere to point at why.
     for (const line of data.ground || []) {
       for (let i = 0; i < line.length - 1; i++) {
         const s = segment(line[i][0], line[i][1], line[i + 1][0], line[i + 1][1]);
