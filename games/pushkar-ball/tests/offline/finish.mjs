@@ -204,6 +204,36 @@ const ROUTES = {
   // plain runner alone across every lead/delay combination with zero
   // failures before settling on this.
   5: (level, lead) => runner(level, lead),
+
+  // Level six: run to the crate, push it onto the plate — it comes to rest
+  // against the closed gate's own face, the same way level three's crate
+  // comes to rest against its ledge face — then just keep holding right.
+  // The gate takes CONFIG.GATE.OPEN_TIME to swing open once pressed; the
+  // runner has no reason to stop and wait, since by the time the ball
+  // finishes crossing the now-empty flat between the crate and the gate,
+  // the gate has had time to open.
+  6: (level, lead) => {
+    const run = runner(level, lead);
+    const crate = level.crates[0];
+    const sw = level.switches[0];
+    let stage = 'run', stuck = 0, lastX = crate.x;
+    return (ball) => {
+      if (stage === 'run') {
+        if (ball.grounded && ball.y > 700 && ball.x > crate.x - 200 && ball.x < crate.x) stage = 'push';
+        else return run(ball);
+      }
+      if (stage === 'push') {
+        stuck = Math.abs(crate.x - lastX) < 0.01 && crate.x + crate.w > sw.x + sw.w - 5 ? stuck + 1 : 0;
+        lastX = crate.x;
+        if (stuck > 30) stage = 'through';
+        return { right: true };
+      }
+      // Through: nothing left for the generic runner's own checks (edges,
+      // spikes, crates, steps) to react to on this stretch, so just hold
+      // right — the gate opens on its own.
+      return { right: true };
+    };
+  },
 };
 
 // A spread wide enough to be sloppy, not so wide it is somebody else's route:
@@ -345,6 +375,30 @@ console.log('\n3b. level five without its gate pad');
       else if (closest > 40) fail(`without the pad, the closest any attempt got to the wall was ${closest.toFixed(0)}px short — this proves nothing about needing the pad`);
       else console.log(`   ${tries} tries without it, none got past the wall at x=${wallX} (closest approach ${closest.toFixed(0)}px short)`);
     }
+  }
+}
+
+// --- 3c. level six cannot open its gate without the switch -----------------
+//
+// Remove the switch entirely, so `g.switchId` matches nothing and the gate
+// finds no switch to read `pressed` from — the same "unfound reference
+// behaves as false" `Level.update`'s own `sw && sw.pressed` already falls
+// back to — and confirm the gate simply never opens.
+console.log('\n3c. level six without its switch');
+{
+  const data = LEVELS.find((l) => l.id === 6);
+  if (!data) fail('there is no level 6');
+  else {
+    const bare = { ...data, switches: [] };
+    const gateX = data.gates[0].x;
+    let cleared = 0, tries = 0;
+    for (let from = gateX - 700; from <= gateX - 100; from += 20) {
+      tries++;
+      const { ball } = play({ ...bare, spawn: { x: from, y: 600 } }, () => (b) => ({ right: true }), { seconds: 8 });
+      if (ball.x > gateX + 100) cleared++;
+    }
+    if (cleared) fail(`level 6 was cleared past the gate ${cleared} time(s) of ${tries} without its switch — the gate no longer needs it`);
+    else console.log(`   ${tries} tries without it, none got past the gate at x=${gateX}`);
   }
 }
 

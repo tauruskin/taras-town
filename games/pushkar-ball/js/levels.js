@@ -712,10 +712,21 @@ export const LEVELS = [
       // A recurring walker, well clear of the step and of the puzzle stretch
       // — never met at the same moment as anything else. Edge to patrol
       // extent: the step's right edge (3200 + 200 = 3400) to the walker's
-      // nearest reach (4500 - 280 = 4220) is 820 units; the walker's
-      // farthest reach (4500 + 280 = 4780) to the puzzle stretch's start
-      // (7900) is 3120 units.
-      { kind: 'walker', x: 4500, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
+      // nearest reach (4400 - 280 = 4120) is 720 units; the walker's
+      // farthest reach (4400 + 280 = 4680) to the puzzle stretch's start
+      // (7900) is 3220 units.
+      //
+      // x=4400 was found by sweeping finish.mjs's 3-lead-by-10-delay matrix,
+      // not guessed — as level three's own walker comment already found, a
+      // walker's margin is fussy. 4500 (the first value tried, dead centre of
+      // the available flat) loses all three hearts on one combination of that
+      // matrix; 4400 does not, and neither does any neighbour 25 units either
+      // side or 20 of amplitude either side, so it is the middle of a passing
+      // region rather than its edge. The region is narrow, though — as it was
+      // for level three's walker — so do not nudge this without re-checking:
+      // a denser sweep (5 leads, delay sampled every 0.1s, 250 runs) still
+      // finds 3 that lose all three hearts here, every one at lead 0.7.
+      { kind: 'walker', x: 4400, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
     ],
 
     // One. Everything before it (the first gap, the step, the walker) is
