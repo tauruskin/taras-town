@@ -25,6 +25,9 @@ build/
 # Local Claude Code settings — not part of the game
 .claude/
 
+# Brainstorming skill's visual companion mockups — throwaway scratch work
+.superpowers/
+
 # Test output: screenshots and throwaway browser profiles. A middle slash
 # anchors a gitignore pattern to the directory the file is in (the repo
 # root here), so a bare "tests/screenshots/" stopped matching once tests
