@@ -698,6 +698,23 @@ function makeMover(p) {
 }
 
 /**
+ * Move `value` toward `target` at `rate` (a fraction of the value's full
+ * range per second) over `dt`, clamping so it never overshoots and holding
+ * exactly AT `target` once reached — a two-way ternary
+ * (`target > value ? increase : decrease`) oscillates forever the instant
+ * `value` hits `target` exactly, since `target > target` is false and falls
+ * into the decrease branch. Shared by a gate's own `openT` and a switch's
+ * cosmetic `animT`, which both hit exactly this bug once already before
+ * being unified here.
+ */
+function rampToward(value, target, dt, rate) {
+  const step = dt * rate;
+  if (target > value) return Math.min(target, value + step);
+  if (target < value) return Math.max(target, value - step);
+  return value;
+}
+
+/**
  * A gate: a solid box like a wall, except its position slides straight up
  * to clear a passage while its switch is pressed, and back down when it
  * isn't. `g.y`/`g.h` are the CLOSED position and height — the same
@@ -723,12 +740,7 @@ function makeGate(g) {
     update(dt, pressed) {
       const wasY = gate.y;
       const target = pressed ? 1 : 0;
-      const rate = dt / CONFIG.GATE.OPEN_TIME;
-      // Three-way, not two: at exactly `target` neither branch may fire, or
-      // an equal comparison falling into "decrease" oscillates the gate
-      // forever between target and target-rate the instant it arrives.
-      if (target > gate.openT) gate.openT = Math.min(target, gate.openT + rate);
-      else if (target < gate.openT) gate.openT = Math.max(target, gate.openT - rate);
+      gate.openT = rampToward(gate.openT, target, dt, 1 / CONFIG.GATE.OPEN_TIME);
       const ny = g.y - g.h * gate.openT;
       gate.dy = ny - wasY;
       gate.vy = dt > 0 ? gate.dy / dt : 0;
@@ -1013,11 +1025,7 @@ class Level {
     for (const sw of this.switches) {
       sw.pressed = this.crates.some((c) => c.grounded && c.x < sw.x + sw.w && c.x + c.w > sw.x);
       const target = sw.pressed ? 1 : 0;
-      const rate = dt / CONFIG.SWITCH.PRESS_TIME;
-      // Three-way, not two — see the identical fix and comment on the
-      // gate's own openT just below, in the same loop's sibling.
-      if (target > sw.animT) sw.animT = Math.min(target, sw.animT + rate);
-      else if (target < sw.animT) sw.animT = Math.max(target, sw.animT - rate);
+      sw.animT = rampToward(sw.animT, target, dt, 1 / CONFIG.SWITCH.PRESS_TIME);
     }
     for (const g of this.gates) {
       const sw = this.switches.find((s) => s.id === g.switchId);

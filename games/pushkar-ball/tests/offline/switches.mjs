@@ -80,8 +80,12 @@ const world = (extra) => loadLevel({
   if (!sw.pressed) fail('the switch never reads as pressed with a crate resting on it');
   // Give the gate its full CONFIG.GATE.OPEN_TIME to swing all the way open.
   for (let i = 0; i < Math.round((CONFIG.GATE.OPEN_TIME + 0.2) / CONFIG.STEP); i++) level.update(CONFIG.STEP);
-  console.log(`   after ${(CONFIG.GATE.OPEN_TIME + 0.2).toFixed(2)}s: openT=${gate.openT.toFixed(2)}`);
+  console.log(`   after ${(CONFIG.GATE.OPEN_TIME + 0.2).toFixed(2)}s: openT=${gate.openT.toFixed(2)}, switch animT=${sw.animT.toFixed(2)}`);
   if (gate.openT !== 1) fail(`gate openT is ${gate.openT}, expected exactly 1 (fully open)`);
+  // CONFIG.SWITCH.PRESS_TIME is much shorter than CONFIG.GATE.OPEN_TIME, so by
+  // the time the gate finishes opening, the switch's own dip animation has
+  // long since finished too.
+  if (sw.animT !== 1) fail(`switch animT is ${sw.animT}, expected exactly 1 (fully pressed) by the time the gate is fully open`);
   // Fully open means the gate has slid its own height clear of the ground —
   // its current bottom (gate.y + gate.h) must be at or above the ground it
   // used to block, or a "fully open" gate would still catch a rolling ball.
@@ -118,9 +122,10 @@ const world = (extra) => loadLevel({
   level.crates[0].x = 200;
   level.crates[0]._reseg();
   for (let i = 0; i < Math.round((CONFIG.GATE.OPEN_TIME + 0.2) / CONFIG.STEP); i++) level.update(CONFIG.STEP);
-  console.log(`\n5. crate moved off the plate: switch pressed=${level.switches[0].pressed}, gate openT=${level.gates[0].openT.toFixed(2)}`);
+  console.log(`\n5. crate moved off the plate: switch pressed=${level.switches[0].pressed}, gate openT=${level.gates[0].openT.toFixed(2)}, switch animT=${level.switches[0].animT.toFixed(2)}`);
   if (level.switches[0].pressed) fail('the switch still reads as pressed with the crate gone');
   if (level.gates[0].openT !== 0) fail(`gate openT is ${level.gates[0].openT}, expected exactly 0 (closed again)`);
+  if (level.switches[0].animT !== 0) fail(`switch animT is ${level.switches[0].animT}, expected exactly 0 (fully released) by the time the gate is fully closed`);
 }
 
 // --- 6. a gate owes the four carrier fields, like every other carrier -----
