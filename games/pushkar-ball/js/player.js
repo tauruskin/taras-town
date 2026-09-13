@@ -75,8 +75,11 @@ export class Ball {
    * upward velocity launches the ball off the respawn point; a leftover jump
    * in `buffer` fires the instant it lands; a leftover `platform` makes it
    * ride a platform elsewhere in the level.
+   *
+   * Needs `level` only for the zero-hearts branch, to un-arm its checkpoints
+   * alongside resetting `home` — see the comment inside.
    */
-  respawn() {
+  respawn(level) {
     const target = this.zeroHearts ? this.spawn : this.home;
     this.x = target.x;
     this.y = target.y;
@@ -92,6 +95,18 @@ export class Ball {
     if (this.zeroHearts) {
       this.hearts = CONFIG.HEALTH.HEARTS;
       this.zeroHearts = false;
+      // A zero-hearts fail is a full do-over of the level, not just of this
+      // one respawn: without this, `home` would still point at the last
+      // checkpoint taken before the run-out, and the very next ordinary fall
+      // would skip back past the ground this fail just sent the ball to redo.
+      this.home.x = this.spawn.x;
+      this.home.y = this.spawn.y;
+      // And the checkpoints themselves must un-arm, or nothing can ever move
+      // `home` off spawn again: `takeCheckpoint` skips any checkpoint already
+      // marked `taken`, so a taken checkpoint plus a spawn-reset `home` would
+      // send every subsequent fall for the rest of the level all the way back
+      // to spawn, not just this one.
+      for (const c of level.checkpoints) c.taken = false;
     }
   }
 
@@ -210,7 +225,7 @@ export class Ball {
       this.dying -= dt;
       if (this.dying <= 0) {
         this.dying = 0;
-        this.respawn();
+        this.respawn(level);
         this.reviving = C.DEFLATE.INFLATE;
       }
       return;

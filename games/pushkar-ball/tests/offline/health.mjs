@@ -93,10 +93,22 @@ const world = (checkpoints) => loadLevel({
     run(ball, level, stub(), CONFIG.HEALTH.IFRAME + 0.05);
   }
   console.log(`\n4. after ${CONFIG.HEALTH.HEARTS} hits: hearts=${ball.hearts}, deaths=${ball.deaths}, ` +
-              `x=${ball.x.toFixed(0)} (spawn ${spawn.x}, checkpoint home ${home.x})`);
+              `x=${ball.x.toFixed(0)} (spawn ${spawn.x}, checkpoint home ${home.x}), ` +
+              `ball.home.x=${ball.home.x.toFixed(0)}, checkpoint taken=${level.checkpoints[0].taken}`);
   if (ball.deaths !== 1) fail(`exhausting hearts should relocate exactly once; deaths=${ball.deaths}`);
   if (Math.abs(ball.x - spawn.x) > 5) fail(`came back at x=${ball.x.toFixed(0)}, not the level's start at ${spawn.x}`);
   if (ball.hearts !== CONFIG.HEALTH.HEARTS) fail(`hearts did not refill on arrival: ${ball.hearts}`);
+
+  // A zero-hearts fail is a full do-over, not just of this one respawn: the
+  // ball's checkpoint credit must reset too, or the very next ordinary fall
+  // would skip back past the ground this fail just sent it to redo.
+  if (Math.abs(ball.home.x - spawn.x) > 5) {
+    fail(`home is still ${ball.home.x.toFixed(0)}, not reset to spawn at ${spawn.x} — the next ` +
+         `ordinary fall would skip back to the checkpoint instead of redoing this ground`);
+  }
+  if (level.checkpoints[0].taken) {
+    fail('the checkpoint stayed taken through a zero-hearts reset, so it can never re-arm home again');
+  }
 }
 
 // --- 5. a hit while already relocating does not count a second time -----
