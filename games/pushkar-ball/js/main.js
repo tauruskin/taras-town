@@ -220,6 +220,7 @@ function draw() {
   drawCheckpoints();
   drawSpikes(ctx, level.spikes, CONFIG);
   drawEnemies(ctx, level.enemies, level.time, CONFIG);
+  drawParticles();
   drawPlatforms();
   drawPads();
   drawGoal();
@@ -425,6 +426,40 @@ function drawPads() {
     ctx.beginPath();
     ctx.ellipse(p.x + p.w / 2, topY, p.w / 2, B.PAD_RY, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+/**
+ * The pop: a handful of small triangles flying off a just-defeated enemy,
+ * shrinking and fading as they go. `level.particles` is built once per
+ * stomp in `Level.stompEnemy` and advanced every step in `Level.update`;
+ * this function only ever reads it, the same read-only relationship
+ * `drawPads` has with `level.pads`.
+ *
+ * Drawn in the same colours a live enemy is drawn in (`drawSpikyBody` in
+ * enemies.js), so the debris visibly belongs to what it came from.
+ */
+function drawParticles() {
+  const C = CONFIG.COLOURS;
+  const P = CONFIG.ENEMY.POP;
+  for (const p of level.particles) {
+    const t = p.life / P.LIFE;
+    const s = 14 * t;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+    ctx.globalAlpha = t;
+    ctx.beginPath();
+    ctx.moveTo(s, 0);
+    ctx.lineTo(-s * 0.6, s * 0.6);
+    ctx.lineTo(-s * 0.6, -s * 0.6);
+    ctx.closePath();
+    ctx.fillStyle = C.ENEMY;
+    ctx.fill();
+    ctx.strokeStyle = C.ENEMY_EDGE;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
