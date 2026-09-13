@@ -738,6 +738,68 @@ export const LEVELS = [
       { x: 8150, y: 760 },
     ],
   },
+
+  {
+    // Level seven: the balance beam is the one new idea — push a crate past
+    // its fulcrum to level it, then walk across. It rests tilted, one end
+    // down on the entry ledge and the other dangling above the exit ledge,
+    // until the crate's weight brings the far end down to meet it. A gap,
+    // and a recurring walker, warm the level up first; neither is new. See
+    // docs/superpowers/specs/2026-09-13-balance-beam-design.md and this
+    // plan's own header for how minAngle/halfLength were chosen — steep
+    // enough that the ball cannot simply climb the unlevelled beam like a
+    // ramp, shallow enough that it still counts as ground a crate can rest
+    // on and the ball can walk when it counts.
+    id: 7,
+    theme: 'hills',
+    bounds: { w: 13000, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 12760, y: 630 },
+
+    ground: [
+      // Warm-up: a proven 200px gap, well before any checkpoint.
+      [[40, 760], [2200, 760]],
+      // A long flat carrying the recurring walker, ending at the entry
+      // ledge — the checkpoint sits just before the crate.
+      [[2400, 760], [8500, 760]],
+      // The 200px gap the beam bridges: x=8500 to x=8700. No ground line
+      // here at all — between the two ledges, the beam is the only thing
+      // to stand on.
+      [[8700, 630], [12960, 630]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 12960, y: 0, w: 40, h: 1080 },
+      // The crate that matters, well clear of the gap so it cannot be
+      // shoved in before it is needed.
+      { x: 8300, y: 660, w: 100, h: 100, movable: true },
+    ],
+
+    beams: [
+      { x: 8610, y: 630, halfLength: 170, minAngle: -Math.PI * 50 / 180, maxAngle: 0 },
+    ],
+
+    platforms: [],
+
+    enemies: [
+      // A recurring walker, at the exact x/amplitude level six's own walker
+      // already proved (see its comment there) — placed on a comparable
+      // long flat with at least as much clearance either side, as a
+      // starting point. Re-verified for THIS level's own geometry in Task
+      // 4, not assumed to carry over unchecked.
+      { kind: 'walker', x: 4400, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
+    ],
+
+    // One. Everything before it (the first gap, the walker) is
+    // already-practised ground — none of it is this level's hard part, so a
+    // checkpoint there would only bank progress nobody was going to lose.
+    // Everything after the beam, once it's level, is flat with nothing left
+    // to fail — a second checkpoint there would guard nothing.
+    checkpoints: [
+      { x: 8150, y: 760 },
+    ],
+  },
 ];
 
 /**
