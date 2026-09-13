@@ -101,7 +101,15 @@ child who isn't even jumping. Shrinking the platform makes the needed depth
 worse, not better. See
 `docs/superpowers/specs/2026-09-13-lift-boarding-design.md`.
 
-## 7. What a walker or a roller costs a late jumper
+## 7. What a walker or a roller costs a late jumper — DONE
+
+See `docs/superpowers/specs/2026-09-13-late-jumper-cost-design.md`. Decided:
+accept as-is, no mechanic change, no test change. The worst case is bounded
+by the same soft-fail (return to last checkpoint, or the level's spawn per
+item 8) a bad fall already causes, and `finish.mjs`'s ten-delay sample never
+claimed to bound this cost in the first place — widening it to sweep an
+enemy's whole cycle would only re-confirm a cost already measured and
+accepted, not catch a regression it would otherwise miss.
 
 Measured while planning the livelier-level-one work, Sep 2026, and during the
 recurring-difficulty work before it. Over a walker's whole cycle (start
@@ -112,9 +120,7 @@ all three hearts on about 6–11 of 47 arrivals, for every shipped walker
 level 2's roller does no better. Losing all three hearts always sends the
 ball back to the level's start, and a checkpoint cannot soften that.
 finish.mjs's ten start delays sample only a few phases and never see most of
-this. Worth a design conversation: whether an enemy should be able to cost a
-late jumper that much, and whether finish.mjs should sweep an enemy's whole
-cycle.
+this.
 
 ## 8. Losing every heart resets the ball's start but not its checkpoint — DONE
 
@@ -131,8 +137,7 @@ Implemented by
 ## Where this fits
 
 None of the items above conflicts with anything already shipped in Phase A.
-Items 1, 2, 3, 4, 5, 6 and 8 are done; item 7 is still its own design
-pass.
+All eight items are done.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one
 named exception to the one-new-idea rule, level 1's spike patch, which is

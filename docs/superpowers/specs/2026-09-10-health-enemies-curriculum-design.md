@@ -54,11 +54,10 @@ Out of scope, for a later spec:
   everything" role is now built — see
   docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md —
   with its factory-specific visual theme still Phase B's job.
-- One item from `docs/superpowers/specs/2026-09-11-followup-ideas.md`
-  remains not yet brainstormed: what a walker or a roller costs a late
-  jumper. Enemies/difficulty recurring past level 2, more content in
-  level 1, hill height, deliberate jump-gates, and a stomp bounce effect
-  — also from that list — are since done.
+- Every item from `docs/superpowers/specs/2026-09-11-followup-ideas.md` is
+  now done, including what a walker or a roller costs a late jumper —
+  decided accept-as-is, no mechanic or test change, see
+  docs/superpowers/specs/2026-09-13-late-jumper-cost-design.md.
 
 ## Content boundaries: what loosens, what doesn't
 
