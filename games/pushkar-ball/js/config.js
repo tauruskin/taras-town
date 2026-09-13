@@ -436,13 +436,25 @@ export const CONFIG = {
   // only read as hills once a crest and a trough both fit. FACTOR is how much
   // slower than the world the band moves, and TOP is where it sits as a
   // fraction of screen height.
+  //
+  // HILL_FARTHEST repeated the same mistake on arrival: it first shipped with
+  // span 200, a wavelength of 200*2*PI ≈ 1257px, so at this project's own
+  // mandated narrow check width of 568px only ≈45% of one wave ever crossed
+  // the screen — the same "flat wash" failure the paragraph above already
+  // documents, just short of it rather than past it. It was brought down to
+  // 160: a wavelength of 160*2*PI ≈ 1005px, which is ≈1.77x the 568px check
+  // width — comfortably more than one full crest-and-trough on the narrowest
+  // screen this project checks, and still a longer wavelength than HILL_FAR's
+  // own proven span of 140 (wavelength ≈880px, ≈1.55x 568px), so the farthest
+  // band still reads as rolling more gently/broadly than the one in front of
+  // it, the way real distant hills do.
   PARALLAX: [
     // Farthest first: `drawParallax` draws in array order, so this must
     // come before HILL_FAR or it would paint over it instead of sitting
     // behind it. Slower (a smaller factor) and higher (a smaller top) than
     // HILL_FAR, for the usual parallax reason things farther away move less
     // and sit higher in the frame.
-    { colour: 'HILL_FARTHEST', factor: 0.12, top: 0.52, amp: 55, span: 200 },
+    { colour: 'HILL_FARTHEST', factor: 0.12, top: 0.52, amp: 55, span: 160 },
     { colour: 'HILL_FAR', factor: 0.25, top: 0.62, amp: 40, span: 140 },
     { colour: 'HILL_NEAR', factor: 0.45, top: 0.74, amp: 30, span: 95 },
   ],
