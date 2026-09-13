@@ -500,6 +500,20 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Water (decorative only)
+  // ---------------------------------------------------------------------
+  // A cosmetic band drawn wherever two ground polylines leave a gap between
+  // them — not a hazard and not the buoyancy/floating-crate mechanic from
+  // the original Red Ball 4-inspired list, which is a separate, unscoped
+  // item. The ball still simply falls through a gap exactly as it always
+  // has; this only gives the gap something to fall PAST, the way the
+  // reference screenshots showed water below a cliff edge.
+  WATER: {
+    DEPTH_BELOW: 30,        // px below the lower of the two cliff edges
+    RIPPLE_OFFSETS: [40, 90],
+  },
+
+  // ---------------------------------------------------------------------
   // The controls on screen
   // ---------------------------------------------------------------------
   UI: {
@@ -568,6 +582,10 @@ export const CONFIG = {
     FLOWER_A: '#FFFFFF',
     FLOWER_B: '#FFD3E0',
     FLOWER_C: '#FFF3B0',
+    // Both blue-dominant — r-b is strongly negative for each, nowhere near
+    // IS_BALL regardless of green.
+    WATER: '#2E9CCA',
+    WATER_RIPPLE: '#BFE9F5',
     // Wood means "you can push this". The level's boundary walls are boxes
     // too, and they used to be drawn in exactly this wood, which made the rule
     // a lie the moment crates became pushable — so the walls have their own

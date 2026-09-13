@@ -217,6 +217,7 @@ function draw() {
   ctx.translate(-camera.x, -camera.y);
 
   drawGround();
+  drawWater();
   drawWalls();
   drawCrates();
   drawCheckpoints();
@@ -451,6 +452,39 @@ function drawGround() {
     ctx.lineWidth = 7;
     ctx.lineJoin = 'round';
     ctx.stroke();
+  }
+}
+
+/**
+ * A cosmetic water band under every gap between two ground polylines —
+ * computed straight from `level.data.ground`, the same "an edge with
+ * nothing continuing from it" idea tests/offline/finish.mjs's own `runner`
+ * already uses to find where a jump is needed, just applied to drawing
+ * instead of driving. Purely decorative: the ball still just falls through
+ * a gap, exactly as it always has.
+ */
+function drawWater() {
+  const C = CONFIG.COLOURS;
+  const W = CONFIG.WATER;
+  const lines = level.data.ground || [];
+  for (let i = 0; i < lines.length - 1; i++) {
+    const endA = lines[i][lines[i].length - 1];
+    const startB = lines[i + 1][0];
+    const gapW = startB[0] - endA[0];
+    if (gapW < 20) continue;   // touching, not a real gap
+
+    const top = Math.max(endA[1], startB[1]) + W.DEPTH_BELOW;
+    ctx.fillStyle = C.WATER;
+    ctx.fillRect(endA[0], top, gapW, level.bounds.h - top);
+
+    ctx.strokeStyle = C.WATER_RIPPLE;
+    ctx.lineWidth = 2;
+    for (const dy of W.RIPPLE_OFFSETS) {
+      ctx.beginPath();
+      ctx.moveTo(endA[0], top + dy);
+      ctx.lineTo(startB[0], top + dy);
+      ctx.stroke();
+    }
   }
 }
 
