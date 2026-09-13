@@ -135,7 +135,7 @@ design pass.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one
 named exception to the one-new-idea rule, level 1's spike patch, which is
-level 1's alone. Phase B (saws, conveyors, crushers, launchers, ice/sticky
-surfaces, the toy-factory theme) from
+level 1's alone. Phase B (saws, conveyors, crushers, ice/sticky surfaces, the
+toy-factory theme) from
 `docs/superpowers/specs/2026-09-10-health-enemies-curriculum-design.md` is
 still separately queued and unrelated to this list.
