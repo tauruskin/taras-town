@@ -56,17 +56,16 @@ ground fill occupies (which is a camera/`CONFIG.CAMERA.GROUND_AT` question,
 not a level-data question)? Those are different systems and the fix differs
 depending on which one the complaint is actually about.
 
-## 4. "Must jump to proceed" gates
+## 4. "Must jump to proceed" gates — DONE
 
-Currently every gap can, in principle, be walked around or is simply the
-only way forward incidentally (the ball can't cross a gap without jumping,
-but nothing in the level design deliberately calls attention to "this is a
-jump-only gate," the way level 1's final platform-only ledge already sort of
-does). Feedback wants more deliberate moments where progress explicitly
-requires a jump — needs a design pass on what distinguishes this from "a gap
-is already jump-only" and what new geometry shape (a wall too tall to reach
-without a running jump plus a boost? a ledge with no ramp?) would express it
-clearly to a 12-year-old without needing text to explain it.
+No existing jump physics could make a taller wall a real gate — `JUMP_V`
+is a fixed impulse, unaffected by how fast the ball is rolling, so every
+jump in this game already tops out at the same 131px. Answering this
+properly meant a new mechanic: a bounce pad, launching the ball on contact
+with no button press needed, and a new level 5 to give it a home under the
+game's own one-new-idea-per-level rule. See
+`docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md` and
+`docs/superpowers/plans/2026-09-13-bounce-pad-and-level-five.md`.
 
 ## 5. A bounce/pop effect when stomping an enemy
 
@@ -131,7 +130,7 @@ Implemented by
 ## Where this fits
 
 None of the items above conflicts with anything already shipped in Phase A.
-Items 1, 2, 6 and 8 are done; items 3, 4, 5 and 7 are each still their own
+Items 1, 2, 4, 6 and 8 are done; items 3, 5 and 7 are each still their own
 design pass.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one

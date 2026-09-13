@@ -38,17 +38,22 @@ In scope:
 
 Out of scope, for a later spec:
 
-- Saws, conveyors, crushers, launchers, ice/sticky surfaces — Phase B, once
-  Phase A is built and played.
+- Saws, conveyors, crushers, ice/sticky surfaces — Phase B, once Phase A is
+  built and played. Launchers were pulled forward and built ahead of the
+  rest of Phase B, as a bounce pad, in
+  docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md —
+  level 5 stays `theme: 'hills'` for now; the toy-factory reskin is still
+  Phase B's job.
 - "Boss round" enemies built as full physics bodies rather than time-based
   patrol — noted as a future idea during design, not committed to here.
 - The coins/shop/ball-skins/double-jump idea — separately deferred by the user
   ("later") before this spec was started, and double jump specifically
   conflicts with the completability-proof architecture (built assuming
   single-jump physics everywhere), which is its own design conversation.
-- The toy-factory theme's specific hazards. Level 5 keeps its "combine
-  everything" role but gets only a light pass here; its factory-specific
-  content is Phase B's job.
+- The toy-factory theme's specific hazards and reskin. Level 5's "combine
+  everything" role is now built — see
+  docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md —
+  with its factory-specific visual theme still Phase B's job.
 - Everything in `docs/superpowers/specs/2026-09-11-followup-ideas.md`
   (enemies/difficulty recurring past level 2, more content in level 1, hill
   height, deliberate jump-gates, a stomp bounce effect) — feedback captured
