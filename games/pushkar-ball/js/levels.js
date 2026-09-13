@@ -855,6 +855,74 @@ function makeGate(g) {
 }
 
 /**
+ * A balance beam: a plank that pivots about a fixed fulcrum, tilting toward
+ * whichever end carries more weight. Only a crate weighs it down — never the
+ * ball — the same rule the pressure switch already follows, so the puzzle is
+ * always about where the crate ends up, not about standing somewhere.
+ *
+ * Unlike a gate or a mover, which only ever translate, a beam ROTATES: its
+ * two endpoints are recomputed from its current angle every step, the same
+ * way a gate rebuilds its box from its current height. Nothing riding it
+ * needs any special carrying code for that: a crate's resting height is
+ * already recalculated fresh every step from whatever segment is under it —
+ * `Level.update` (see levels.js) decides which crates weigh a beam down with
+ * a plain horizontal check, nothing here or in `makeCrate` — so it simply
+ * rides the beam's changing surface at its own fixed x, the same way it
+ * already rides any other changing floor. The ball needs none either —
+ * standing on a surface that is rising into it is already handled by
+ * ordinary contact resolution in physics.js, the same as standing at the
+ * foot of a slope that is itself slowly rising. See this plan's own
+ * "Important deviation from the approved spec" note for the full reasoning,
+ * including why it still carries the same four carrier fields every other
+ * carrier does (`dx`/`dy`/`vx`/`vy`, all permanently zero here rather than a
+ * translation) — `player.js` reads `platform.dx`/`.dy` unconditionally the
+ * moment the ball is standing on anything, and their absence is the exact
+ * NaN bug CLAUDE.md already warns about.
+ */
+function makeBeam(b) {
+  const beam = {
+    ...b,               // x, y (fulcrum), halfLength, minAngle, maxAngle
+    angle: b.minAngle,
+    ax: 0, ay: 0, bx: 0, by: 0,
+    dx: 0, dy: 0, vx: 0, vy: 0,
+    segments: [],
+
+    _reseg() {
+      const dirX = Math.cos(beam.angle), dirY = Math.sin(beam.angle);
+      beam.ax = b.x - b.halfLength * dirX;
+      beam.ay = b.y - b.halfLength * dirY;
+      beam.bx = b.x + b.halfLength * dirX;
+      beam.by = b.y + b.halfLength * dirY;
+      beam.segments = [segment(beam.ax, beam.ay, beam.bx, beam.by)];
+      for (const s of beam.segments) s.owner = beam;
+    },
+
+    /**
+     * Ease the angle toward wherever this step's torque points it, and
+     * rebuild the segment from the result. `torque` is the sum, over every
+     * crate currently resting on this beam, of how far past the fulcrum
+     * (world x, positive toward the far/exit end) its centre sits — see
+     * `Level.update`, the only caller and the only place that knows which
+     * crates are resting on which beam.
+     */
+    update(dt, torque) {
+      const raw = b.minAngle + torque * CONFIG.BEAM.ANGLE_PER_OFFSET;
+      const target = Math.min(b.maxAngle, Math.max(b.minAngle, raw));
+      beam.angle = rampToward(beam.angle, target, dt, 1 / CONFIG.BEAM.SWING_TIME);
+      beam._reseg();
+    },
+
+    overlaps(x, y, r) {
+      const minX = Math.min(beam.ax, beam.bx) - r, maxX = Math.max(beam.ax, beam.bx) + r;
+      const minY = Math.min(beam.ay, beam.by) - r, maxY = Math.max(beam.ay, beam.by) + r;
+      return x >= minX && x <= maxX && y >= minY && y <= maxY;
+    },
+  };
+  beam._reseg();
+  return beam;
+}
+
+/**
  * A wooden crate: solid, standable, and pushable.
  *
  * It exists so there is a way to reach somewhere the jump alone will not — put
@@ -1084,6 +1152,11 @@ class Level {
     // movers they must stay OUT of the static grid built below.
     this.gates = (data.gates || []).map(makeGate);
 
+    // Beams ARE colliders too, and dynamic for the same reason gates are —
+    // they move (rotate, in this case), so they must stay OUT of the static
+    // grid built below.
+    this.beams = (data.beams || []).map(makeBeam);
+
     // Enemies are the same kind of thing spikes are — not colliders, hit-
     // tested only — except the roller, which asks the real physics engine
     // to move it and so needs to know the level (`this`, below) rather than
@@ -1106,6 +1179,27 @@ class Level {
     this.time += dt;
     for (const m of this.movers) m.update(this.time);
     for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
+    // A beam's torque comes only from crates resting on it — never the
+    // ball — and crates are updated (this step's `grounded`/`x`, not last
+    // step's) on the line just above. "Resting on it" is a plain horizontal
+    // check — the crate is grounded and its centre sits between the beam's
+    // own two current endpoints — rather than asking what specific segment
+    // held it up: a crate pushed far enough to matter can start to overlap
+    // the real ground beyond the beam too, and a segment-ownership check
+    // would risk losing its weight to a tie at exactly the moment the
+    // puzzle is being solved. See this plan's own "Important deviation"
+    // note.
+    for (const beam of this.beams) {
+      const lo = Math.min(beam.ax, beam.bx), hi = Math.max(beam.ax, beam.bx);
+      let torque = 0;
+      for (const c of this.crates) {
+        if (!c.grounded) continue;
+        const cx = c.x + c.w / 2;
+        if (cx < lo || cx > hi) continue;
+        torque += cx - beam.x;
+      }
+      beam.update(dt, torque);
+    }
     for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
     for (const p of this.pads) p.squashT = Math.max(0, p.squashT - dt);
     // A switch is pressed by any crate resting on it — never the ball
@@ -1145,6 +1239,7 @@ class Level {
     const out = [...this.statics];
     for (const m of this.movers) out.push(...m.segments);
     for (const g of this.gates) out.push(...g.segments);
+    for (const beam of this.beams) out.push(...beam.segments);
     for (const c of this.crates) if (c !== crate) out.push(...c.segments);
     return out;
   }
@@ -1160,6 +1255,7 @@ class Level {
     const out = [...this.grid.near(x, y, r)];
     for (const m of this.movers) if (m.overlaps(x, y, r)) out.push(...m.segments);
     for (const g of this.gates) if (g.overlaps(x, y, r)) out.push(...g.segments);
+    for (const beam of this.beams) if (beam.overlaps(x, y, r)) out.push(...beam.segments);
     for (const c of this.crates) if (c.overlaps(x, y, r)) out.push(...c.segments);
     return out;
   }

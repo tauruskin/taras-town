@@ -210,6 +210,22 @@ export const CONFIG = {
     OPEN_TIME: 0.6,
   },
 
+  BEAM: {
+    // Seconds for a full swing between a beam's minAngle and maxAngle, in
+    // either direction. Reuses the gate's own "OPEN_TIME"-style single
+    // duration, the same bounded, non-instant lerp idiom.
+    SWING_TIME: 1.0,
+    // Radians of TARGET angle added per world-unit a resting crate's centre
+    // sits past the fulcrum (positive = toward the far/exit end; negative
+    // offsets, a crate still on the near/entry side, are clamped away by
+    // the target's own minAngle floor and so contribute nothing). Only a
+    // crate weighs a beam down, never the ball itself — the same rule the
+    // pressure switch already follows, so the puzzle is always about where
+    // the crate ends up, not about standing somewhere. See
+    // docs/superpowers/specs/2026-09-13-balance-beam-design.md.
+    ANGLE_PER_OFFSET: 0.0145,
+  },
+
   // ---------------------------------------------------------------------
   // Failing
   // ---------------------------------------------------------------------
@@ -624,6 +640,11 @@ export const CONFIG = {
     // must never read as wood.
     SWITCH_PLATE: '#5E6B73',
     SWITCH_PLATE_EDGE: '#3E474D',
+    // A stone-family grey, distinct from CRATE's wood — the beam itself
+    // cannot be pushed, only ridden or weighed down by a crate, so it must
+    // never read as pushable the way the gate already doesn't.
+    BEAM: '#8D99A6',
+    BEAM_PIVOT: '#6B7680',
     BALL: '#E8402A',
     BALL_LIGHT: '#FF8A72',
     BALL_MARK: '#A32615',
