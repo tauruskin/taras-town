@@ -109,7 +109,13 @@ for (const [w, h] of SCREENS) {
   }
 
   // The whole point of the exercise: a big screen must not look half-and-half.
-  if (h >= 700 && land > 35) {
+  // The ceiling here is 42, not the 50 that would actually be half-and-half:
+  // GROUND_AT's honoured-case land share is exactly 1 - GROUND_AT (40% at
+  // today's 0.60), so 42 leaves a couple of points of slack for that exact
+  // value while staying meaningfully below the 50% this check exists to
+  // catch. If GROUND_AT changes again, recompute 1 - GROUND_AT and move this
+  // number to stay just above it — don't leave it trailing the old target.
+  if (h >= 700 && land > 42) {
     fail(`on ${w}x${h} the land still fills ${land.toFixed(0)}% of the screen — a tall window should not read as half sky, half field`);
   }
 

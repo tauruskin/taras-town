@@ -78,7 +78,7 @@ export const CONFIG = {
     // down would sit under a thumb, which is exactly what raising it fixed in
     // the first place. So this is a target, not a promise: it is honoured
     // wherever there is room and given up where there is not.
-    GROUND_AT: 0.73,
+    GROUND_AT: 0.60,
 
     // The daylight, in CSS pixels, that must remain between the ball and the
     // top of the nearest on-screen button. This is the hard constraint that
