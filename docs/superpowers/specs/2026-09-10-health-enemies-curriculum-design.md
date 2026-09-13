@@ -55,9 +55,10 @@ Out of scope, for a later spec:
   docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md —
   with its factory-specific visual theme still Phase B's job.
 - Two items from `docs/superpowers/specs/2026-09-11-followup-ideas.md`
-  remain not yet brainstormed: hill height and a stomp bounce effect.
-  Enemies/difficulty recurring past level 2, more content in level 1, and
-  deliberate jump-gates — also from that list — are since done.
+  remain not yet brainstormed: what a walker or a roller costs a late
+  jumper, and a stomp bounce effect. Enemies/difficulty recurring past
+  level 2, more content in level 1, hill height, and deliberate
+  jump-gates — also from that list — are since done.
 
 ## Content boundaries: what loosens, what doesn't
 
