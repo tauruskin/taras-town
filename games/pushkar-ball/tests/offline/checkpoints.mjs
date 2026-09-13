@@ -280,5 +280,44 @@ const alive = (ball, deaths, what) => {
   if (ball.hearts !== CONFIG.HEALTH.HEARTS) fail(`hearts did not refill at the checkpoint: ${ball.hearts}`);
 }
 
+// --- 8. after a zero-hearts reset, a checkpoint can be earned again -------
+//
+// Task 1 (see health.mjs case 4) proves home resets to spawn and the
+// checkpoint's `taken` flag clears. This proves that clearing actually
+// matters: the ball can roll back over the same checkpoint and have it
+// re-arm home and refill hearts, exactly as if this were a fresh attempt.
+{
+  const level = world();
+  const input = stub();
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+  run(ball, level, input, 0.8);
+
+  input.right = true;
+  run(ball, level, input, 2.0);   // past the first checkpoint at x=700
+  input.right = false;
+  if (!level.checkpoints[0].taken) fail('8: the checkpoint was never reached, so this proves nothing');
+  if (ball.home.x !== level.checkpoints[0].x) fail('8: home did not move to the first checkpoint');
+
+  for (let i = 0; i < CONFIG.HEALTH.HEARTS; i++) {
+    ball.hit(1);
+    run(ball, level, stub(), CONFIG.HEALTH.IFRAME + 0.05);
+  }
+  console.log(`\n8. after running hearts to zero: x=${ball.x.toFixed(0)} (spawn ${level.spawn.x}), ` +
+              `home.x=${ball.home.x.toFixed(0)}, checkpoint taken=${level.checkpoints[0].taken}`);
+  if (Math.abs(ball.home.x - level.spawn.x) > 5) fail('8: home did not reset to spawn on the zero-hearts fail');
+  if (level.checkpoints[0].taken) fail('8: the checkpoint stayed taken through the reset');
+
+  // Roll back over the same checkpoint and confirm it is genuinely live.
+  input.right = true;
+  run(ball, level, input, 2.0);
+  input.right = false;
+
+  console.log(`   rolled back over it: home.x=${ball.home.x.toFixed(0)}, taken=${level.checkpoints[0].taken}, ` +
+              `hearts=${ball.hearts}`);
+  if (!level.checkpoints[0].taken) fail('8: rolling over the checkpoint after the reset did not re-arm it');
+  if (ball.home.x !== level.checkpoints[0].x) fail('8: home did not move back to the checkpoint after the reset');
+  if (ball.hearts !== CONFIG.HEALTH.HEARTS) fail('8: hearts did not refill on re-reaching the checkpoint');
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CHECKPOINT CHECKS PASSED');
 process.exit(failures ? 1 : 0);
