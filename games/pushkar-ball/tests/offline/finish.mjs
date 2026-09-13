@@ -195,6 +195,26 @@ const ROUTES = {
   // not the only one. Moved here from level three in the Sep 2026 curriculum
   // reshuffle — unchanged otherwise.
   4: (level, lead) => runner(level, lead),
+
+  // Level five: the generic runner handles everything except the wall gate,
+  // since nothing about a pad flush with the ground looks like an edge, a
+  // spike, a crate, or a step to it — it just runs the ball straight over
+  // both pads and into the wall. So the route is the generic runner right
+  // up to the wall, then a deliberate approach: keep rolling into the
+  // second pad, which launches automatically (no jump needed, matching how
+  // a real player would discover it), and steer straight through the
+  // resulting arc.
+  5: (level, lead) => {
+    const run = runner(level, lead);
+    const wallX = 11360;
+    return (ball) => {
+      if (ball.x < wallX - 400) return run(ball);
+      // Past this point, just keep holding right: the pad does the rest,
+      // and there is nothing here for the runner's own checks (edges,
+      // spikes, crates, steps) to react to.
+      return { right: true };
+    };
+  },
 };
 
 // A spread wide enough to be sloppy, not so wide it is somebody else's route:
@@ -307,6 +327,33 @@ console.log('\n3. level three without its crate');
     // And against a literal, so a change that moved the ledge and the jump
     // together cannot slide past a check that derives both from the level.
     if (best < 620) fail(`without the crate a ball gets its centre to y=${best.toFixed(0)}; it was about 649 when this was written`);
+  }
+}
+
+// --- 3b. level five cannot clear the wall without the second pad -----------
+//
+// The first pad (the rehearsal, on open ground) stays — removing it would
+// also remove the one place this checks that a ball can even reach the
+// wall's approach normally. Only the gate pad, at 11140, is taken away.
+console.log('\n3b. level five without its gate pad');
+{
+  const data = LEVELS.find((l) => l.id === 5);
+  if (!data) fail('there is no level 5');
+  else {
+    const gatePad = data.pads.find((p) => p.x === 11140);
+    if (!gatePad) fail('level 5 has no pad at x=11140 to remove — has the geometry moved?');
+    else {
+      const bare = { ...data, pads: data.pads.filter((p) => p !== gatePad) };
+      const wallX = 11360;
+      let cleared = 0, tries = 0;
+      for (let from = wallX - 700; from <= wallX - 100; from += 20) {
+        tries++;
+        const { ball } = play({ ...bare, spawn: { x: from, y: 600 } }, () => (b) => ({ right: true }), { seconds: 6 });
+        if (ball.x > wallX + 60) cleared++;
+      }
+      if (cleared) fail(`level 5 was cleared past the wall without its gate pad ${cleared} time(s) of ${tries} — the wall no longer needs it`);
+      else console.log(`   ${tries} tries without it, none got past the wall at x=${wallX}`);
+    }
   }
 }
 
