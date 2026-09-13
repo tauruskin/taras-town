@@ -646,6 +646,79 @@ export const LEVELS = [
       { x: 10850, y: 760 },
     ],
   },
+
+  {
+    // Level six: the pressure switch and its gate are the one new idea —
+    // push a crate onto the plate to hold the gate open, then walk through
+    // without it, since nothing here lets the ball pull a crate back. A
+    // 200px gap, a recurring low stone step and a recurring walker warm the
+    // level up first; none of that is new. See
+    // docs/superpowers/specs/2026-09-13-pressure-switch-and-scenery-design.md.
+    id: 6,
+    theme: 'hills',
+    bounds: { w: 13000, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 12760, y: 760 },
+
+    ground: [
+      // Warm-up: a proven 200px gap, well before any checkpoint.
+      [[40, 760], [2200, 760]],
+      // A long flat carrying the recurring stone step and the recurring
+      // walker, well apart from each other and from the puzzle ahead.
+      [[2400, 760], [7900, 760]],
+      // The puzzle stretch, protected by the checkpoint just before it: the
+      // crate, the switch plate, and the closed gate.
+      [[7900, 760], [11200, 760]],
+      // Past the gate, flat to the goal — nothing hard left to guard.
+      [[11200, 760], [12960, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 12960, y: 0, w: 40, h: 1080 },
+      // The recurring low stone step from level one, 60 tall — a jump
+      // clears it with more than twice the height needed.
+      { x: 3200, y: 700, w: 200, h: 60 },
+      // The crate that matters. Pushed right, it comes to rest against the
+      // CLOSED gate's own face — the gate does double duty as both the
+      // obstacle and the thing that stops the crate exactly on the plate,
+      // the same way level three's ledge face stops its crate.
+      { x: 8300, y: 660, w: 100, h: 100, movable: true },
+    ],
+
+    // The plate's right edge (9700 + 110 = 9810) sits flush against the
+    // gate's left face, so a crate pushed all the way right comes to rest
+    // with its footprint over the plate — there is nowhere else for it to
+    // stop.
+    switches: [
+      { id: 'gate1', x: 9700, y: 760, w: 110 },
+    ],
+
+    // Closed: 200 tall, far beyond any unaided jump's 131px reach — the
+    // same wall height level five's own gate already proved needs a real
+    // mechanic, not a jump, to clear.
+    gates: [
+      { x: 9810, y: 560, w: 40, h: 200, switchId: 'gate1' },
+    ],
+
+    platforms: [],
+
+    enemies: [
+      // A recurring walker, well clear of the step (1300 units) and of the
+      // puzzle stretch (3400 units) — never met at the same moment as
+      // anything else.
+      { kind: 'walker', x: 4500, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
+    ],
+
+    // One. Everything before it (the first gap, the step, the walker) is
+    // already-practised ground — none of it is this level's hard part, so a
+    // checkpoint there would only bank progress nobody was going to lose.
+    // Everything after the gate, once it's open, is flat with nothing left
+    // to fail — a second checkpoint there would guard nothing.
+    checkpoints: [
+      { x: 8150, y: 760 },
+    ],
+  },
 ];
 
 /**
