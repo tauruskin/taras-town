@@ -68,18 +68,18 @@ game's own one-new-idea-per-level rule. See
 `docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md` and
 `docs/superpowers/plans/2026-09-13-bounce-pad-and-level-five.md`.
 
-## 5. A bounce/pop effect when stomping an enemy
+## 5. A bounce/pop effect when stomping an enemy — DONE
 
-Today `Level.stompEnemy()` (`games/pushkar-ball/js/levels.js`) just sets the
-enemy's `alive` to `false` with no additional feedback — the enemy vanishes
-on the next frame's `drawEnemies` pass with nothing marking the moment.
-Feedback wants a small bounce, likely both a visual pop/particle-style
-effect and a physical upward bump to the ball's `vy` (similar in spirit to
-`CONFIG.HEALTH.KNOCKBACK_UP` for a hit, but a reward this time rather than a
-setback) so a stomp reads as satisfying, not just silent removal. Worth
-checking against the original phase-3 design language ("pops into a few
-triangles when bounced on") for whether a particle-style pop was already
-half-designed and just never built.
+Confirmed the original phase-3 design's particle system
+(`js/effects.js`, planned for "particles") was never built — not for
+this, not for the deflate animation's own planned "soft puff," which is
+still a separate, older, un-fixed gap. This is the game's first particle
+effect. A stomp now gives the ball an automatic upward hop
+(`CONFIG.ENEMY.STOMP_BOUNCE`) and scatters six small triangles — the same
+shape a walker or roller's spiky ring is already drawn with — at fixed,
+evenly-spaced angles, fading out after `CONFIG.ENEMY.POP.LIFE` seconds.
+See `docs/superpowers/specs/2026-09-13-stomp-pop-design.md` and
+`docs/superpowers/plans/2026-09-13-stomp-pop.md`.
 
 ## 6. Level 1's lift cannot be boarded — DONE
 
@@ -131,8 +131,8 @@ Implemented by
 ## Where this fits
 
 None of the items above conflicts with anything already shipped in Phase A.
-Items 1, 2, 3, 4, 6 and 8 are done; items 5 and 7 are each still their own
-design pass.
+Items 1, 2, 3, 4, 5, 6 and 8 are done; item 7 is still its own design
+pass.
 Item 1 settled the one question that could have reshaped the others — an
 idea already taught may recur in any later level — and item 2 added one
 named exception to the one-new-idea rule, level 1's spike patch, which is
