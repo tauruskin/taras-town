@@ -460,6 +460,28 @@ export const CONFIG = {
   ],
 
   // ---------------------------------------------------------------------
+  // Sun and clouds
+  // ---------------------------------------------------------------------
+  // Both drawn in screen space, before the hills, so they sit farthest back
+  // of anything. The sun barely moves — X/Y are fixed fractions of the
+  // screen — since a real sun this far away wouldn't visibly shift as the
+  // level scrolls. Clouds do drift, using the same wrap-around trick the
+  // hills use for an endless band, but discrete shapes instead of a
+  // continuous sine, since a cloud is a puff, not a wave.
+  SUN: {
+    X: 0.78, Y: 0.20,   // screen fractions
+    R: 46,
+    GLOW: 2.2,          // glow radius as a multiple of R
+  },
+  CLOUDS: {
+    COUNT: 4,
+    FACTOR: 0.08,       // parallax factor, slower than any hill band
+    TOP: 0.14,          // screen fraction
+    STAGGER: 34,        // every other cloud sits this much lower
+    SIZE: 46,
+  },
+
+  // ---------------------------------------------------------------------
   // The controls on screen
   // ---------------------------------------------------------------------
   UI: {
@@ -504,6 +526,14 @@ export const CONFIG = {
     // tests/browser/_helpers.mjs the same way every colour here is: r-b is
     // small and negative, nowhere near being mistaken for the ball.
     HILL_FARTHEST: '#CFE8DA',
+
+    // Both a warm yellow, the same family FLAG and the results panel's star
+    // already use — checked the same way against IS_BALL: r-b clears 60,
+    // but green sits far enough above blue that the second clause fails, so
+    // neither is ever picked up as the ball.
+    SUN: '#FFE066',
+    SUN_GLOW: 'rgba(255, 224, 128, 0.30)',
+    CLOUD: 'rgba(255, 255, 255, 0.85)',
     HILL_FAR: '#8ED6A0',
     HILL_NEAR: '#63BE7B',
     GROUND: '#7ED957',

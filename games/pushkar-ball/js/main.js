@@ -206,6 +206,8 @@ function draw() {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, cssW, cssH);
 
+  drawSun();
+  drawClouds();
   drawParallax();
 
   ctx.save();
@@ -269,6 +271,59 @@ function draw() {
  * drawn before the world transform is applied, which is what keeps them
  * behind the ground rather than in front of it.
  */
+/**
+ * The sun: a disc plus a soft glow, fixed at its own screen fraction. It
+ * does not scroll with the level at all — a sun this far away wouldn't
+ * visibly move as the camera pans a few thousand units.
+ */
+function drawSun() {
+  const C = CONFIG.COLOURS;
+  const S = CONFIG.SUN;
+  const cx = cssW * S.X, cy = cssH * S.Y;
+
+  const glow = ctx.createRadialGradient(cx, cy, S.R * 0.5, cx, cy, S.R * S.GLOW);
+  glow.addColorStop(0, C.SUN_GLOW);
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, S.R * S.GLOW, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = C.SUN;
+  ctx.beginPath();
+  ctx.arc(cx, cy, S.R, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/**
+ * A handful of drifting clouds, wrapped around so the band is endless — the
+ * same reason the hills wrap, but as discrete puffs on a repeating spacing
+ * rather than a continuous sine, since a cloud has a shape a sine doesn't.
+ */
+function drawClouds() {
+  const C = CONFIG.COLOURS;
+  const CL = CONFIG.CLOUDS;
+  const spacing = cssW / CL.COUNT + CL.SIZE * 2;
+  const total = spacing * CL.COUNT;
+  const shift = camera.x * CL.FACTOR * scale;
+  ctx.fillStyle = C.CLOUD;
+  for (let i = 0; i < CL.COUNT; i++) {
+    const raw = i * spacing - shift;
+    const x = ((raw % total) + total) % total - CL.SIZE;
+    const y = cssH * CL.TOP + (i % 2) * CL.STAGGER;
+    drawCloudPuff(x, y, CL.SIZE);
+  }
+}
+
+/** One cloud: three overlapping circles, wide and flat rather than round. */
+function drawCloudPuff(x, y, size) {
+  ctx.beginPath();
+  ctx.ellipse(x, y, size * 0.6, size * 0.32, 0, 0, Math.PI * 2);
+  ctx.ellipse(x - size * 0.4, y + size * 0.08, size * 0.4, size * 0.24, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + size * 0.45, y + size * 0.05, size * 0.42, size * 0.26, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawParallax() {
   const C = CONFIG.COLOURS;
   for (const band of CONFIG.PARALLAX) {
