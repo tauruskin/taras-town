@@ -298,7 +298,7 @@ export const CONFIG = {
     // level 2's already-tuned enemy placements against finish.mjs (a bonus
     // mid-jump stomp perturbs arrival timing at whatever margin comes
     // next); 300 was found by a binary search against the same suite and
-    // has real margin below the 390 break point.
+    // has real margin below the 390 break point (~90px/s).
     STOMP_BOUNCE: 300,     // px/s upward impulse on a successful stomp
     POP: {
       COUNT: 6,            // triangles flying off, evenly spaced

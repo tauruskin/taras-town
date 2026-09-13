@@ -941,12 +941,14 @@ class Level {
     for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
     for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
     for (const p of this.pads) p.squashT = Math.max(0, p.squashT - dt);
-    for (const p of this.particles) {
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.life -= dt;
+    if (this.particles.length) {
+      for (const p of this.particles) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+      }
+      this.particles = this.particles.filter((p) => p.life > 0);
     }
-    this.particles = this.particles.filter((p) => p.life > 0);
   }
 
   /**
@@ -1065,9 +1067,12 @@ class Level {
       // Fixed, evenly-spaced angles around the enemy's own position — not
       // randomised, so a level looks identical on every attempt, the same
       // reason moving platforms are a sine of level time rather than
-      // integrated physics. Six pieces, 60° apart: the same ring
-      // arrangement drawSpikyBody already draws its eight spikes in, just
-      // fewer, and now flying apart instead of standing still.
+      // integrated physics. Six pieces, 60° apart — the same ring shape a
+      // walker or roller already wears, just fewer pieces and now flying
+      // apart instead of standing still. (A popper has no ring of its own,
+      // but gets the same generic burst — one pop animation for every
+      // enemy kind, matching the original design's blanket "enemies... pop
+      // into a few triangles" phrasing.)
       const P = CONFIG.ENEMY.POP;
       for (let i = 0; i < P.COUNT; i++) {
         const a = (i / P.COUNT) * Math.PI * 2;
