@@ -260,9 +260,9 @@ the horizon looks the same on a phone and a monitor. The thumb buttons want the
 ball above them by `GROUND_CLEAR`, and they take a fixed 124 CSS pixels — a
 tenth of a tall window, but 44% of a 280px one. The buttons always win, so
 `GROUND_AT` is a target honoured where there is room and given up where there
-is not: about a quarter of the screen is land on a monitor, closer to a half on
-the shortest phone, and `tests/offline/camera.mjs` asserts both halves of that
-rule rather than one number that could only be right on one screen.
+is not: about two fifths of the screen is land on a monitor, closer to a half
+on the shortest phone, and `tests/offline/camera.mjs` asserts both halves of
+that rule rather than one number that could only be right on one screen.
 
 ## Tests
 
