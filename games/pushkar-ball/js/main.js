@@ -218,11 +218,13 @@ function draw() {
   drawWalls();
   drawCrates();
   drawCheckpoints();
+  drawSwitches();
   drawSpikes(ctx, level.spikes, CONFIG);
   drawEnemies(ctx, level.enemies, level.time, CONFIG);
   drawParticles();
   drawPlatforms();
   drawPads();
+  drawGates();
   drawGoal();
   drawBall();
 
@@ -378,6 +380,42 @@ function drawCheckpoints() {
     ctx.closePath();
     ctx.fillStyle = c.taken ? C.CHECK_ON : C.CHECK_OFF;
     ctx.fill();
+  }
+}
+
+/**
+ * The pressure switch: a small raised plate, dark and unlike ordinary
+ * ground, that sinks a little while pressed and rises back when it isn't.
+ * `sw.animT` is `Level.update`'s own eased value; this only ever reads it.
+ */
+function drawSwitches() {
+  const C = CONFIG.COLOURS;
+  const S = CONFIG.SWITCH;
+  for (const sw of level.switches) {
+    const dip = S.PRESS_DEPTH * sw.animT;
+    const topY = sw.y - S.H + dip;
+
+    ctx.fillStyle = C.SWITCH_PLATE_EDGE;
+    ctx.fillRect(sw.x, sw.y - S.H, sw.w, S.H);
+    ctx.fillStyle = C.SWITCH_PLATE;
+    ctx.fillRect(sw.x, topY, sw.w, S.H - dip);
+  }
+}
+
+/**
+ * The gate: a plain stone box, drawn at wherever its own animation has it
+ * right now — `g.x`/`g.y`, never the closed position it was declared at.
+ * Deliberately the same visual language `drawWalls` already uses (a flat
+ * fill plus a lighter top edge), since a gate is exactly a wall except that
+ * it moves.
+ */
+function drawGates() {
+  const C = CONFIG.COLOURS;
+  for (const g of level.gates) {
+    ctx.fillStyle = C.WALL;
+    ctx.fillRect(g.x, g.y, g.w, g.h);
+    ctx.fillStyle = C.WALL_EDGE;
+    ctx.fillRect(g.x, g.y, g.w, 6);
   }
 }
 

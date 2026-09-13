@@ -501,6 +501,13 @@ export const CONFIG = {
     // as a whole cannot be pushed or climbed, only bounced off.
     BOUNCE_PAD: '#FF9F1C',
     BOUNCE_POST: '#9E9E9E',
+    // The switch plate: dark and raised, unlike ordinary ground, so "put
+    // something here" is legible without a word — the same way wood-vs-
+    // stone already is. The gate is drawn in the same stone family a wall
+    // already uses (WALL/WALL_EDGE), on purpose: it isn't pushable, so it
+    // must never read as wood.
+    SWITCH_PLATE: '#5E6B73',
+    SWITCH_PLATE_EDGE: '#3E474D',
     BALL: '#E8402A',
     BALL_LIGHT: '#FF8A72',
     BALL_MARK: '#A32615',
