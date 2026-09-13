@@ -698,6 +698,59 @@ function makeMover(p) {
 }
 
 /**
+ * A gate: a solid box like a wall, except its position slides straight up
+ * to clear a passage while its switch is pressed, and back down when it
+ * isn't. `g.y`/`g.h` are the CLOSED position and height — the same
+ * "y is the top, h reaches down to the ground" convention a plain stone
+ * wall already uses — and `gate.y` is where it is RIGHT NOW, sliding from
+ * `g.y` (closed) up to `g.y - g.h` (fully open, its old footprint entirely
+ * clear).
+ *
+ * Owes the same four carrier fields a crate or a moving platform does: its
+ * top is something the ball could be standing on while it swings, and a
+ * rider with no dx/dy/vx/vy to add is exactly the NaN bug CLAUDE.md already
+ * warns about.
+ */
+function makeGate(g) {
+  const gate = {
+    ...g,
+    x: g.x, y: g.y,
+    openT: 0,          // 0 closed, 1 fully open
+    dx: 0, dy: 0,
+    vx: 0, vy: 0,
+    segments: [],
+
+    update(dt, pressed) {
+      const wasY = gate.y;
+      const target = pressed ? 1 : 0;
+      const rate = dt / CONFIG.GATE.OPEN_TIME;
+      // Three-way, not two: at exactly `target` neither branch may fire, or
+      // an equal comparison falling into "decrease" oscillates the gate
+      // forever between target and target-rate the instant it arrives.
+      if (target > gate.openT) gate.openT = Math.min(target, gate.openT + rate);
+      else if (target < gate.openT) gate.openT = Math.max(target, gate.openT - rate);
+      const ny = g.y - g.h * gate.openT;
+      gate.dy = ny - wasY;
+      gate.vy = dt > 0 ? gate.dy / dt : 0;
+      gate.y = ny;
+      gate.segments = boxSegments(gate.x, gate.y, g.w, g.h);
+      // So a contact can be traced back to the gate that made it, the same
+      // mechanism movers and crates already use.
+      for (const s of gate.segments) s.owner = gate;
+    },
+
+    overlaps(x, y, r) {
+      return x + r > gate.x && x - r < gate.x + g.w && y + r > gate.y && y - r < gate.y + g.h;
+    },
+  };
+  gate.update(0, false);
+  // update(0, false) reports a delta from the gate's declared position to
+  // its position at t=0, which is not movement anybody rode.
+  gate.dy = 0; gate.vy = 0;
+  return gate;
+}
+
+/**
  * A wooden crate: solid, standable, and pushable.
  *
  * It exists so there is a way to reach somewhere the jump alone will not — put
@@ -917,6 +970,16 @@ class Level {
     // does not bounce off a spike; it rolls into one and fails.
     this.spikes = (data.spikes || []).map((s) => ({ x: s.x, y: s.y, w: s.w }));
 
+    // A switch is not a collider either, and never enters the segment world
+    // — the ball and any crate roll over its ground exactly as if it wasn't
+    // there. It only ever reports whether some crate is currently resting
+    // on it; `Level.update` is what turns that into a gate opening.
+    this.switches = (data.switches || []).map((s) => ({ id: s.id, x: s.x, y: s.y, w: s.w, pressed: false, animT: 0 }));
+
+    // Gates ARE colliders, but dynamic ones — they move, so like crates and
+    // movers they must stay OUT of the static grid built below.
+    this.gates = (data.gates || []).map(makeGate);
+
     // Enemies are the same kind of thing spikes are — not colliders, hit-
     // tested only — except the roller, which asks the real physics engine
     // to move it and so needs to know the level (`this`, below) rather than
@@ -941,6 +1004,25 @@ class Level {
     for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
     for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
     for (const p of this.pads) p.squashT = Math.max(0, p.squashT - dt);
+    // A switch is pressed by any crate resting on it — never the ball
+    // itself. Crates are updated above this line, so `grounded` is already
+    // this step's answer, not last step's. `animT` is purely cosmetic — how
+    // far `drawSwitches`' own dip has eased towards pressed or not — and
+    // advanced here the same way a pad's `squashT` already is, so main.js
+    // only ever reads it.
+    for (const sw of this.switches) {
+      sw.pressed = this.crates.some((c) => c.grounded && c.x < sw.x + sw.w && c.x + c.w > sw.x);
+      const target = sw.pressed ? 1 : 0;
+      const rate = dt / CONFIG.SWITCH.PRESS_TIME;
+      // Three-way, not two — see the identical fix and comment on the
+      // gate's own openT just below, in the same loop's sibling.
+      if (target > sw.animT) sw.animT = Math.min(target, sw.animT + rate);
+      else if (target < sw.animT) sw.animT = Math.max(target, sw.animT - rate);
+    }
+    for (const g of this.gates) {
+      const sw = this.switches.find((s) => s.id === g.switchId);
+      g.update(dt, !!(sw && sw.pressed));
+    }
     if (this.particles.length) {
       for (const p of this.particles) {
         p.x += p.vx * dt;
@@ -962,6 +1044,7 @@ class Level {
   solidsFor(crate) {
     const out = [...this.statics];
     for (const m of this.movers) out.push(...m.segments);
+    for (const g of this.gates) out.push(...g.segments);
     for (const c of this.crates) if (c !== crate) out.push(...c.segments);
     return out;
   }
@@ -976,6 +1059,7 @@ class Level {
   near(x, y, r) {
     const out = [...this.grid.near(x, y, r)];
     for (const m of this.movers) if (m.overlaps(x, y, r)) out.push(...m.segments);
+    for (const g of this.gates) if (g.overlaps(x, y, r)) out.push(...g.segments);
     for (const c of this.crates) if (c.overlaps(x, y, r)) out.push(...c.segments);
     return out;
   }

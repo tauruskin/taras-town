@@ -185,6 +185,32 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // The pressure switch and its gate
+  // ---------------------------------------------------------------------
+  // A weight-triggered puzzle: push a crate onto the plate to hold a gate
+  // open, then walk through — the crate stays behind, since nothing in this
+  // game lets the ball pull one back. Only a crate presses a switch, never
+  // the ball itself, so the puzzle is always about planning where the
+  // weight ends up, not about standing somewhere. See
+  // docs/superpowers/specs/2026-09-13-pressure-switch-and-scenery-design.md.
+  SWITCH: {
+    H: 14,          // drawn plate thickness above its ground anchor
+    PRESS_DEPTH: 6, // how far the plate sinks, drawn, while pressed
+    // How quickly the drawn dip animates. Purely visual — pressed/unpressed
+    // itself is instantaneous the moment a crate's box overlaps the plate;
+    // this only softens how sinking and rising are DRAWN.
+    PRESS_TIME: 0.15,
+  },
+  GATE: {
+    // Seconds for a full swing, either direction, closed to open or back.
+    // A gate slides its own height straight up — the "portcullis into a
+    // slot above" reading, not a wall that simply vanishes, since this game
+    // has no precedent for solid geometry disappearing outright and that
+    // would read as a glitch rather than a mechanism.
+    OPEN_TIME: 0.6,
+  },
+
+  // ---------------------------------------------------------------------
   // Failing
   // ---------------------------------------------------------------------
   // How long a relocate takes — the squash-and-respawn sequence `_relocate()`
