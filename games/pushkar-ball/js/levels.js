@@ -564,6 +564,88 @@ export const LEVELS = [
       { x: 10950, y: 620 },
     ],
   },
+
+  {
+    // Level five: the pad is the one new idea, taught first on open, level
+    // ground, then required to clear a wall no ordinary jump can reach.
+    // Everything else here already exists — a gap, a crate, a spike patch,
+    // a walker, a roller — recombined rather than re-taught, per the
+    // recurring-difficulty ruling that an idea already taught may recur in
+    // any later level. See
+    // docs/superpowers/specs/2026-09-13-bounce-pad-and-level-five-design.md.
+    id: 5,
+    theme: 'hills',
+    bounds: { w: 12800, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 12100, y: 760 },
+
+    ground: [
+      // The rehearsal: a long flat, well before any checkpoint, with the
+      // pad sitting directly in the rolling line. There is nothing after it
+      // to clear yet — just open flat ground — so the first bounce is free
+      // to feel out, with nothing to fail at.
+      [[40, 760], [2500, 760]],
+      // A 200px gap — the same size level one's first one already proved —
+      // then a long flat carrying the recurring crate, a spike patch, and a
+      // walker, all well-practised ideas rather than anything new.
+      [[2700, 760], [7000, 760]],
+      // The real test: a roller, protected by checkpoint one just before
+      // it. Then a second 200px gap.
+      [[7000, 760], [9500, 760]],
+      // Home to checkpoint two, then straight on to the gate: no third gap
+      // here, on purpose — this whole stretch is one continuous flat, so
+      // there is nothing to fall into between the checkpoint and the pad.
+      // 120 units sit between the pad's right edge (11140 + 100) and the
+      // wall (11360) — inside the 50-200 unit window the pad's bounce
+      // velocity clears, see the design spec — then flat again to the goal.
+      [[9700, 760], [12760, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 12760, y: 0, w: 40, h: 1080 },
+      // The recurring crate, exactly as pushable as level three's.
+      { x: 4200, y: 660, w: 100, h: 100, movable: true },
+      // The wall: 200 tall, far beyond any unaided jump's 131px reach, and
+      // the only thing in this level the pad is actually required for.
+      { x: 11360, y: 560, w: 40, h: 200 },
+    ],
+
+    pads: [
+      // The rehearsal, on open ground with nothing to clear.
+      { x: 1500, y: 760, w: CONFIG.BOUNCE.W },
+      // The gate. Its right edge sits 120 units short of the wall at
+      // 11360 — comfortably inside the checked 50-200 unit clearance
+      // window, with margin either side.
+      { x: 11140, y: 760, w: CONFIG.BOUNCE.W },
+    ],
+
+    spikes: [
+      // One recurring patch, on the long flat with the crate and the
+      // walker — well-practised, not this level's point.
+      { x: 5600, y: 760, w: 90 },
+    ],
+
+    enemies: [
+      // A walker, recurring, on the same flat as the crate and the spikes.
+      { kind: 'walker', x: 6200, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 300 },
+      // The roller, level five's one real test, protected by checkpoint
+      // one just before it — the same role it plays in level four.
+      { kind: 'roller', x: 8200, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 7300, to: 9300, dir: -1 },
+    ],
+
+    // Two, at the same "roughly a third of the level" boundaries every
+    // other level uses them at. The first guards the roller, the real test
+    // in the level's middle third; the second guards the wall gate — 400
+    // units of runway before the pad at 11140, comfortably more than the
+    // ~55 units a standing start needs to reach full speed, so a checkpoint
+    // respawn is never short of room to build up speed again before the
+    // pad.
+    checkpoints: [
+      { x: 6850, y: 760 },
+      { x: 10850, y: 760 },
+    ],
+  },
 ];
 
 /**
