@@ -61,8 +61,8 @@ export const CONFIG = {
                         // that tracks every jump exactly is nauseating
     DEADZONE_Y: 90,     // world units of vertical slack before it follows at all
     // Where a resting ball's FEET should sit on the screen, as a fraction of
-    // its height — so 0.73 puts the ground about three quarters of the way
-    // down and leaves a quarter of the screen as land.
+    // its height — so 0.60 puts the ground about three fifths of the way
+    // down and leaves two fifths of the screen as land.
     //
     // This replaced a fixed BIAS_Y of 110 world units, which had an accident
     // in it. A settled camera rests `BIAS_Y - DEADZONE_Y` below the ball;
@@ -74,7 +74,7 @@ export const CONFIG = {
     //
     // A fraction cannot be honoured everywhere, and that is the point of
     // GROUND_CLEAR below. On a 280px-tall screen the thumb buttons occupy the
-    // bottom 124px — 44% of everything — so a ball three quarters of the way
+    // bottom 124px — 44% of everything — so a ball three fifths of the way
     // down would sit under a thumb, which is exactly what raising it fixed in
     // the first place. So this is a target, not a promise: it is honoured
     // wherever there is room and given up where there is not.
