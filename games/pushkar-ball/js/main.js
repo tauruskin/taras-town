@@ -342,6 +342,26 @@ function drawParallax() {
 }
 
 /**
+ * A plain, stateless pseudo-random value in [0, 1) for a number — the
+ * classic sine-based GLSL hash. Used to scatter ground texture from world
+ * position alone, so the same X always draws the same rock or flower and
+ * nothing has to be saved or recomputed between frames.
+ */
+function hash(n) {
+  const s = Math.sin(n * 12.9898) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/** The ground polyline's own y at a given x, by linear interpolation. */
+function yOnLine(line, x) {
+  for (let i = 0; i < line.length - 1; i++) {
+    const [x0, y0] = line[i], [x1, y1] = line[i + 1];
+    if (x >= x0 && x <= x1) return y0 + ((x - x0) / (x1 - x0)) * (y1 - y0);
+  }
+  return line[line.length - 1][1];
+}
+
+/**
  * The ground: each polyline filled down to the bottom of the level, with its
  * top edge picked out in a darker line so a slope reads as a surface.
  *
@@ -351,15 +371,60 @@ function drawParallax() {
  */
 function drawGround() {
   const C = CONFIG.COLOURS;
+  const T = CONFIG.GROUND_TEXTURE;
   for (const line of level.data.ground || []) {
-    ctx.beginPath();
-    ctx.moveTo(line[0][0], line[0][1]);
-    for (const [x, y] of line.slice(1)) ctx.lineTo(x, y);
-    ctx.lineTo(line[line.length - 1][0], level.bounds.h);
-    ctx.lineTo(line[0][0], level.bounds.h);
-    ctx.closePath();
+    const fillPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(line[0][0], line[0][1]);
+      for (const [x, y] of line.slice(1)) ctx.lineTo(x, y);
+      ctx.lineTo(line[line.length - 1][0], level.bounds.h);
+      ctx.lineTo(line[0][0], level.bounds.h);
+      ctx.closePath();
+    };
+
+    fillPath();
     ctx.fillStyle = C.GROUND;
     ctx.fill();
+
+    // Rock speckle and strata lines, clipped to the same filled shape so
+    // neither ever draws outside the dirt body regardless of slope.
+    ctx.save();
+    fillPath();
+    ctx.clip();
+
+    ctx.strokeStyle = C.GROUND_STRATA;
+    ctx.lineWidth = 3;
+    for (const depth of T.STRATA_DEPTHS) {
+      ctx.beginPath();
+      ctx.moveTo(line[0][0], line[0][1] + depth);
+      for (const [x, y] of line.slice(1)) ctx.lineTo(x, y + depth);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = C.GROUND_ROCK;
+    const x0 = line[0][0], x1 = line[line.length - 1][0];
+    for (let x = x0; x < x1; x += T.ROCK_SPACING) {
+      const h1 = hash(x), h2 = hash(x + 0.37);
+      const surface = yOnLine(line, x);
+      const y = surface + T.ROCK_MIN_DEPTH + h2 * (T.ROCK_MAX_DEPTH - T.ROCK_MIN_DEPTH);
+      ctx.beginPath();
+      ctx.ellipse(x + h1 * T.ROCK_SPACING * 0.6, y, T.ROCK_R * (0.6 + h1 * 0.4), T.ROCK_R * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Flowers sit ON TOP of the grass edge, drawn after the clip is lifted
+    // so they aren't cut off at the ground's own top boundary.
+    const flowerColours = [C.FLOWER_A, C.FLOWER_B, C.FLOWER_C];
+    for (let x = x0; x < x1; x += T.FLOWER_SPACING) {
+      const h = hash(x + 100);
+      if (h > T.FLOWER_CHANCE) continue;
+      const y = yOnLine(line, x);
+      ctx.fillStyle = flowerColours[Math.floor(h / T.FLOWER_CHANCE * flowerColours.length) % flowerColours.length];
+      ctx.beginPath();
+      ctx.arc(x, y - 4, T.FLOWER_R, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.beginPath();
     ctx.moveTo(line[0][0], line[0][1]);

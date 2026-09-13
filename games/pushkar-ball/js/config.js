@@ -482,6 +482,24 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Ground texture
+  // ---------------------------------------------------------------------
+  // Everything below is positioned deterministically from world X through
+  // `groundHash` in main.js — the same reasoning the hills' own sine phase
+  // already follows: nothing here is saved, and nothing jitters between
+  // frames, because the same X always hashes to the same texture.
+  GROUND_TEXTURE: {
+    STRATA_DEPTHS: [50, 110],      // px below the surface, each one line
+    ROCK_SPACING: 90,              // px between rock candidates
+    ROCK_MIN_DEPTH: 20,
+    ROCK_MAX_DEPTH: 140,
+    ROCK_R: 10,
+    FLOWER_SPACING: 70,            // px between flower candidates
+    FLOWER_CHANCE: 0.35,           // fraction of candidates that get one
+    FLOWER_R: 3,
+  },
+
+  // ---------------------------------------------------------------------
   // The controls on screen
   // ---------------------------------------------------------------------
   UI: {
@@ -538,6 +556,18 @@ export const CONFIG = {
     HILL_NEAR: '#63BE7B',
     GROUND: '#7ED957',
     GROUND_EDGE: '#4E9E38',
+    // Both small r-b, well clear of IS_BALL regardless of green — dark
+    // enough to read as buried dirt and rock rather than anything else
+    // drawn here.
+    GROUND_STRATA: '#4A3222',
+    GROUND_ROCK: '#8B7D6B',
+    // Two flowers plus plain white. FLOWER_C's r-b clears 60 on its own,
+    // but the same second-clause check every warm colour here gets (green
+    // sits far enough above blue) keeps it clear of IS_BALL, the same
+    // reasoning FLAG and SUN already rely on.
+    FLOWER_A: '#FFFFFF',
+    FLOWER_B: '#FFD3E0',
+    FLOWER_C: '#FFF3B0',
     // Wood means "you can push this". The level's boundary walls are boxes
     // too, and they used to be drawn in exactly this wood, which made the rule
     // a lie the moment crates became pushable — so the walls have their own
