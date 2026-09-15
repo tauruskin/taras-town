@@ -38,9 +38,9 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
  * Play `data` with `route` from (x, y), after sitting still for `delay`
  * seconds. Returns the ball, the level, how long it took, and `riserHits` —
  * how many times a hit landed while the ball was within 60px of a rising
- * patch. The suite otherwise counts deaths, not hearts, so a hit that only
- * became a death because something else had already spent hearts would
- * otherwise slip through as a pass; this catches it even when it doesn't.
+ * patch. The suite otherwise counts deaths, not hearts, so a hit at a rising
+ * patch that did not happen to use up the last heart would slip through as a
+ * pass; this catches such a hit even when no death follows.
  */
 function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
   const level = loadLevel(data);
@@ -125,10 +125,12 @@ function runner(level, lead) {
  * Within 260px of a rising patch, and not yet committed to it, it looks ahead
  * with the same formula the level uses: if the patch will stay under LOW_OK for
  * the whole crossing — 0.2 to 1.0s from now — it runs; otherwise it backs off
- * to 200px and holds still. 75 is what the sloppiest jump this file tries
- * (lead 0.7, taking off 49px short) clears at the patch's front edge, with a
- * little margin. 90 was too high — a lead-0.7 jump could still meet a patch
- * still sinking through it; 60 finds no window on the 3.5s cycle.
+ * to 200px and holds still. 75 is not what a jump clears at the patch's front
+ * edge — the sloppiest one here (lead 0.7) clears only about 59px there — but
+ * the patch keeps sinking while the ball crosses it. Swept at every lead from
+ * 0.7 to 1.3 and start delays every 0.1s, 75 found no hit at all, the closest
+ * pass about 6px, on level two's slow patch. 90 let a lead-0.7 jump meet a
+ * patch still sinking; 60 finds no window on the 3.5s cycle.
  */
 const LOW_OK = 75;
 function waitForLow(level, lead) {
@@ -229,11 +231,18 @@ const ROUTES = {
     };
   },
 
-  // Level four: nothing but running and jumping — over its gap, its spikes
-  // and its one roller. The platform across its gap is the second way over,
-  // not the only one. Moved here from level three in the Sep 2026 curriculum
-  // reshuffle — unchanged otherwise.
-  4: (level, lead) => runner(level, lead),
+  // Level four: the runner, until the planks under its tall patch. From 500
+  // short of them to just past the tunnel it only holds right, so it arrives
+  // at full speed, breaks them and rolls underneath. Section 3d proves the
+  // crate way too, and that there is no third.
+  4: (level, lead) => {
+    const run = runner(level, lead);
+    const wood = level.breakables[0];
+    return (ball) => {
+      if (ball.x > wood.x - 500 && ball.x < wood.x + 150) return { right: true };
+      return run(ball);
+    };
+  },
 
   // Level five: the generic runner handles it all, gate included. Once
   // grounded contact with the second pad launches the ball, the runner's
@@ -274,6 +283,38 @@ const ROUTES = {
     };
   },
 };
+
+// Level four's other way: shove the crate against the planks, back off at
+// least 160, hop onto the crate from within 50 * lead of it and jump off the
+// instant it lands. Simulated from rest: hopping from within 30-70px of the
+// crate cleared the patch every time; from 90px or more it hit the teeth.
+function crateRoute4(level, lead) {
+  const run = runner(level, lead);
+  const crate = level.crates[0];
+  const wood = level.breakables[0];
+  let stage = 'run', stuck = 0, lastX = crate.x;
+  return (ball) => {
+    if (stage === 'run') {
+      if (ball.grounded && ball.x > crate.x - 200 && ball.x < crate.x) stage = 'push';
+      else return run(ball);
+    }
+    if (stage === 'push') {
+      stuck = Math.abs(crate.x - lastX) < 0.01 && crate.x + crate.w > wood.x - 5 ? stuck + 1 : 0;
+      lastX = crate.x;
+      if (stuck > 30) stage = 'back';
+      return { right: true };
+    }
+    if (stage === 'back') {
+      if (ball.x < crate.x - 160) stage = 'hop';
+      return { left: true };
+    }
+    if (stage === 'hop') {
+      if (ball.grounded && ball.platform === crate) stage = 'over';
+      return { right: true, jump: ball.grounded && ball.platform !== crate && ball.x > crate.x - 50 * lead };
+    }
+    return { right: true, jump: ball.grounded && ball.platform === crate };
+  };
+}
 
 // A spread wide enough to be sloppy, not so wide it is somebody else's route:
 // jumping at 70% to 130% of the chosen lead, and starting at any of ten points
@@ -441,6 +482,68 @@ console.log('\n3c. level six without its switch');
     }
     if (cleared) fail(`level 6 was cleared past the gate ${cleared} time(s) of ${tries} without its switch — the gate no longer needs it`);
     else console.log(`   ${tries} tries without it, none got past the gate at x=${gateX}`);
+  }
+}
+
+// --- 3d. level four: both ways past its tall patch, and no third -----------
+//
+// The route above goes through the tunnel, so it must have broken the planks.
+// The crate route, from checkpoint two, must finish without breaking them. With
+// the crate gone and the planks made unbreakable, no jump from anywhere gets
+// past. And a slow roll into the real planks leaves them standing.
+console.log('\n3d. level four, both ways past its tall patch');
+{
+  const data = LEVELS.find((l) => l.id === 4);
+  const plank = data.breakables?.[0];
+  const tall = plank && data.spikes.find((s) => s.x === plank.x);
+  if (!plank || !tall) fail('level 4 has no planks under a tall patch — has the geometry moved?');
+  else {
+    const past = plank.x + tall.w + 20;
+
+    const tunnel = play(data, (lv) => ROUTES[4](lv, 1));
+    if (!tunnel.ball.won) fail('level 4\'s tunnel route did not finish');
+    else if (!tunnel.level.breakables[0].broken) fail('level 4 was finished without breaking the planks — the tunnel is not what finished it');
+    else console.log('   the tunnel route broke the planks on its way to the flag');
+
+    const cp = data.checkpoints[1];
+    const from = { x: cp.x, y: cp.y - CONFIG.BALL.R - CONFIG.CHECKPOINT.CLEARANCE };
+    const bad = [];
+    const crateAt = [];
+    for (const lead of LEADS) {
+      const { ball, level } = play(data, (lv) => crateRoute4(lv, lead), { from });
+      const broken = level.breakables[0].broken;
+      crateAt.push(level.crates[0].x.toFixed(0));
+      if (!ball.won || ball.deaths > 0 || broken) {
+        bad.push(`lead ${lead}: won=${ball.won} deaths=${ball.deaths} broken=${broken} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
+      }
+    }
+    if (bad.length) fail(`level 4's crate route did not finish cleanly: ${bad.join('; ')}`);
+    else console.log(`   the crate route finished at every lead without breaking the planks (crate left at x=${crateAt.join(', ')})`);
+
+    const bare = {
+      ...data,
+      boxes: data.boxes.filter((b) => !b.movable).concat([{ x: plank.x, y: plank.y, w: plank.w, h: plank.h }]),
+      breakables: [],
+    };
+    let cleared = 0, tries = 0, reached = 0;
+    for (let jumpAt = plank.x - 300; jumpAt <= plank.x - 5; jumpAt += 5) {
+      tries++;
+      let done = false;
+      const { ball } = play(bare, () => (b) => {
+        reached = Math.max(reached, b.x);
+        const jump = !done && b.grounded && b.x >= jumpAt;
+        if (jump) done = true;
+        return { right: true, jump };
+      }, { from: { x: plank.x - 700, y: 740 }, seconds: 5 });
+      if (ball.x > past && ball.hits === 0) cleared++;
+    }
+    if (cleared) fail(`without the crate or the tunnel, level 4's tall patch was crossed ${cleared} time(s) of ${tries}`);
+    else if (reached < plank.x - 60) fail(`without the crate or the tunnel, no attempt got nearer than x=${reached.toFixed(0)} to the planks at ${plank.x} — this proves nothing`);
+    else console.log(`   ${tries} jumps with no crate and no tunnel, none got past (furthest x=${reached.toFixed(0)}, the planks at ${plank.x})`);
+
+    const slow = play(data, () => () => ({ right: true }), { from: { x: plank.x - CONFIG.BALL.R - 15, y: 740 }, seconds: 3 });
+    if (slow.level.breakables[0].broken) fail('a slow roll into level 4\'s planks broke them');
+    else console.log('   a slow roll into the planks left them standing');
   }
 }
 

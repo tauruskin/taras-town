@@ -489,6 +489,10 @@ export const LEVELS = [
     // two, on the flat between checkpoint one's spike patch and the ramp —
     // see `enemies` below. Not a new idea, so it gets no checkpoint of its
     // own, for the same reason the gap below gets none.
+    //
+    // Past checkpoint two, on the long flat home, it asks something new: a
+    // patch no jump clears, on a slab over a boarded-up tunnel — a way must be
+    // MADE, with the crate or by smashing the planks.
     id: 4,
     theme: 'hills',
     bounds: { w: 15200, h: 1080 },
@@ -520,6 +524,17 @@ export const LEVELS = [
     boxes: [
       { x: 0, y: 0, w: 40, h: 1080 },
       { x: 15160, y: 0, w: 40, h: 1080 },
+      // The slab: a stone roof over a 60px tunnel, carrying the tall patch.
+      // Its top is at 680 and the teeth reach 580. An unaided jump's underside
+      // peaks at 629 — 49px short — and a jump off a crate peaks at 529, 51px
+      // clear. Both were simulated at every take-off point before this was
+      // written; see this level's route in tests/offline/finish.mjs, section 3d.
+      { x: 13400, y: 680, w: 100, h: 20 },
+      // The crate for the first way past, 800 short of the planks, on open
+      // flat so it can be shoved all the way without meeting anything. The
+      // planks and the slab's face stop it; it is 100 tall and the tunnel is
+      // 60, so it can never be pushed in.
+      { x: 12500, y: 660, w: 100, h: 100, movable: true },
     ],
 
     platforms: [
@@ -540,6 +555,17 @@ export const LEVELS = [
       // On the high ground, in plain view from the top of the ramp before it
       // has to be jumped.
       { x: 11100, y: 620, w: 90 },
+      // The patch that does not come down. It stands on the slab over the
+      // tunnel and no jump from the ground clears it. Two ways past: shove the
+      // crate against the planks and jump from it, or roll into the planks
+      // hard enough to break them and go underneath.
+      { x: 13400, y: 680, w: 100, h: 100 },
+    ],
+
+    // The tunnel's door: planks filling the gap under the slab's left edge,
+    // 60 tall from the slab's underside to the ground.
+    breakables: [
+      { x: 13400, y: 700, w: 30, h: 60 },
     ],
 
     enemies: [
