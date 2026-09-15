@@ -244,6 +244,16 @@ export const LEVELS = [
 
     platforms: [],
 
+    // One rising patch, slow — the first spikes in the level, and a new idea,
+    // so it sits on open ground before any checkpoint, where meeting it wrong
+    // costs little. On the flat after the popper and the 220px gap: 680 past
+    // the landing edge, 840 before checkpoint one, and 1180 before the roller's
+    // patrol begins, so its timing is never asked at the same moment as
+    // anything else's. Too tall to jump at its top; wait for it to sink.
+    spikes: [
+      { x: 5700, y: 760, w: 60, rise: { period: CONFIG.SPIKE.CYCLE_SLOW, phase: 0 } },
+    ],
+
     enemies: [
       // Walker one: patrols 200 units either side of x=1200, well clear of
       // both the spawn and the gap that follows. The plan's first draft used
@@ -405,6 +415,15 @@ export const LEVELS = [
     ],
 
     platforms: [],
+
+    // One rising patch, quick — the same idea level two taught slowly, now
+    // with a shorter window. After checkpoint one, so a mistimed wait costs
+    // this stretch and not the gaps before it: 1140 past the 240px gap's
+    // landing edge and 1140 before the next gap, far from the walker and the
+    // crate flat.
+    spikes: [
+      { x: 7800, y: 760, w: 60, rise: { period: CONFIG.SPIKE.CYCLE_FAST, phase: 0 } },
+    ],
 
     enemies: [
       // A recurring walker, from level two — the calmest of the three

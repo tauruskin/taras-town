@@ -29,6 +29,7 @@
 const { CONFIG } = await import('../../js/config.js');
 const { Ball } = await import('../../js/player.js');
 const { LEVELS, loadLevel } = await import('../../js/levels.js');
+const { spikeHeight } = await import('../../js/hazards.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -108,6 +109,32 @@ function runner(level, lead) {
   };
 }
 
+/**
+ * The runner, except that it waits for a rising patch to be down.
+ *
+ * Within 260px of a rising patch, and not yet committed to it, it looks ahead
+ * with the same formula the level uses: if the patch will stay under LOW_OK for
+ * the whole crossing — 0.2 to 1.0s from now — it runs; otherwise it backs off
+ * to 200px and holds still. 90 is what a jumping ball clears, not what the
+ * teeth are; a stricter 60 never found a window at 3-4s cycles.
+ */
+const LOW_OK = 90;
+function waitForLow(level, lead) {
+  const run = runner(level, lead);
+  const risers = level.spikes.filter((s) => s.rise);
+  return (ball) => {
+    const s = risers.find((r) => r.x + r.w > ball.x - 20 && r.x - ball.x < 260);
+    if (!s || !ball.grounded || ball.x > s.x - 60) return run(ball);
+    for (let k = 0.2; k <= 1.0; k += 0.05) {
+      if (spikeHeight(s, level.time + k, CONFIG) > LOW_OK) {
+        if (ball.x > s.x - 200) return { left: true };
+        return { left: ball.vx > 30, right: ball.vx < -30 };
+      }
+    }
+    return run(ball);
+  };
+}
+
 // --- the routes ------------------------------------------------------------
 //
 // Keyed by level id. Each takes the loaded level and a lead, and returns the
@@ -149,19 +176,19 @@ const ROUTES = {
     };
   },
 
-  // Level two: nothing but running and jumping — over gaps and every enemy
-  // it meets. There is no crate or platform puzzle here; the generic runner
-  // is the whole route, the same shape level four (spikes) uses.
-  2: (level, lead) => runner(level, lead),
+  // Level two: running and jumping over gaps and every enemy, and waiting for
+  // its one rising patch to be down.
+  2: (level, lead) => waitForLow(level, lead),
 
   // Level three: run to the flat below the ledge, jumping its walker on the
   // way, shove the crate against the ledge's face, back off, hop onto the
   // crate and jump from it to the ledge. Moved here from level two in the
   // Sep 2026 curriculum reshuffle — the route body is unchanged, only its key
   // moved with the level; the walker needs nothing of its own, since the
-  // runner jumps any enemy ahead.
+  // runner jumps any enemy ahead. It waits for the level's rising patch the
+  // same way level two does.
   3: (level, lead) => {
-    const run = runner(level, lead);
+    const run = waitForLow(level, lead);
     const crate = level.crates[0];
     const face = level.walls.find((w) => w.h < level.bounds.h);  // the ledge's stone face
     let stage = 'run', stuck = 0, lastX = crate.x;
