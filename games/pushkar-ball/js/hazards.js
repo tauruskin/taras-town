@@ -39,12 +39,29 @@
  * to Task 7 once there is something on a screen to look at.
  */
 export function spikeBox(s, cfg) {
+  const h = s.h ?? cfg.SPIKE.H;
   return {
     x: s.x,
-    y: s.y - cfg.SPIKE.H,
+    y: s.y - h,
     w: s.w,
-    h: cfg.SPIKE.H,
+    h,
   };
+}
+
+/**
+ * How tall a patch is at level time `t`.
+ *
+ * A patch with no `rise` is whatever height it was authored — SPIKE.H unless
+ * it says otherwise, as level 4's patch on the slab does. A rising one follows
+ * a sine of level time from SPIKE.H to SPIKE.RISE_H, for the reason moving
+ * platforms do: the level looks the same on every attempt, so the rhythm can
+ * be learned, and a test can ask the height at `t` without running anything.
+ * The sine dwells at both ends, which is what makes "up" and "down" readable.
+ */
+export function spikeHeight(s, t, cfg) {
+  if (!s.rise) return s.h ?? cfg.SPIKE.H;
+  const a = (t / s.rise.period + (s.rise.phase || 0)) * Math.PI * 2;
+  return cfg.SPIKE.H + (cfg.SPIKE.RISE_H - cfg.SPIKE.H) * (1 + Math.sin(a)) / 2;
 }
 
 /**
@@ -100,6 +117,7 @@ export function hitsSpikes(body, spikes, cfg) {
 export function drawSpikes(ctx, spikes, cfg) {
   const C = cfg.COLOURS;
   for (const s of spikes) {
+    const h = s.h ?? cfg.SPIKE.H;
     const n = Math.max(1, Math.round(s.w / cfg.SPIKE.TOOTH_W));
     const tw = s.w / n;
 
@@ -107,7 +125,7 @@ export function drawSpikes(ctx, spikes, cfg) {
     for (let i = 0; i < n; i++) {
       const x = s.x + i * tw;
       ctx.moveTo(x, s.y);
-      ctx.lineTo(x + tw / 2, s.y - cfg.SPIKE.H);
+      ctx.lineTo(x + tw / 2, s.y - h);
       ctx.lineTo(x + tw, s.y);
       ctx.closePath();
     }

@@ -18,7 +18,7 @@ import { segment, boxSegments, SegmentGrid, segmentHitsBox, supportUnder } from 
 import { CONFIG } from './config.js';
 // Hazards are geometry, not colliders, so this brings in a hit test and
 // nothing that touches the segment world or the DOM.
-import { hitsSpikes, spikeHit } from './hazards.js';
+import { hitsSpikes, spikeHit, spikeHeight } from './hazards.js';
 import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './enemies.js';
 
 // A note on how long a level is, and how sparse its checkpoints are.
@@ -1202,7 +1202,14 @@ class Level {
 
     // Hazards are not colliders and never enter the segment world. The ball
     // does not bounce off a spike; it rolls into one and fails.
-    this.spikes = (data.spikes || []).map((s) => ({ x: s.x, y: s.y, w: s.w }));
+    // `h` is how tall the patch is RIGHT NOW. A rising patch's `h` is rewritten
+    // every step in `update`; everything else — the hit box, the drawing —
+    // only reads it, so the two can never disagree.
+    this.spikes = (data.spikes || []).map((s) => {
+      const p = { x: s.x, y: s.y, w: s.w, h: s.h ?? CONFIG.SPIKE.H, rise: s.rise || null };
+      p.h = spikeHeight(p, 0, CONFIG);
+      return p;
+    });
 
     // A switch is not a collider either, and never enters the segment world
     // — the ball and any crate roll over its ground exactly as if it wasn't
@@ -1239,6 +1246,9 @@ class Level {
 
   update(dt) {
     this.time += dt;
+    // Before anything hit-tests this step, so a ball is asked about the teeth
+    // as they are now, not as they were a step ago.
+    for (const s of this.spikes) if (s.rise) s.h = spikeHeight(s, this.time, CONFIG);
     for (const m of this.movers) m.update(this.time);
     for (const c of this.crates) c.update(dt, this.solidsFor(c), CONFIG, this.bounds.h);
     // A beam's torque comes only from crates resting on it — never the

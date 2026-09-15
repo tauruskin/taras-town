@@ -319,6 +319,18 @@ export const CONFIG = {
     // they reach too far once a thumb has tried them, the honest lever is the
     // ball's radius or the shape of the test, not this number.
     FORGIVE: 5,
+
+    // A rising patch — levels 2 and 3 — climbs from H to this and back on a
+    // sine of level time. Tall enough that no unaided jump clears it: a jump's
+    // underside peaks 131px up, so this leaves 44px after FORGIVE, and
+    // tests/offline/risers.mjs holds it to at least 30. See
+    // docs/superpowers/specs/2026-09-15-moving-spikes-and-breakable-wood-design.md.
+    RISE_H: 180,
+    // Seconds for one whole rise and fall. A route that waits for the patch to
+    // stay under 90px for its crossing finished cleanly at 3-5s; 7s lost a run.
+    // If level 2 stops finishing cleanly, 5 is the proven slow value.
+    CYCLE_SLOW: 6,       // level 2
+    CYCLE_FAST: 3.5,     // level 3
   },
 
   // ---------------------------------------------------------------------
