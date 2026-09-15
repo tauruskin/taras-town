@@ -6,6 +6,7 @@ const { CONFIG } = await import('../../js/config.js');
 const { Ball } = await import('../../js/player.js');
 const { LEVELS, loadLevel } = await import('../../js/levels.js');
 const { step } = await import('../../js/physics.js');
+const { hitsSpikes } = await import('../../js/hazards.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -172,6 +173,38 @@ for (const data of LEVELS) {
     if (authored.hitsHazard(probe)) fail(`level ${data.id}: a hazard is on top of ${a.what}`);
   }
 
+  // The check above only ever sees a rising patch at its t=0 height, because
+  // that is what `loadLevel` freezes into `authored.spikes` — it never runs
+  // the clock. An arrival safely clear of a riser at t=0 can still be sitting
+  // directly under where its teeth reach at the top of the cycle, so probe
+  // every arrival again with every rising patch pinned at SPIKE.RISE_H.
+  const atPeak = authored.spikes.map((s) => (s.rise ? { ...s, h: CONFIG.SPIKE.RISE_H } : s));
+  for (const a of arrivals) {
+    const probe = { x: a.x, y: a.y, r: CONFIG.BALL.R * 2.5 };
+    if (hitsSpikes(probe, atPeak, CONFIG)) fail(`level ${data.id}: a rising spike patch reaches ${a.what} at the top of its cycle`);
+  }
+
+  // A rising patch's height comes out of `spikeHeight`, which divides level
+  // time by `rise.period`. A missing or zero period divides by zero or
+  // nothing at all, and either way the result is NaN — a NaN patch has no
+  // hit box (every comparison against NaN is false) and draws nothing, so the
+  // spikes are silently not there: the worst kind of authoring mistake,
+  // because nothing on screen says so. Checked on the RAW data, not the
+  // loaded level, since the loader has already turned a bad `rise` into a
+  // NaN `h` by the time `authored.spikes` exists.
+  for (const [i, s] of (data.spikes || []).entries()) {
+    if (!s.rise) continue;
+    if (!(Number.isFinite(s.rise.period) && s.rise.period > 0)) {
+      fail(`level ${data.id}: spike patch ${i}'s rise.period is ${s.rise.period}, not a finite number > 0 — the height comes out NaN and the patch is silently not there`);
+    }
+    if (s.rise.phase !== undefined && !Number.isFinite(s.rise.phase)) {
+      fail(`level ${data.id}: spike patch ${i}'s rise.phase is ${s.rise.phase}, not a finite number`);
+    }
+    if (s.h !== undefined) {
+      fail(`level ${data.id}: spike patch ${i} authors both h and rise — a rising patch ignores h entirely, so this number is a lie about what the patch does`);
+    }
+  }
+
   // How wide a patch a jump can honestly clear — derived from what hitsSpikes
   // actually tests, not from the jump's whole span. The drawn box is SPIKE.H
   // tall and the ball counts as `BALL.R - SPIKE.FORGIVE` wide against it, so a
@@ -203,8 +236,17 @@ for (const data of LEVELS) {
     else if (s.w < CONFIG.SPIKE.TOOTH_W) {
       fail(`level ${data.id}: spike patch ${i} is ${s.w}px wide, less than one ${CONFIG.SPIKE.TOOTH_W}px tooth — it draws as a single stretched needle`);
     }
-    // A patch wider than the jump can clear cannot be got past at all.
-    if (s.w > clearable * 0.5) {
+    // A patch wider than the jump can clear cannot be got past at all — unless
+    // it was never meant to be jumped in the first place. `clearable` is
+    // derived from SPIKE.H, which is honest for a plain patch and for a
+    // rising one (its low point IS SPIKE.H, so it is jumpable at the bottom
+    // of its cycle) but not for a STATIC patch authored taller than SPIKE.H:
+    // that one is deliberately never jumpable, at any width, so the level
+    // must give it another way past instead — a route `finish.mjs` is what
+    // actually proves exists, by finishing the level without ever crossing it
+    // as a jump.
+    const staticallyTall = !s.rise && s.h > CONFIG.SPIKE.H;
+    if (!staticallyTall && s.w > clearable * 0.5) {
       fail(`level ${data.id}: spike patch ${i} is ${s.w}px wide; a perfectly timed jump at full speed clears ${clearable.toFixed(0)}px of spikes, and half that is the limit`);
     }
   }

@@ -57,6 +57,9 @@ export function spikeBox(s, cfg) {
  * platforms do: the level looks the same on every attempt, so the rhythm can
  * be learned, and a test can ask the height at `t` without running anything.
  * The sine dwells at both ends, which is what makes "up" and "down" readable.
+ *
+ * A rising patch ignores any authored `h` entirely — it always runs SPIKE.H
+ * to SPIKE.RISE_H, never some other authored range.
  */
 export function spikeHeight(s, t, cfg) {
   if (!s.rise) return s.h ?? cfg.SPIKE.H;

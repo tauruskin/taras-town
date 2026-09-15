@@ -1206,7 +1206,7 @@ class Level {
     // every step in `update`; everything else — the hit box, the drawing —
     // only reads it, so the two can never disagree.
     this.spikes = (data.spikes || []).map((s) => {
-      const p = { x: s.x, y: s.y, w: s.w, h: s.h ?? CONFIG.SPIKE.H, rise: s.rise || null };
+      const p = { x: s.x, y: s.y, w: s.w, h: s.h, rise: s.rise || null };
       p.h = spikeHeight(p, 0, CONFIG);
       return p;
     });

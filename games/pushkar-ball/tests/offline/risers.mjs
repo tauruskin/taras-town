@@ -75,22 +75,38 @@ const world = (spikes) => loadLevel({
   if (margin < 30) fail(`RISE_H leaves only ${margin.toFixed(0)}px between a jump and the teeth; 30 is the least`);
 
   const X = 1200, W = 60;
-  let cleared = 0, tries = 0;
-  for (let from = X - 300; from <= X - 5; from += 5) {
-    tries++;
-    const level = world([{ x: X, y: 760, w: W, h: S.RISE_H }]);
-    const ball = new Ball(300, 740);
-    let press = false, done = false;
-    const input = { left: false, right: true, takeJump() { const j = press; press = false; return j; } };
-    for (let i = 0; i < 4 / CONFIG.STEP; i++) {
-      if (!done && ball.grounded && ball.x >= from) { press = true; done = true; }
-      level.update(CONFIG.STEP);
-      ball.update(CONFIG.STEP, input, level);
+  // Run the same take-off sweep against a patch at some fixed height, and
+  // return how many of the tries crossed it cleanly.
+  const sweep = (h) => {
+    let cleared = 0, tries = 0;
+    for (let from = X - 300; from <= X - 5; from += 5) {
+      tries++;
+      const level = world([{ x: X, y: 760, w: W, h }]);
+      const ball = new Ball(300, 740);
+      let press = false, done = false;
+      const input = { left: false, right: true, takeJump() { const j = press; press = false; return j; } };
+      for (let i = 0; i < 4 / CONFIG.STEP; i++) {
+        if (!done && ball.grounded && ball.x >= from) { press = true; done = true; }
+        level.update(CONFIG.STEP);
+        ball.update(CONFIG.STEP, input, level);
+      }
+      if (ball.x > X + W + 20 && ball.hits === 0) cleared++;
     }
-    if (ball.x > X + W + 20 && ball.hits === 0) cleared++;
-  }
-  console.log(`   ${tries} take-off points, ${cleared} crossed it`);
-  if (cleared) fail(`a patch at RISE_H was jumped cleanly ${cleared} time(s) of ${tries}`);
+    return { cleared, tries };
+  };
+
+  const rise = sweep(S.RISE_H);
+  console.log(`   ${rise.tries} take-off points, ${rise.cleared} crossed it`);
+  if (rise.cleared) fail(`a patch at RISE_H was jumped cleanly ${rise.cleared} time(s) of ${rise.tries}`);
+
+  // A control, so a mistake that made every jump fail regardless of height —
+  // for instance a harness bug, or RISE_H accidentally applied everywhere —
+  // could not make the check above pass for the wrong reason. The same sweep
+  // against a plain SPIKE.H patch must clear it sometimes; a reviewer
+  // measured 37 of 60 with this harness.
+  const flat = sweep(S.H);
+  console.log(`   control: ${flat.tries} take-off points at SPIKE.H, ${flat.cleared} crossed it`);
+  if (flat.cleared === 0) fail(`a patch at plain SPIKE.H was never crossed cleanly in ${flat.tries} tries — the harness itself may be broken, which would make the RISE_H check above vacuous`);
 }
 
 // --- 5. nothing goes NaN ------------------------------------------------------
