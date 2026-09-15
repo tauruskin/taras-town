@@ -545,17 +545,20 @@ function drawBreakables() {
     const n = Math.max(1, Math.round(b.w / B.BOARD_W));
     const bw = b.w / n;
     ctx.fillStyle = C.CRATE;
-    for (let i = 0; i < n; i++) ctx.fillRect(x0 + i * bw + 1, b.y, bw - 2, b.h);
     ctx.strokeStyle = C.CRATE_LINE;
     ctx.lineWidth = 2;
-    for (let i = 0; i < n; i++) ctx.strokeRect(x0 + i * bw + 1, b.y + 1, bw - 2, b.h - 2);
+    for (let i = 0; i < n; i++) {
+      const bx = x0 + i * bw;
+      ctx.fillRect(bx + 3, b.y, bw - 6, b.h);
+      ctx.strokeRect(bx + 4, b.y + 1, bw - 8, b.h - 2);
+    }
     if (b.cracked) {
       ctx.beginPath();
       ctx.moveTo(x0 + b.w * 0.2, b.y + b.h * 0.15);
       ctx.lineTo(x0 + b.w * 0.6, b.y + b.h * 0.4);
       ctx.lineTo(x0 + b.w * 0.3, b.y + b.h * 0.6);
       ctx.lineTo(x0 + b.w * 0.8, b.y + b.h * 0.85);
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.stroke();
     }
   }

@@ -129,8 +129,8 @@ export const CONFIG = {
     // child leaning on the wall does not see it rattle for ever.
     KNOCK: 60,
     WOBBLE_TIME: 0.3,    // s a slower knock rattles it for
-    WOBBLE_PX: 3,        // how far the rattle moves the drawing, never the collider
-    BOARD_W: 10,         // one board, so a wall is drawn as w / BOARD_W boards
+    WOBBLE_PX: 5,        // how far the rattle moves the drawing, never the collider
+    BOARD_W: 15,         // one board, so a wall is drawn as w / BOARD_W boards
   },
 
   // ---------------------------------------------------------------------
