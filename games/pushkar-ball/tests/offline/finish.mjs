@@ -292,8 +292,10 @@ const ROUTES = {
 // `late` spreads the second press the way `lead` spreads the first, since
 // this is the one way over once the crate is flush and a thumb is never
 // frame-exact. Zero or more: press that many seconds after landing on the
-// crate. Negative: press once, while still falling onto it, that many seconds
-// before it lands — the jump buffer has to carry it.
+// crate. Negative: press once, while still falling onto it, about that many
+// seconds before it lands — the jump buffer has to carry it. About, because
+// the trigger divides the distance left by the current fall speed and ignores
+// gravity: -0.1 presses roughly 0.075s early.
 function crateRoute4(level, lead, late) {
   const run = runner(level, lead);
   const crate = level.crates[0];
@@ -534,7 +536,7 @@ console.log('\n3d. level four, both ways past its tall patch');
         const { ball, level } = play(data, (lv) => crateRoute4(lv, lead, late), { from });
         const broken = level.breakables[0].broken;
         crateAt.add(level.crates[0].x.toFixed(0));
-        if (!ball.won || ball.deaths > 0 || broken) {
+        if (!ball.won || ball.deaths > 0 || ball.hits > 0 || broken) {
           bad.push(`lead ${lead} late ${late}: won=${ball.won} deaths=${ball.deaths} hits=${ball.hits} broken=${broken} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
         }
       }
