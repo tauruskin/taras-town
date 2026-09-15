@@ -31,11 +31,15 @@ export class Flow {
    * @param onStart called with this flow every time a level begins, including
    *                a retry. main.js builds the camera there, because a camera
    *                needs to know the screen and this file must not.
+   * @param onWin   called with this flow on the step the flag is touched,
+   *                before anything moves on — where main.js saves progress, so
+   *                the next level is already open if the player leaves at once.
    */
-  constructor(input, { levels = LEVELS, onStart = () => {} } = {}) {
+  constructor(input, { levels = LEVELS, onStart = () => {}, onWin = () => {} } = {}) {
     this.input = input;
     this.levels = levels;
     this.onStart = onStart;
+    this.onWin = onWin;
     this.levelIndex = 0;
     this.level = null;
     this.ball = null;
@@ -90,6 +94,7 @@ export class Flow {
       this.ball.update(dt, this.input, this.level);
       if (this.ball.won) {
         this.mode = 'won';
+        this.onWin(this);
         // The controls go off, and every press in flight is dropped, on the
         // step the flag is touched. See Input.setControls for what each of
         // those presses would otherwise do.
@@ -110,9 +115,9 @@ export class Flow {
   /**
    * A tap at (x, y) on a w-by-h screen, in CSS pixels.
    *
-   * Returns what it did: 'retry' having restarted the level, 'levels' for the
-   * caller to act on, or null if it was not on a panel button — which
-   * includes every tap while the level is being played.
+   * Returns what it did: 'retry' having restarted the level, 'levels' handed
+   * back for the caller to act on, or null if it was not on a panel button —
+   * which includes every tap while the level is being played.
    *
    * 'levels' is handed back rather than acted on because going to another page
    * is the one thing in this whole flow that needs a browser, and keeping it
@@ -123,6 +128,19 @@ export class Flow {
     const hit = Panel.at(x, y, w, h);
     if (hit === 'retry') { this.start(this.levelIndex); return 'retry'; }
     if (hit === 'levels') return 'levels';
+    return null;
+  }
+
+  /**
+   * A corner button pressed during play: 'restart' starts this level again
+   * and is returned; 'levels' is returned for main.js to act on, because
+   * showing another screen needs a DOM. Anything while the panel is up, or any
+   * other name, does nothing and returns null.
+   */
+  act(name) {
+    if (this.mode !== 'playing') return null;
+    if (name === 'restart') { this.start(this.levelIndex); return 'restart'; }
+    if (name === 'levels') return 'levels';
     return null;
   }
 

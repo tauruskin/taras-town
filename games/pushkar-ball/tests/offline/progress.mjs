@@ -298,7 +298,15 @@ const world = (extra = {}) => loadLevel({
   const levels = [flowLevel(81), flowLevel(82)];
 
   const starts = [];
-  const flow = new Flow(input, { levels, onStart: (f) => starts.push(f.levelIndex) });
+  // onWin and onStart write to the same list, so the ORDER is checked: a level
+  // must be saved as won before the next one begins, or a child who leaves on
+  // the very next frame finds the next level still locked.
+  const events = [];
+  const flow = new Flow(input, {
+    levels,
+    onStart: (f) => { starts.push(f.levelIndex); events.push(`start ${f.levelIndex}`); },
+    onWin: (f) => events.push(`win ${f.levelIndex}`),
+  });
   flow.start(0);
 
   // Hold the right arrow until the flag, like a thumb would. Along the way,
@@ -390,6 +398,10 @@ const world = (extra = {}) => loadLevel({
   if (flow.levelIndex !== 1 || flow.mode !== 'playing') fail(`did not advance on the step that reached RESULTS.HOLD`);
   if (!input.controls) fail('the controls stayed off on the new level');
 
+  if (events.join() !== 'start 0,win 0,start 0,win 0,start 1') {
+    fail(`onWin/onStart ran in the order ${events.join(', ')}; a win must be reported before the next level starts`);
+  }
+
   // Levels is handed back as a value; the flow itself goes nowhere.
   const last = down(Buttons.right(W, H));
   steps = 0;
@@ -413,6 +425,46 @@ const world = (extra = {}) => loadLevel({
 
   console.log(`   onStart ran for levels ${starts.join(', ')}`);
   if (starts.join() !== '0,0,1,0') fail(`onStart ran for ${starts.join(', ')}, expected 0, 0, 1, 0`);
+
+  // The corner buttons during play. A press on one is an ACTION, read once —
+  // never a held control and never a tap for a panel.
+  {
+    flow.start(0);
+    const holdR = down(Buttons.right(W, H));
+    for (let i = 0; i < 60; i++) flow.step(CONFIG.STEP);
+    up(holdR);
+    const lvl = flow.level, bl = flow.ball;
+    if (!(bl.x > 200)) fail('the ball did not move before restart, so the restart check proves nothing');
+
+    tapAt(Buttons.restart(W, H));
+    if (input.right || input.takeJump()) fail('a press on the restart corner button was taken as a control');
+    const a = input.takeAction();
+    if (a !== 'restart') fail(`a press on the restart corner button gave the action ${a}`);
+    if (input.takeAction() !== null) fail('the restart action was not consumed when read');
+    const ar = flow.act(a);
+    console.log(`   restart corner button: ${ar}; ball at ${flow.ball.x},${flow.ball.y}`);
+    if (ar !== 'restart') fail(`flow.act('restart') returned ${ar}`);
+    if (flow.level === lvl || flow.ball === bl || flow.ball.x !== 200 || flow.levelIndex !== 0) fail('restart did not rebuild the same level with the ball at the spawn');
+
+    tapAt(Buttons.levels(W, H));
+    const l = input.takeAction();
+    const lr = flow.act(l);
+    if (l !== 'levels' || lr !== 'levels') fail(`the levels corner button gave ${l} and flow.act returned ${lr}`);
+    if (flow.mode !== 'playing' || flow.levelIndex !== 0) fail('flow.act(\'levels\') changed the level or the mode instead of handing it back');
+
+    tapAt(Buttons.restart(W, H));
+    input.setControls(false);
+    if (input.takeAction() !== null) fail('an action pressed just before the controls switched off survived the switch');
+
+    tapAt(Buttons.restart(W, H));
+    if (input.takeAction() !== null) fail('with the controls off, a press on a corner button still became an action');
+    input.takeTap();
+    input.setControls(true);
+
+    flow.mode = 'won';
+    if (flow.act('restart') !== null) fail('an action while the results panel is up did something');
+    flow.start(0);
+  }
 }
 
 // Check 6 installed a fake `window` so the real Input could be constructed in

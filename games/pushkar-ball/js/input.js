@@ -25,6 +25,10 @@ export class Input {
     // this file has no business learning about every overlay the game ever
     // grows. Null when there is nothing waiting.
     this._tap = null;
+    // A press on one of the corner buttons — 'restart' or 'levels' — waiting
+    // to be read once. An action and not a held button: holding a thumb on
+    // restart must restart the level once, not every frame.
+    this._action = null;
     // Whether the game's controls are live. Off while the results panel is
     // up, and then EVERY press is a tap for the panel and none is hit-tested
     // against Buttons at all. Without this the controls stay live and merely
@@ -80,6 +84,7 @@ export class Input {
     }
     e.preventDefault();
     if (name === 'jump') this._jump = true;
+    else if (name === 'restart' || name === 'levels') this._action = name;
     else this._pointers.set(e.pointerId, name);
   }
 
@@ -103,13 +108,14 @@ export class Input {
    * Held KEYS are left alone. The key really is down, and clearing it would
    * leave a held arrow dead on the new level until it was let go and pressed
    * again — while the ball is not simulated during the panel, so the key can
-   * do nothing there anyway.
+   * do nothing there anyway. A corner-button press in flight is dropped too.
    */
   setControls(on) {
     this.controls = on;
     this._pointers.clear();
     this._jump = false;
     this._tap = null;
+    this._action = null;
   }
 
   /**
@@ -153,6 +159,9 @@ export class Input {
    * second a thumb rests on it.
    */
   takeTap() { const t = this._tap; this._tap = null; return t; }
+
+  /** The corner button pressed since this was last asked — 'restart', 'levels' or null — consumed. */
+  takeAction() { const a = this._action; this._action = null; return a; }
 
   /** What to draw as pressed. */
   held() {
