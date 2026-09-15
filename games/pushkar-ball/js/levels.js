@@ -96,8 +96,8 @@ export const LEVELS = [
 
     boxes: [
       // Walls at both ends, so the level cannot be left sideways. Not movable,
-      // and drawn as stone rather than wood so that "wood means you can push
-      // it" stays true everywhere.
+      // and drawn as stone rather than wood so that "wood gives way; stone
+      // never does" stays true everywhere.
       { x: 0, y: 0, w: 40, h: 1080 },
       { x: 16760, y: 0, w: 40, h: 1080 },
       // Three wooden crates, and all can be pushed. Jump them, roll over them
@@ -115,7 +115,7 @@ export const LEVELS = [
       { x: 8300, y: 660, w: 110, h: 100, movable: true },
       // A low stone block on the long flat after the first bowl: hop up, roll
       // across, drop off. Stone, not wood, so it cannot be pushed, which keeps
-      // "wood means you can push it" true. A step is a box rather than a bend
+      // "wood gives way; stone never does" true. A step is a box rather than a bend
       // in the ground for the reason level three's ledge face gives: a
       // vertical ground segment faces sideways, and levels.mjs rightly
       // insists every ground segment faces up. 60 tall, so a jump, which

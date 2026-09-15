@@ -250,11 +250,17 @@ is in its own README; these are the things to know before touching it.
   position became `NaN` the first frame it stood on one and the ball vanished
   from the level with nothing logged anywhere. If you add a lift, a raft or a
   see-saw, it owes the same four.
-- **Wood means you can push it; stone means you cannot.** No exceptions, ever —
-  it is the only way a six-year-old learns the rule, because there is no text
-  and there is not going to be any. The boundary walls are `boxes` in the data
-  exactly like a crate and were once drawn in the same wood; that made the
-  picture lie the moment crates started moving.
+- **Wood gives way; stone never does.** No exceptions — it is the only way a
+  child learns the rule, because there is no text and there is not going to be
+  any. A crate gives way by sliding, a plank wall by breaking when the ball
+  rolls into it hard. Changed from "wood means you can push it" on Sep 15 2026,
+  at the user's request, when plank walls arrived. The boundary walls are
+  `boxes` in the data exactly like a crate and were once drawn in the same
+  wood; that made the picture lie the moment crates started moving.
+- **A rising spike patch is a sine of level time, like a platform.** `s.h` is
+  its height now, rewritten in `Level.update`; the hit box and the teeth both
+  read it. Levels that wait for one to sink need a route that looks ahead with
+  `spikeHeight` — see `waitForLow` in `tests/offline/finish.mjs`.
 - **A crate is not a general rigid body, on purpose.** It moves sideways only
   when pushed and downwards only by falling. It cannot be pushed into anything,
   and a crate shoved down a hole returns to where the level put it. The bad

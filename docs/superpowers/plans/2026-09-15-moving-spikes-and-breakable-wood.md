@@ -20,6 +20,7 @@ Every number below was run in Node against the real `Ball` and `Level` (scratch 
 2. **"Spikes stop crates" is dropped.** The crate is stopped by the planks and the slab's face before it can reach any spike, so the rule would have no case to act on.
 3. **Cycle speeds:** `CYCLE_FAST` 3.5s, `CYCLE_SLOW` 6s. A route that waits until the patch will stay under 90px for the next 0.2–1.0s crossed cleanly at 3, 3.5, 4 and 5s (every lead × ten start delays). 7s lost one run of 30, so 6 is used for slow; **5 is the proven fallback** if level 2 does not finish cleanly at 6.
 4. **The break speed is not a skill test.** From rest the ball reaches 300px/s in about 28px of rolling. It separates "rolled into it" from "nudged it", which is what a wobble-then-smash lesson needs, and nothing more.
+5. **Review changed three numbers after this plan:** level 4's teeth are 80 tall, not 100; `LOW_OK` in `finish.mjs` is 75, not 90; and `BREAKABLE.KNOCK` (60) was added so leaning on planks does not rattle them. See `git log` for the commits and their reasons.
 
 ## Files
 

@@ -1,4 +1,21 @@
-# Moving spikes and breakable wood (levels 2, 3, 4)
+# Moving spikes and breakable wood (levels 2, 3, 4) — DONE
+
+> **Shipped Sep 15 2026**, implemented by
+> `docs/superpowers/plans/2026-09-15-moving-spikes-and-breakable-wood.md`.
+> What changed from this spec on the way:
+>
+> - Simulation before planning put level 4's tall patch on a 20px stone slab
+>   over a 60px tunnel, rather than at `RISE_H` on the ground — the tunnel
+>   needs a roof.
+> - "Spikes stop crates" was dropped: the planks and the slab's face stop the
+>   crate before it can reach any spike.
+> - Cycles are 6s (`CYCLE_SLOW`, level 2) and 3.5s (`CYCLE_FAST`, level 3).
+> - Review lowered level 4's teeth from 100 to 80, so the jump off the flush
+>   crate — the only way over once the crate is flush — forgives a late press.
+> - Review tightened the finish routes' "low enough" threshold (`LOW_OK`)
+>   from 90 to 75, after 90 let a sloppy jump meet a patch still sinking.
+> - Review added `BREAKABLE.KNOCK` (60), so leaning on planks does not keep
+>   rattling them.
 
 First sub-project of "make Pushkar Ball interesting" (Sep 2026). The user's
 judgement after playing levels 1–7: the game reads as made for a 4-year-old —

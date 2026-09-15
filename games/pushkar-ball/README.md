@@ -163,13 +163,16 @@ anything it touched, for ever.
 
 ## Crates
 
-**If it is wood, you can push it. If it is stone, you cannot.** That rule holds
-everywhere with no exceptions, which is the only way a six-year-old is going to
-learn it — there is no text to explain it and there is not going to be any. The
-level's boundary walls are boxes in the data exactly like a crate is, and they
-used to be drawn in the same wood; they are stone now, because the day crates
-started moving, that shared colour became a picture telling a child to keep
-shoving at something that will never give.
+**Wood gives way; stone never does.** That rule holds everywhere with no
+exceptions, which is the only way a child is going to learn it — there is no
+text to explain it and there is not going to be any. A crate gives way by
+sliding. A plank wall — upright boards with daylight between them — gives way
+by breaking, when the ball rolls into it at `BREAKABLE.SPEED`; a slower knock
+rattles and cracks it, and once broken it stays broken for the rest of the
+level. The level's boundary walls are boxes in the data exactly like a crate
+is, and they used to be drawn in the same wood; they are stone now, because
+the day crates started moving, that shared colour became a picture telling a
+child to keep shoving at something that will never give.
 
 A crate is deliberately **not** a general rigid body. It moves sideways only
 when something pushes it, and downwards only by falling straight onto whatever
@@ -232,6 +235,10 @@ geometry is worked out at draw time.
   boxes:     [ { x, y, w, h },                     // scenery: stone, immovable
                { x, y, w, h, movable: true } ],   // a wooden crate
   platforms: [ { x, y, w, h, axis: 'x', dist: 200, period: 4, phase: 0 } ],
+  spikes:    [ { x, y, w },                        // SPIKE.H tall
+               { x, y, w, h },                     // authored height
+               { x, y, w, rise: { period, phase } } ], // rises to SPIKE.RISE_H and back
+  breakables:[ { x, y, w, h } ],                   // a plank wall
 }
 ```
 
