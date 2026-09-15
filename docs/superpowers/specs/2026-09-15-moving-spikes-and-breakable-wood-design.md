@@ -9,6 +9,9 @@
 >   needs a roof.
 > - "Spikes stop crates" was dropped: the planks and the slab's face stop the
 >   crate before it can reach any spike.
+> - Level 4's tunnel route gets the usual 30-way matrix as route 4; the crate
+>   route instead runs 9 ways (lead × an early, on-time or late second press)
+>   and may take no hit.
 > - Cycles are 6s (`CYCLE_SLOW`, level 2) and 3.5s (`CYCLE_FAST`, level 3).
 > - Review lowered level 4's teeth from 100 to 80, so the jump off the flush
 >   crate — the only way over once the crate is flush — forgives a late press.

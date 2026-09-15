@@ -496,7 +496,7 @@ function drawWater() {
  * They are boxes in the data exactly like a crate is, and they used to be drawn
  * in the same wood. That was harmless while nothing moved, and became a lie the
  * moment crates could be pushed — a child shoving fruitlessly at the end wall
- * has been told by the picture that it should give. Wood means it moves.
+ * has been told by the picture that it should give. Wood gives way; stone never does.
  */
 function drawWalls() {
   const C = CONFIG.COLOURS;

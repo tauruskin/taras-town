@@ -245,8 +245,9 @@ export const LEVELS = [
     platforms: [],
 
     // One rising patch, slow — the first spikes in the level, and a new idea,
-    // so it sits on open ground before any checkpoint, where meeting it wrong
-    // costs little. On the flat after the popper and the 220px gap: 680 past
+    // so it sits on open ground before any checkpoint: a mistimed crossing
+    // costs a heart, and losing all three only repeats easy ground from the
+    // spawn. On the flat after the popper and the 220px gap: 680 past
     // the landing edge, 840 before checkpoint one, and 1340 before the roller's
     // patrol begins, so its timing is never asked at the same moment as
     // anything else's. Too tall to jump at its top; wait for it to sink.
@@ -1070,9 +1071,9 @@ function makeBeam(b) {
  * A wooden crate: solid, standable, and pushable.
  *
  * It exists so there is a way to reach somewhere the jump alone will not — put
- * a crate under a high ledge and jump off it. Everything wooden in the game can
- * be pushed, and nothing that can be pushed is any other colour, so the rule
- * is legible without a word of explanation.
+ * a crate under a high ledge and jump off it. Wood gives way and stone never
+ * does — a crate by sliding, a plank wall by breaking — and nothing that gives
+ * way is any other colour, so the rule is legible without a word of explanation.
  *
  * Deliberately NOT a general rigid body. It moves horizontally only when
  * something pushes it, and vertically only by falling straight down onto
