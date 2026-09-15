@@ -313,12 +313,14 @@ export class Ball {
     // A plank wall gives way to a ball hitting it side-on, heading into it,
     // at BREAKABLE.SPEED or more. The speed is handed back afterwards, so the
     // ball smashes through instead of stopping dead in the doorway it just
-    // made. Anything slower only rattles it. A ball that is not moving at all
-    // is not knocking, so it does not rattle it for ever by resting against it.
+    // made. Anything slower, down to BREAKABLE.KNOCK, only rattles it.
+    // Below KNOCK is leaning, not knocking, so it does not rattle it for ever
+    // by resting or pushing against it — held against the wall, a move
+    // button alone adds only about 13px/s of vx a step, comfortably under it.
     for (const c of contacts) {
       const wood = c.seg.owner;
       if (!wood || !wood.breakable || wood.broken) continue;
-      if (Math.abs(c.nx) < C.CRATE.PUSH_NX || Math.abs(vxIn) < 1) continue;
+      if (Math.abs(c.nx) < C.CRATE.PUSH_NX || Math.abs(vxIn) < C.BREAKABLE.KNOCK) continue;
       if (Math.sign(c.nx) === Math.sign(vxIn)) continue;
       if (Math.abs(vxIn) >= C.BREAKABLE.SPEED) {
         level.breakWood(wood);

@@ -54,10 +54,15 @@ const run = (ball, level, input, seconds, each) => {
   run(ball, level, hold(false), 0.5);
   let wobbled = false;
   run(ball, level, hold(true), 2, () => { if (b.wobbleT > 0) wobbled = true; });
-  console.log(`\n2. a slow knock: broken=${b.broken}, cracked=${b.cracked}, wobbled=${wobbled}, ball at x=${ball.x.toFixed(1)}`);
+  // Then keep leaning for another second: a held button alone must not keep
+  // rattling the wall for ever — that is leaning, not knocking.
+  let leanWobbled = false;
+  run(ball, level, hold(true), 1, () => { if (b.wobbleT > 0) leanWobbled = true; });
+  console.log(`\n2. a slow knock: broken=${b.broken}, cracked=${b.cracked}, wobbled=${wobbled}, ball at x=${ball.x.toFixed(1)}, still leaning wobbles=${leanWobbled}`);
   if (b.broken) fail('a slow knock broke it');
   if (!b.cracked || !wobbled) fail('a slow knock did not rattle it');
   if (ball.x > PLANKS.x) fail('the ball got through unbroken planks');
+  if (leanWobbled) fail('leaning on the planks keeps rattling them');
 }
 
 // --- 3. a fast roll breaks it, and the ball keeps going -----------------------
@@ -81,11 +86,10 @@ const run = (ball, level, input, seconds, each) => {
     run(ball, level, hold(false), CONFIG.HEALTH.IFRAME + 0.05);
   }
   run(ball, level, hold(false), 3);
-  const near = level.near(PLANKS.x + 15, 710, 60);
   console.log(`\n4. after running out of hearts: deaths=${ball.deaths}, ball at x=${ball.x.toFixed(0)}, broken=${b.broken}`);
   if (ball.deaths !== 1) fail(`expected one death, got ${ball.deaths} — nothing below was tested`);
   if (!b.broken) fail('a respawn put the planks back');
-  if (near.some((s) => s.owner === b)) fail('a broken one still offers the ball segments');
+  if (b.overlaps(PLANKS.x + 15, 710, 60)) fail('a broken one still claims to overlap the ball');
 }
 
 // --- 5. a crate is stopped by it and does not break it ------------------------

@@ -123,6 +123,11 @@ export const CONFIG = {
     // into the planks from leaning on them, which is what lets a slow knock
     // rattle them and teach "harder" without a word.
     SPEED: 300,
+    // px/s into the planks below which contact is leaning, not knocking, so
+    // it neither rattles nor breaks. Held against them, a move button alone
+    // adds ACCEL*dt — about 13px/s a step — which is well under this, so a
+    // child leaning on the wall does not see it rattle for ever.
+    KNOCK: 60,
     WOBBLE_TIME: 0.3,    // s a slower knock rattles it for
     WOBBLE_PX: 3,        // how far the rattle moves the drawing, never the collider
     BOARD_W: 10,         // one board, so a wall is drawn as w / BOARD_W boards
