@@ -133,10 +133,10 @@ export const Buttons = {
       const b = Buttons[name](w, h);
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      ctx.fillStyle = C.BUTTON;
+      ctx.fillStyle = C.CORNER;
       ctx.fill();
-      if (name === 'restart') retryArrow(ctx, b, C.BUTTON_MARK);
-      else gridIcon(ctx, b, C.BUTTON_MARK);
+      if (name === 'restart') retryArrow(ctx, b, C.CORNER_MARK);
+      else gridIcon(ctx, b, C.CORNER_MARK);
     }
   },
 };
@@ -432,7 +432,7 @@ export const Panel = {
     retryArrow(ctx, r, C.PANEL_INK);
 
     // Level select: a grid of four squares, the same picture as the corner
-    // button during play. The house is on level select itself now.
+    // button during play. The house belongs on level select.
     const lv = Panel.levels(w, h);
     circleButton(ctx, lv, C);
     gridIcon(ctx, lv, C.PANEL_INK);

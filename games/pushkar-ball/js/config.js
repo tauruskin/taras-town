@@ -461,7 +461,7 @@ export const CONFIG = {
     // — so the layout would have been correct for nine levels and then quietly
     // wrong, with no test able to see it without measuring text in a browser.
     NUMBER_SIZE: 44,
-    BUTTON_R: 34,        // the retry and hub buttons
+    BUTTON_R: 34,        // the retry and level-select buttons
     BUTTON_LIFT: 16,     // from the bottom of the panel to the bottom of them
     GAP: 26,             // between the two of them
     // Daylight, in CSS pixels, between either panel button's HIT circle and
@@ -733,5 +733,14 @@ export const CONFIG = {
     BUTTON: 'rgba(255,255,255,0.30)',
     BUTTON_HELD: 'rgba(255,255,255,0.58)',
     BUTTON_MARK: '#FFFFFF',
+    // The corner buttons sit on pale sky, sometimes over the sun, where the
+    // controls' white-on-translucent-white would nearly vanish. A dark
+    // translucent disc instead, so a white picture reads on both — and still
+    // see-through enough that the ball shows if it ever passes behind. Checked
+    // by hand against IS_BALL in tests/browser/_helpers.mjs, blended at 0.42
+    // over sky, sun and ground: the disc is blue-dominant (r - b is negative),
+    // so it cannot be taken for the ball however it is blended.
+    CORNER: 'rgba(20, 40, 60, 0.42)',
+    CORNER_MARK: '#FFFFFF',
   },
 };

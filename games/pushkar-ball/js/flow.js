@@ -4,12 +4,12 @@
  *
  * This used to be a handful of `let`s and an `if` in main.js, which is exactly
  * how Taras Town's main.js grew to 1800 lines, and nothing could test it
- * there: auto-advance, retry, the hub button and "the ball is not simulated
- * while the panel is up" all lived behind a DOM. None of them needs one. So
- * the whole state machine is here, DOM-free, and main.js is left with the
- * loop, the camera and the drawing — plus the one thing that genuinely needs
- * a browser, which is going to another page. `tap` hands "home" back as a
- * value for exactly that reason.
+ * there: auto-advance, retry, the grid to level select and "the ball is not
+ * simulated while the panel is up" all lived behind a DOM. None of them needs
+ * one. So the whole state machine is here, DOM-free, and main.js is left with
+ * the loop, the camera and the drawing — plus the one thing that genuinely
+ * needs a browser, which is going to another page. `tap` hands "levels" back
+ * as a value for exactly that reason.
  *
  * It is handed an Input-shaped object rather than importing input.js, so
  * that node can drive it with the real Input on a fake canvas, and it owns
@@ -103,8 +103,7 @@ export class Flow {
     const next = nextLevel(this.levelIndex, this.levels);
     // Null means there is nowhere to go, so the last level stays on its panel
     // rather than promising a level that does not exist. Not a dead end:
-    // retry and the hub are both still on it — and phase 4's level select is
-    // where this will lead instead.
+    // retry and the grid to level select are both still on it.
     if (next !== null) this.start(next);
   }
 
