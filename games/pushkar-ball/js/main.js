@@ -553,6 +553,13 @@ function drawBreakables() {
       ctx.strokeRect(bx + 4, b.y + 1, bw - 8, b.h - 2);
     }
     if (b.cracked) {
+      // Clipped to the boards themselves. The zigzag spans the whole wall, and
+      // unclipped it was drawn straight across the daylight between two
+      // boards — a crack hanging in open air.
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) ctx.rect(x0 + i * bw + 3, b.y, bw - 6, b.h);
+      ctx.clip();
       ctx.beginPath();
       ctx.moveTo(x0 + b.w * 0.2, b.y + b.h * 0.15);
       ctx.lineTo(x0 + b.w * 0.6, b.y + b.h * 0.4);
@@ -560,6 +567,7 @@ function drawBreakables() {
       ctx.lineTo(x0 + b.w * 0.8, b.y + b.h * 0.85);
       ctx.lineWidth = 4;
       ctx.stroke();
+      ctx.restore();
     }
   }
 }
