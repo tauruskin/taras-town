@@ -525,10 +525,13 @@ export const LEVELS = [
       { x: 0, y: 0, w: 40, h: 1080 },
       { x: 15160, y: 0, w: 40, h: 1080 },
       // The slab: a stone roof over a 60px tunnel, carrying the tall patch.
-      // Its top is at 680 and the teeth reach 580. An unaided jump's underside
-      // peaks at 629 — 49px short — and a jump off a crate peaks at 529, 51px
-      // clear. Both were simulated at every take-off point before this was
-      // written; see this level's route in tests/offline/finish.mjs, section 3d.
+      // Its top is at 680 and the teeth reach 600. An unaided jump's underside
+      // peaks at 629, 29px below the tips, so it meets the teeth; a jump off a
+      // crate peaks at 529, 71px clear. The teeth were 100 tall at first and
+      // were lowered to 80: once the crate is flush against the planks, its
+      // jump is the only way over, and at 100 a press a moment late after
+      // landing on it hit the teeth. Unaided jumps still never cross, hit or
+      // not. See this level's routes in tests/offline/finish.mjs, section 3d.
       { x: 13400, y: 680, w: 100, h: 20 },
       // The crate for the first way past, 800 short of the planks, on open
       // flat so it can be shoved all the way without meeting anything. The
@@ -559,7 +562,7 @@ export const LEVELS = [
       // tunnel and no jump from the ground clears it. Two ways past: shove the
       // crate against the planks and jump from it, or roll into the planks
       // hard enough to break them and go underneath.
-      { x: 13400, y: 680, w: 100, h: 100 },
+      { x: 13400, y: 680, w: 100, h: 80 },
     ],
 
     // The tunnel's door: planks filling the gap under the slab's left edge,

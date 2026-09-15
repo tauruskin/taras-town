@@ -285,14 +285,20 @@ const ROUTES = {
 };
 
 // Level four's other way: shove the crate against the planks, back off at
-// least 160, hop onto the crate from within 50 * lead of it and jump off the
-// instant it lands. Simulated from rest: hopping from within 30-70px of the
-// crate cleared the patch every time; from 90px or more it hit the teeth.
-function crateRoute4(level, lead) {
+// least 160, hop onto the crate from within 50 * lead of it, and jump off it.
+// Simulated from rest: hopping from within 30-70px of the crate cleared the
+// patch; from 90px or more it hit the teeth.
+//
+// `late` spreads the second press the way `lead` spreads the first, since
+// this is the one way over once the crate is flush and a thumb is never
+// frame-exact. Zero or more: press that many seconds after landing on the
+// crate. Negative: press once, while still falling onto it, that many seconds
+// before it lands — the jump buffer has to carry it.
+function crateRoute4(level, lead, late) {
   const run = runner(level, lead);
   const crate = level.crates[0];
   const wood = level.breakables[0];
-  let stage = 'run', stuck = 0, lastX = crate.x;
+  let stage = 'run', stuck = 0, lastX = crate.x, landed = 0;
   return (ball) => {
     if (stage === 'run') {
       if (ball.grounded && ball.x > crate.x - 200 && ball.x < crate.x) stage = 'push';
@@ -309,10 +315,21 @@ function crateRoute4(level, lead) {
       return { left: true };
     }
     if (stage === 'hop') {
-      if (ball.grounded && ball.platform === crate) stage = 'over';
-      return { right: true, jump: ball.grounded && ball.platform !== crate && ball.x > crate.x - 50 * lead };
+      if (ball.grounded && ball.platform === crate) { stage = 'over'; landed = level.time; }
+      else if (late < 0 && !ball.grounded && ball.vy > 0 && ball.x + CONFIG.BALL.R > crate.x &&
+               crate.y - (ball.y + CONFIG.BALL.R) < -late * ball.vy) {
+        stage = 'off';               // pressed early, falling onto the crate
+        return { right: true, jump: true };
+      } else {
+        return { right: true, jump: ball.grounded && ball.platform !== crate && ball.x > crate.x - 50 * lead };
+      }
     }
-    return { right: true, jump: ball.grounded && ball.platform === crate };
+    if (stage === 'over') {
+      // An early run that landed here never pressed at all, and must not be
+      // rescued by an on-time press: it fails, loudly, at the teeth.
+      return { right: true, jump: late >= 0 && ball.grounded && ball.platform === crate && level.time - landed >= late };
+    }
+    return { right: true };
   };
 }
 
@@ -496,7 +513,7 @@ console.log('\n3d. level four, both ways past its tall patch');
   const data = LEVELS.find((l) => l.id === 4);
   const plank = data.breakables?.[0];
   const tall = plank && data.spikes.find((s) => s.x === plank.x);
-  if (!plank || !tall) fail('level 4 has no planks under a tall patch — has the geometry moved?');
+  if (!plank || !tall || !data.boxes.some((b) => b.movable)) fail('level 4 has no planks under a tall patch, or no crate — has the geometry moved?');
   else {
     const past = plank.x + tall.w + 20;
 
@@ -507,39 +524,50 @@ console.log('\n3d. level four, both ways past its tall patch');
 
     const cp = data.checkpoints[1];
     const from = { x: cp.x, y: cp.y - CONFIG.BALL.R - CONFIG.CHECKPOINT.CLEARANCE };
+    // A second press 0.1s early (the buffer carries it), on the landing step,
+    // and 0.08s late.
+    const LATES = [-0.1, 0, 0.08];
     const bad = [];
-    const crateAt = [];
+    const crateAt = new Set();
     for (const lead of LEADS) {
-      const { ball, level } = play(data, (lv) => crateRoute4(lv, lead), { from });
-      const broken = level.breakables[0].broken;
-      crateAt.push(level.crates[0].x.toFixed(0));
-      if (!ball.won || ball.deaths > 0 || broken) {
-        bad.push(`lead ${lead}: won=${ball.won} deaths=${ball.deaths} broken=${broken} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
+      for (const late of LATES) {
+        const { ball, level } = play(data, (lv) => crateRoute4(lv, lead, late), { from });
+        const broken = level.breakables[0].broken;
+        crateAt.add(level.crates[0].x.toFixed(0));
+        if (!ball.won || ball.deaths > 0 || broken) {
+          bad.push(`lead ${lead} late ${late}: won=${ball.won} deaths=${ball.deaths} hits=${ball.hits} broken=${broken} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
+        }
       }
     }
-    if (bad.length) fail(`level 4's crate route did not finish cleanly: ${bad.join('; ')}`);
-    else console.log(`   the crate route finished at every lead without breaking the planks (crate left at x=${crateAt.join(', ')})`);
+    if (bad.length) fail(`level 4's crate route did not finish cleanly ${bad.length} time(s) of ${LEADS.length * LATES.length}: ${bad.join('; ')}`);
+    else console.log(`   the crate route finished all ${LEADS.length * LATES.length} ways (early, on time, late) without breaking the planks (crate left at x=${[...crateAt].join(', ')})`);
 
     const bare = {
       ...data,
       boxes: data.boxes.filter((b) => !b.movable).concat([{ x: plank.x, y: plank.y, w: plank.w, h: plank.h }]),
       breakables: [],
     };
+    // A crossing is any run that gets past without dying, hit or not: taking
+    // a heart and being knocked over the teeth is still a way past.
     let cleared = 0, tries = 0, reached = 0;
     for (let jumpAt = plank.x - 300; jumpAt <= plank.x - 5; jumpAt += 5) {
       tries++;
-      let done = false;
+      let done = false, crossed = false;
       const { ball } = play(bare, () => (b) => {
-        reached = Math.max(reached, b.x);
+        if (b.deaths === 0) {
+          reached = Math.max(reached, b.x);
+          if (b.x > past) crossed = true;
+        }
         const jump = !done && b.grounded && b.x >= jumpAt;
         if (jump) done = true;
         return { right: true, jump };
       }, { from: { x: plank.x - 700, y: 740 }, seconds: 5 });
-      if (ball.x > past && ball.hits === 0) cleared++;
+      if (ball.deaths === 0 && ball.x > past) crossed = true;
+      if (crossed) cleared++;
     }
-    if (cleared) fail(`without the crate or the tunnel, level 4's tall patch was crossed ${cleared} time(s) of ${tries}`);
+    if (cleared) fail(`without the crate or the tunnel, level 4's tall patch was crossed ${cleared} time(s) of ${tries}, hits allowed (furthest x=${reached.toFixed(0)}, past it is ${past})`);
     else if (reached < plank.x - 60) fail(`without the crate or the tunnel, no attempt got nearer than x=${reached.toFixed(0)} to the planks at ${plank.x} — this proves nothing`);
-    else console.log(`   ${tries} jumps with no crate and no tunnel, none got past (furthest x=${reached.toFixed(0)}, the planks at ${plank.x})`);
+    else console.log(`   ${tries} jumps with no crate and no tunnel, none got past even taking a hit (furthest x=${reached.toFixed(0)}, past it is ${past})`);
 
     const slow = play(data, () => () => ({ right: true }), { from: { x: plank.x - CONFIG.BALL.R - 15, y: 740 }, seconds: 3 });
     if (slow.level.breakables[0].broken) fail('a slow roll into level 4\'s planks broke them');
