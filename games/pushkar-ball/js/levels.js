@@ -247,7 +247,7 @@ export const LEVELS = [
     // One rising patch, slow — the first spikes in the level, and a new idea,
     // so it sits on open ground before any checkpoint, where meeting it wrong
     // costs little. On the flat after the popper and the 220px gap: 680 past
-    // the landing edge, 840 before checkpoint one, and 1180 before the roller's
+    // the landing edge, 840 before checkpoint one, and 1340 before the roller's
     // patrol begins, so its timing is never asked at the same moment as
     // anything else's. Too tall to jump at its top; wait for it to sink.
     spikes: [

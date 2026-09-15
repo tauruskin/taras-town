@@ -351,7 +351,8 @@ export const CONFIG = {
     // docs/superpowers/specs/2026-09-15-moving-spikes-and-breakable-wood-design.md.
     RISE_H: 180,
     // Seconds for one whole rise and fall. A route that waits for the patch to
-    // stay under 90px for its crossing finished cleanly at 3-5s; 7s lost a run.
+    // stay under a threshold for its crossing finished cleanly at 3-5s
+    // (simulated at 90px; the suite now uses a stricter 75); 7s lost a run.
     // If level 2 stops finishing cleanly, 5 is the proven slow value.
     CYCLE_SLOW: 6,       // level 2
     CYCLE_FAST: 3.5,     // level 3

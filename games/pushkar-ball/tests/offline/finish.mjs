@@ -36,12 +36,17 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
 
 /**
  * Play `data` with `route` from (x, y), after sitting still for `delay`
- * seconds. Returns the ball, the level and how long it took.
+ * seconds. Returns the ball, the level, how long it took, and `riserHits` —
+ * how many times a hit landed while the ball was within 60px of a rising
+ * patch. The suite otherwise counts deaths, not hearts, so a hit that only
+ * became a death because something else had already spent hearts would
+ * otherwise slip through as a pass; this catches it even when it doesn't.
  */
 function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
   const level = loadLevel(data);
   const at = from || level.spawn;
   const ball = new Ball(at.x, at.y);
+  const risers = level.spikes.filter((s) => s.rise);
   let press = false;
   const input = {
     left: false, right: false,
@@ -49,7 +54,7 @@ function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
   };
   const drive = route(level);
   const n = Math.round(seconds / CONFIG.STEP);
-  let i = 0;
+  let i = 0, riserHits = 0, riserHitX = null;
   for (; i < n && !ball.won; i++) {
     const t = i * CONFIG.STEP;
     const want = t < delay ? {} : drive(ball, t);
@@ -57,9 +62,14 @@ function play(data, route, { delay = 0, from = null, seconds = 60 } = {}) {
     input.right = !!want.right;
     if (want.jump) press = true;
     level.update(CONFIG.STEP);
+    const hitsBefore = ball.hits;
     ball.update(CONFIG.STEP, input, level);
+    if (ball.hits > hitsBefore && risers.some((s) => ball.x > s.x - 60 && ball.x < s.x + s.w + 60)) {
+      riserHits++;
+      riserHitX = ball.x;
+    }
   }
-  return { ball, level, t: i * CONFIG.STEP };
+  return { ball, level, t: i * CONFIG.STEP, riserHits, riserHitX };
 }
 
 /**
@@ -115,10 +125,12 @@ function runner(level, lead) {
  * Within 260px of a rising patch, and not yet committed to it, it looks ahead
  * with the same formula the level uses: if the patch will stay under LOW_OK for
  * the whole crossing — 0.2 to 1.0s from now — it runs; otherwise it backs off
- * to 200px and holds still. 90 is what a jumping ball clears, not what the
- * teeth are; a stricter 60 never found a window at 3-4s cycles.
+ * to 200px and holds still. 75 is what the sloppiest jump this file tries
+ * (lead 0.7, taking off 49px short) clears at the patch's front edge, with a
+ * little margin. 90 was too high — a lead-0.7 jump could still meet a patch
+ * still sinking through it; 60 finds no window on the 3.5s cycle.
  */
-const LOW_OK = 90;
+const LOW_OK = 75;
 function waitForLow(level, lead) {
   const run = runner(level, lead);
   const risers = level.spikes.filter((s) => s.rise);
@@ -285,13 +297,15 @@ for (const data of LEVELS) {
   let worst = 0, bad = [];
   for (const lead of LEADS) {
     for (const delay of DELAYS) {
-      const { ball, level, t } = play(data, (lv) => route(lv, lead), { delay });
+      const { ball, level, t, riserHits, riserHitX } = play(data, (lv) => route(lv, lead), { delay });
       // WHERE it won, not just whether: the flag is the only thing that sets
       // `won`, but a goal moved without the check noticing would still pass a
       // bare boolean.
       const atFlag = Math.hypot(ball.x - level.goal.x, ball.y - level.goal.y) <= CONFIG.GOAL.R;
       if (!ball.won || !atFlag || ball.deaths > 0) {
         bad.push(`lead ${lead} delay ${delay}: won=${ball.won} deaths=${ball.deaths} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
+      } else if (riserHits > 0) {
+        bad.push(`lead ${lead} delay ${delay}: took a hit at a rising patch at x=${riserHitX.toFixed(0)}`);
       }
       worst = Math.max(worst, t - delay);
     }
@@ -317,8 +331,9 @@ for (const data of LEVELS) {
     const from = { x: c.x, y: c.y - CONFIG.BALL.R - CONFIG.CHECKPOINT.CLEARANCE };
     const bad = [];
     for (const lead of LEADS) {
-      const { ball } = play(data, (lv) => route(lv, lead), { from });
+      const { ball, riserHits, riserHitX } = play(data, (lv) => route(lv, lead), { from });
       if (!ball.won || ball.deaths > 0) bad.push(`lead ${lead}: won=${ball.won} deaths=${ball.deaths} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
+      else if (riserHits > 0) bad.push(`lead ${lead}: took a hit at a rising patch at x=${riserHitX.toFixed(0)}`);
     }
     if (bad.length) fail(`level ${data.id}: a ball respawned at checkpoint ${i} (${c.x},${c.y}) did not finish cleanly — ${bad.join('; ')}`);
   }
