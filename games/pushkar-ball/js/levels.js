@@ -418,8 +418,8 @@ export const LEVELS = [
 
     // One rising patch, quick — the same idea level two taught slowly, now
     // with a shorter window. After checkpoint one, so a mistimed wait costs
-    // this stretch and not the gaps before it: 1140 past the 240px gap's
-    // landing edge and 1140 before the next gap, far from the walker and the
+    // this stretch and not the gaps before it: 1140 past the 260px gap's
+    // landing edge and 1140 before the 240px gap, far from the walker and the
     // crate flat.
     spikes: [
       { x: 7800, y: 760, w: 60, rise: { period: CONFIG.SPIKE.CYCLE_FAST, phase: 0 } },
