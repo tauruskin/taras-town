@@ -390,15 +390,15 @@ const world = (extra = {}) => loadLevel({
   if (flow.levelIndex !== 1 || flow.mode !== 'playing') fail(`did not advance on the step that reached RESULTS.HOLD`);
   if (!input.controls) fail('the controls stayed off on the new level');
 
-  // Home is handed back as a value; the flow itself goes nowhere.
+  // Levels is handed back as a value; the flow itself goes nowhere.
   const last = down(Buttons.right(W, H));
   steps = 0;
   while (flow.mode === 'playing' && steps < Math.round(12 / CONFIG.STEP)) { flow.step(CONFIG.STEP); steps++; }
   up(last);
-  const hm = Panel.home(W, H);
-  const homeRes = flow.tap(hm.x, hm.y, W, H);
-  if (homeRes !== 'home') fail(`tapping the panel's house returned ${homeRes}`);
-  if (flow.mode !== 'won' || flow.levelIndex !== 1) fail('tapping home changed the level or the mode');
+  const lv = Panel.levels(W, H);
+  const levelsRes = flow.tap(lv.x, lv.y, W, H);
+  if (levelsRes !== 'levels') fail(`tapping the panel's grid returned ${levelsRes}`);
+  if (flow.mode !== 'won' || flow.levelIndex !== 1) fail('tapping levels changed the level or the mode');
 
   // The last level has nowhere to go, so it stays on its panel.
   flow.step(hold + 2);

@@ -183,7 +183,7 @@ function frame(now) {
     // be asked about. The flow ignores any that land while the level is being
     // played, so there is no need to ask which mode it is in first.
     const tap = input.takeTap();
-    if (tap && flow.tap(tap.x, tap.y, cssW, cssH) === 'home') {
+    if (tap && flow.tap(tap.x, tap.y, cssW, cssH) === 'levels') {
       // Relative, with no leading slash, for the same reason the start
       // screen's own hub button is: GitHub Pages serves from a sub-folder.
       window.location.href = '../../index.html';

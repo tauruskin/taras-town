@@ -58,6 +58,33 @@ for (const [w, h] of SCREENS) {
     }
   }
 
+  // The two corner buttons: restart and level select, top-right, the corner
+  // the hearts leave free. One tap each, so a thumb meant for one must never
+  // land on the other, on a control, or on a heart — measured by hit radius,
+  // the circle a tap actually counts inside, not the one that is drawn.
+  const corners = { restart: Buttons.restart(w, h), levels: Buttons.levels(w, h) };
+  for (const [name, b] of Object.entries(corners)) {
+    if (b.x - b.r < 0 || b.y - b.r < 0 || b.x + b.r > w || b.y + b.r > h) {
+      fail(`the ${name} corner button (${b.x.toFixed(0)},${b.y.toFixed(0)} r${b.r}) is off a ${w}x${h} screen`);
+    }
+    if (Buttons.at(b.x, b.y, w, h) !== name) fail(`tapping the middle of the ${name} corner button does not hit it`);
+    const reach = b.r * CONFIG.UI.HIT;
+    for (const [cname, c] of Object.entries(all)) {
+      const d = Math.hypot(b.x - c.x, b.y - c.y);
+      if (d < reach + c.r * CONFIG.UI.HIT) fail(`the ${name} corner button's hit circle overlaps the ${cname} control's on ${w}x${h}`);
+    }
+    for (let i = 0; i < CONFIG.HEALTH.HEARTS; i++) {
+      const p = Hearts.at(i, w, h);
+      if (Math.hypot(b.x - p.x, b.y - p.y) < reach + CONFIG.HEARTS_UI.R) fail(`the ${name} corner button reaches heart ${i} on ${w}x${h}`);
+    }
+    if (b.y + reach > Buttons.topEdge(w, h)) fail(`the ${name} corner button reaches into the control band on ${w}x${h}`);
+  }
+  {
+    const a = corners.restart, b = corners.levels;
+    if (Math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * CONFIG.UI.HIT) fail(`the two corner buttons' hit circles overlap on ${w}x${h}`);
+  }
+  console.log(`   restart ${corners.restart.x.toFixed(0)},${corners.restart.y.toFixed(0)}  levels ${corners.levels.x.toFixed(0)},${corners.levels.y.toFixed(0)}`);
+
   // The results panel's own buttons, held to exactly the same standard. The
   // panel appears on top of the game and advances by itself, so a button of
   // its own that has fallen off the screen is a child carried into the next
@@ -66,7 +93,7 @@ for (const [w, h] of SCREENS) {
   if (panel.x < 0 || panel.y < 0 || panel.x + panel.w > w || panel.y + panel.h > h) {
     fail(`the results panel (${panel.w.toFixed(0)}x${panel.h.toFixed(0)}) does not fit a ${w}x${h} screen`);
   }
-  for (const name of ['retry', 'home']) {
+  for (const name of ['retry', 'levels']) {
     const b = Panel[name](w, h);
     if (b.x - b.r < 0 || b.y - b.r < 0 || b.x + b.r > w || b.y + b.r > h) {
       fail(`the panel's ${name} button is off a ${w}x${h} screen`);
@@ -105,8 +132,8 @@ for (const [w, h] of SCREENS) {
       fail(`the panel's ${name} button hangs off the panel itself on ${w}x${h}`);
     }
   }
-  const pr = Panel.retry(w, h), ph = Panel.home(w, h);
-  if (Math.hypot(pr.x - ph.x, pr.y - ph.y) < pr.r + ph.r) fail(`the panel's two buttons overlap on ${w}x${h}`);
+  const pr = Panel.retry(w, h), pl = Panel.levels(w, h);
+  if (Math.hypot(pr.x - pl.x, pr.y - pl.y) < pr.r + pl.r) fail(`the panel's two buttons overlap on ${w}x${h}`);
 
   // The stars and the level number are on the same face as those buttons, and
   // this is the only thing anywhere that can check the layout: they are drawn
@@ -119,7 +146,7 @@ for (const [w, h] of SCREENS) {
   if (numTop < panel.y || numBottom > panel.y + panel.h) {
     fail(`the level number (${numTop.toFixed(0)}..${numBottom.toFixed(0)}) is off the panel on ${w}x${h}`);
   }
-  for (const [name, b] of [['retry', pr], ['home', ph]]) {
+  for (const [name, b] of [['retry', pr], ['levels', pl]]) {
     // The digit has a row of its own, above the buttons, and this insists on
     // exactly that. Vertical clearance only, on purpose: it is the one kind of
     // clearance that holds however many digits the level number has, and
@@ -137,7 +164,7 @@ for (const [w, h] of SCREENS) {
     if (s.y + s.r > numTop) fail(`star ${i} overlaps the level number on ${w}x${h}`);
   }
   console.log(`   panel ${panel.w.toFixed(0)}x${panel.h.toFixed(0)} at ${panel.x.toFixed(0)},${panel.y.toFixed(0)}  ` +
-              `retry ${pr.x.toFixed(0)},${pr.y.toFixed(0)}  home ${ph.x.toFixed(0)},${ph.y.toFixed(0)}  ` +
+              `retry ${pr.x.toFixed(0)},${pr.y.toFixed(0)}  levels ${pl.x.toFixed(0)},${pl.y.toFixed(0)}  ` +
               `number ${num.x.toFixed(0)},${num.y.toFixed(0)} at ${num.size}px`);
 
   console.log(`   left ${all.left.x.toFixed(0)},${all.left.y.toFixed(0)}  ` +
@@ -167,18 +194,18 @@ for (const [w, h] of SCREENS) {
     fail(`the panel is at ${b.x},${b.y}, which is not centred on a ${w}x${h} screen`);
   }
   // The two buttons, symmetric about the middle of the screen and GAP apart.
-  const retry = Panel.retry(w, h), home = Panel.home(w, h);
-  if (Math.abs((retry.x + home.x) / 2 - w / 2) > 1e-9) {
-    fail(`the panel's buttons are not symmetric about the middle: ${retry.x} and ${home.x} on a ${w}px screen`);
+  const retry = Panel.retry(w, h), levels = Panel.levels(w, h);
+  if (Math.abs((retry.x + levels.x) / 2 - w / 2) > 1e-9) {
+    fail(`the panel's buttons are not symmetric about the middle: ${retry.x} and ${levels.x} on a ${w}px screen`);
   }
-  if (Math.abs((home.x - retry.x) - (2 * R.BUTTON_R + R.GAP)) > 1e-9) {
-    fail(`the panel's buttons are ${(home.x - retry.x).toFixed(1)}px apart, not the ${2 * R.BUTTON_R + R.GAP} that BUTTON_R and GAP ask for`);
+  if (Math.abs((levels.x - retry.x) - (2 * R.BUTTON_R + R.GAP)) > 1e-9) {
+    fail(`the panel's buttons are ${(levels.x - retry.x).toFixed(1)}px apart, not the ${2 * R.BUTTON_R + R.GAP} that BUTTON_R and GAP ask for`);
   }
   if (Math.abs(retry.y - (b.y + R.PANEL_H - R.BUTTON_LIFT - R.BUTTON_R)) > 1e-9) {
     fail(`the panel's buttons sit at y=${retry.y}, not BUTTON_LIFT above the panel's bottom edge`);
   }
   console.log(`\npinned against CONFIG.RESULTS: ${b.w}x${b.h} centred at ${b.x},${b.y}, ` +
-              `buttons ${(home.x - retry.x).toFixed(0)}px apart`);
+              `buttons ${(levels.x - retry.x).toFixed(0)}px apart`);
 }
 
 // The jump button is the one that gets hit under pressure, so it is the

@@ -592,6 +592,15 @@ export const CONFIG = {
                         // not a mouse pointer, and a jump that did not happen
                         // because the press was four pixels low is
                         // indistinguishable from a bug.
+
+    // The two corner buttons during play — restart and level select, top-right.
+    // Smaller than the controls: they are pressed rarely and on purpose, and a
+    // thumb resting near the top of the screen should find the world, not them.
+    // GAP must keep their HIT circles apart: 2 * R * (HIT - 1) is 13.2 here, so
+    // 18 leaves daylight. tests/offline/buttons.mjs checks it on every screen.
+    CORNER_R: 22,
+    CORNER_EDGE: 14,    // from the top and right edges of the screen
+    CORNER_GAP: 18,     // between the two buttons' drawn edges
   },
 
   // ---------------------------------------------------------------------

@@ -111,11 +111,11 @@ export class Flow {
   /**
    * A tap at (x, y) on a w-by-h screen, in CSS pixels.
    *
-   * Returns what it did: 'retry' having restarted the level, 'home' for the
+   * Returns what it did: 'retry' having restarted the level, 'levels' for the
    * caller to act on, or null if it was not on a panel button — which
    * includes every tap while the level is being played.
    *
-   * 'home' is handed back rather than acted on because going to another page
+   * 'levels' is handed back rather than acted on because going to another page
    * is the one thing in this whole flow that needs a browser, and keeping it
    * out is what lets node test everything else.
    */
@@ -123,7 +123,7 @@ export class Flow {
     if (this.mode !== 'won') return null;
     const hit = Panel.at(x, y, w, h);
     if (hit === 'retry') { this.start(this.levelIndex); return 'retry'; }
-    if (hit === 'home') return 'home';
+    if (hit === 'levels') return 'levels';
     return null;
   }
 

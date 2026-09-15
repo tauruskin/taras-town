@@ -21,7 +21,10 @@ import { CONFIG } from './config.js';
 
 // The order the hit test walks. Only matters if two buttons overlap, which the
 // button suite forbids on every screen size, so it is really just a list.
+// CONTROLS are the thumb band at the bottom; CORNERS are the two one-tap
+// buttons top-right. Kept apart because `topEdge` is about the thumb band only.
 const NAMES = ['left', 'right', 'jump'];
+const CORNERS = ['restart', 'levels'];
 
 export const Buttons = {
   /** Bottom-left, nearest the corner. */
@@ -40,6 +43,19 @@ export const Buttons = {
   jump(w, h) {
     const u = CONFIG.UI;
     return { x: w - u.EDGE - u.JUMP_R, y: h - u.EDGE - u.JUMP_R, r: u.JUMP_R };
+  },
+
+  /** Top-right, in the corner: go to level select. */
+  levels(w, h) {
+    const u = CONFIG.UI;
+    return { x: w - u.CORNER_EDGE - u.CORNER_R, y: u.CORNER_EDGE + u.CORNER_R, r: u.CORNER_R };
+  },
+
+  /** Top-right, just inboard of `levels`: restart this level. */
+  restart(w, h) {
+    const u = CONFIG.UI;
+    const l = Buttons.levels(w, h);
+    return { x: l.x - u.CORNER_R * 2 - u.CORNER_GAP, y: l.y, r: u.CORNER_R };
   },
 
   /**
@@ -66,7 +82,7 @@ export const Buttons = {
    * four pixels low is indistinguishable from a bug.
    */
   at(px, py, w, h) {
-    for (const name of NAMES) {
+    for (const name of [...NAMES, ...CORNERS]) {
       const b = Buttons[name](w, h);
       const hit = b.r * CONFIG.UI.HIT;
       if ((px - b.x) ** 2 + (py - b.y) ** 2 <= hit * hit) return name;
@@ -109,6 +125,18 @@ export const Buttons = {
       ctx.fillStyle = C.BUTTON_MARK;
       ctx.fill();
       ctx.restore();
+    }
+
+    // The corner buttons, same disc, with pictures: a curved arrow to restart,
+    // a grid of squares for the levels.
+    for (const name of CORNERS) {
+      const b = Buttons[name](w, h);
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = C.BUTTON;
+      ctx.fill();
+      if (name === 'restart') retryArrow(ctx, b, C.BUTTON_MARK);
+      else gridIcon(ctx, b, C.BUTTON_MARK);
     }
   },
 };
@@ -237,12 +265,10 @@ function heart(ctx, cx, cy, r, colour) {
  * the tests ask for it, and no test may ever contain a coordinate. Positions
  * are in CSS pixels from the top-left of the canvas.
  *
- * There are two buttons and no more. A grid button to level select is missing
- * on purpose — level select is phase 4, and a button that goes nowhere is
- * worse than no button. Retry is the curved arrow; the house goes back to the
- * hub. Both are visible the whole time the panel is, because the panel
- * advances to the next level by itself and a child who wants to replay the
- * level he just enjoyed must not be carried onward regardless.
+ * There are two buttons and no more. Retry is the curved arrow; the grid goes
+ * to level select. Both are visible the whole time the panel is, because the
+ * panel advances to the next level by itself and a child who wants to replay
+ * the level he just enjoyed must not be carried onward regardless.
  *
  * Everything here except `draw` is arithmetic, and nothing measures anything:
  * measuring text needs a context, and this file has to stay importable in Node
@@ -312,8 +338,8 @@ export const Panel = {
     };
   },
 
-  /** Back to the hub's tile screen. Right of centre, level with retry. */
-  home(w, h) {
+  /** To level select. Right of centre, level with retry. */
+  levels(w, h) {
     const R = CONFIG.RESULTS;
     const b = Panel.box(w, h);
     return {
@@ -399,46 +425,17 @@ export const Panel = {
     ctx.textBaseline = 'middle';
     ctx.fillText(String(level), n.x, n.y);
 
-    // Retry: a curved arrow, drawn as an arc with a head on its end. Home: a
-    // house. Pictures, never words.
+    // Retry: a curved arrow, drawn as an arc with a head on its end. Level
+    // select: a grid. Pictures, never words.
     const r = Panel.retry(w, h);
     circleButton(ctx, r, C);
-    ctx.strokeStyle = C.PANEL_INK;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(r.x, r.y, r.r * 0.5, Math.PI * 0.35, Math.PI * 1.75);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(r.x + r.r * 0.5, r.y - r.r * 0.32);
-    ctx.lineTo(r.x + r.r * 0.16, r.y - r.r * 0.2);
-    ctx.lineTo(r.x + r.r * 0.52, r.y + r.r * 0.06);
-    ctx.closePath();
-    ctx.fillStyle = C.PANEL_INK;
-    ctx.fill();
+    retryArrow(ctx, r, C.PANEL_INK);
 
-    // The house: a wide roof, a square body, and a door punched out of it.
-    //
-    // Drawn as three pieces rather than as the one clever seven-point polygon
-    // it started as. That version was a roof over a narrow stem, and on screen
-    // it read as a fat arrow pointing up — which is the picture the JUMP
-    // button already uses, on a panel whose other button is also an arrow. The
-    // door is what makes it unmistakably a house, and a picture a child has to
-    // work out is a picture that has failed.
-    const hm = Panel.home(w, h);
-    circleButton(ctx, hm, C);
-    ctx.fillStyle = C.PANEL_INK;
-    ctx.beginPath();
-    ctx.moveTo(hm.x - hm.r * 0.62, hm.y - hm.r * 0.06);
-    ctx.lineTo(hm.x, hm.y - hm.r * 0.58);
-    ctx.lineTo(hm.x + hm.r * 0.62, hm.y - hm.r * 0.06);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillRect(hm.x - hm.r * 0.42, hm.y - hm.r * 0.1, hm.r * 0.84, hm.r * 0.62);
-    // The door, in the panel's own colour so it reads as a hole in the house
-    // rather than a mark on it. STAR_OFF and not PANEL: this is punched out of
-    // the disc the picture sits on, and that disc is the grey one.
-    ctx.fillStyle = C.STAR_OFF;
-    ctx.fillRect(hm.x - hm.r * 0.14, hm.y + hm.r * 0.18, hm.r * 0.28, hm.r * 0.34);
+    // Level select: a grid of four squares, the same picture as the corner
+    // button during play. The house is on level select itself now.
+    const lv = Panel.levels(w, h);
+    circleButton(ctx, lv, C);
+    gridIcon(ctx, lv, C.PANEL_INK);
   },
 };
 
@@ -456,7 +453,7 @@ function buttonSpread() {
 // The order Panel.at walks. Same shape as NAMES above, and the same reason:
 // it only matters if two of them overlap, which the button suite forbids on
 // every screen size.
-const PANEL_NAMES = ['retry', 'home'];
+const PANEL_NAMES = ['retry', 'levels'];
 
 /** The disc a panel button's picture sits on. */
 function circleButton(ctx, b, C) {
@@ -464,6 +461,37 @@ function circleButton(ctx, b, C) {
   ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
   ctx.fillStyle = C.STAR_OFF;
   ctx.fill();
+}
+
+/**
+ * A curved arrow: an arc with a head on its end. Shared by the panel's retry
+ * and the restart corner button, so the two can never come to look different.
+ * Proportional to the disc, line width included.
+ */
+function retryArrow(ctx, b, colour) {
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = Math.max(2, b.r * 0.12);
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r * 0.5, Math.PI * 0.35, Math.PI * 1.75);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(b.x + b.r * 0.5, b.y - b.r * 0.32);
+  ctx.lineTo(b.x + b.r * 0.16, b.y - b.r * 0.2);
+  ctx.lineTo(b.x + b.r * 0.52, b.y + b.r * 0.06);
+  ctx.closePath();
+  ctx.fillStyle = colour;
+  ctx.fill();
+}
+
+/** Four squares in a two-by-two grid: "all the levels". */
+function gridIcon(ctx, b, colour) {
+  const s = b.r * 0.3, g = b.r * 0.14;
+  ctx.fillStyle = colour;
+  for (const dx of [-1, 1]) {
+    for (const dy of [-1, 1]) {
+      ctx.fillRect(b.x + (dx < 0 ? -s - g / 2 : g / 2), b.y + (dy < 0 ? -s - g / 2 : g / 2), s, s);
+    }
+  }
 }
 
 /** A rounded rectangle, as a path — the caller fills or strokes it. */
