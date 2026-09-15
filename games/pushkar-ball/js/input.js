@@ -120,12 +120,14 @@ export class Input {
 
   /**
    * A thumb that slides from left to right without lifting should change
-   * direction, not keep the old one. Sliding off both buttons releases.
+   * direction, not keep the old one. Sliding off both move buttons releases,
+   * and that includes sliding onto jump or a corner button: only 'left' and
+   * 'right' are ever held, so no other name enters `_pointers` this way either.
    */
   _move(e) {
     if (!this._pointers.has(e.pointerId)) return;
     const name = this._hit(e);
-    if (name && name !== 'jump') this._pointers.set(e.pointerId, name);
+    if (name === 'left' || name === 'right') this._pointers.set(e.pointerId, name);
     else this._pointers.delete(e.pointerId);
   }
 
