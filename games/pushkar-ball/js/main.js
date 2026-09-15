@@ -17,6 +17,7 @@ import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Buttons, Overlay, Panel, Hearts } from './ui.js';
 import { Flow } from './flow.js';
+import { loadProgress, saveProgress, markWon } from './save.js';
 import { drawSpikes } from './hazards.js';
 import { drawEnemies } from './enemies.js';
 
@@ -101,16 +102,77 @@ function levelBegan(f) {
 
 // Winning, the results panel, retry and moving on all live in flow.js, where
 // node can test them. This file keeps the loop, the camera and the drawing.
-const flow = new Flow(input, { levels: LEVELS, onStart: levelBegan });
+// Progress, from the device's own storage. Reaching `localStorage` can itself
+// throw in a locked-down browser, so even getting hold of it is guarded; a
+// null store simply means a game with no memory, which save.js handles.
+const store = (() => { try { return window.localStorage; } catch (_) { return null; } })();
+let progress = loadProgress(store, LEVELS);
+
+const flow = new Flow(input, {
+  levels: LEVELS,
+  onStart: levelBegan,
+  onWin: (f) => {
+    progress = markWon(progress, f.levelIndex, LEVELS);
+    saveProgress(store, progress);
+  },
+});
+// Level one is loaded behind the screens so the canvas always has a world to
+// draw; nothing is simulated until a tile is chosen.
 flow.start(0);
 
-// The world is drawn from the first frame, behind the start panel, so the tap
-// that begins play reveals a level rather than a blank screen. Only the
-// simulation waits.
+// The loop's clock. Declared here, above `play`, which resets it.
+let last = 0, accumulator = 0;
+
+// The world is drawn from the first frame, behind the screens, so the tap on
+// a tile reveals a level rather than a blank screen. Only the simulation waits.
 let playing = false;
-document.getElementById('start-button').addEventListener('click', () => {
-  document.getElementById('start-screen').classList.add('hidden');
+const startScreen = document.getElementById('start-screen');
+const levelsScreen = document.getElementById('levels-screen');
+const grid = document.getElementById('level-grid');
+
+const STAR = '<svg class="star" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L30 18 L45 19 L33 29 L37 44 L24 36 L11 44 L15 29 L3 19 L18 18 Z"/></svg>';
+const LOCK = '<svg class="lock" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 22 V16 a10 10 0 0 1 20 0 V22 H38 V44 H10 V22 Z M19 22 H29 V16 a5 5 0 0 0 -10 0 Z"/></svg>';
+
+/**
+ * Show level select, with the tiles rebuilt from the progress as it is now.
+ * Play stops and every press in flight is dropped, so a thumb that was on the
+ * right arrow does not come back holding it.
+ */
+function showLevels() {
+  playing = false;
+  input.setControls(false);
+  grid.replaceChildren(...LEVELS.map((data, i) => {
+    const b = document.createElement('button');
+    const open = i < progress.unlocked;
+    const done = progress.finished.includes(data.id);
+    b.className = 'tile' + (open ? '' : ' locked') + (open && !done ? ' next' : '');
+    b.dataset.index = String(i);
+    if (open) {
+      b.setAttribute('aria-label', `Level ${data.id}`);
+      b.textContent = String(data.id);
+      if (done) b.insertAdjacentHTML('beforeend', STAR);
+      b.addEventListener('click', () => play(i));
+    } else {
+      b.setAttribute('aria-label', 'Locked');
+      b.disabled = true;
+      b.innerHTML = LOCK;
+    }
+    return b;
+  }));
+  levelsScreen.classList.remove('hidden');
+}
+
+/** Start the level at `i` and hide level select. */
+function play(i) {
+  levelsScreen.classList.add('hidden');
+  flow.start(i);
+  accumulator = 0;
   playing = true;
+}
+
+document.getElementById('start-button').addEventListener('click', () => {
+  startScreen.classList.add('hidden');
+  showLevels();
   // Fullscreen is a bonus, never a requirement: a browser that refuses must
   // still give a playable game.
   try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (_) {}
@@ -118,14 +180,15 @@ document.getElementById('start-button').addEventListener('click', () => {
 
 // Relative, with no leading slash, because GitHub Pages serves this from a
 // sub-folder and a leading slash silently looks at the top of the whole site.
-document.getElementById('hub-button').addEventListener('click', () => {
-  window.location.href = '../../index.html';
-});
+for (const id of ['hub-button', 'levels-hub-button']) {
+  document.getElementById(id).addEventListener('click', () => {
+    window.location.href = '../../index.html';
+  });
+}
 
 // ---------------------------------------------------------------------------
 // The loop
 // ---------------------------------------------------------------------------
-let last = 0, accumulator = 0;
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -178,18 +241,17 @@ function frame(now) {
       steps++;
     }
 
-    // Taps once a frame rather than once a step: a tap happened at a moment
-    // of wall-clock time and is not something the fixed-step simulation can
-    // be asked about. The flow ignores any that land while the level is being
-    // played, so there is no need to ask which mode it is in first.
+    // Taps and actions once a frame rather than once a step: a press happened
+    // at a moment of wall-clock time and is not something the fixed-step
+    // simulation can be asked about. Taps go to the results panel, and the
+    // flow ignores any that land while the level is being played; actions come
+    // from the corner buttons during play, and the flow ignores those while
+    // the panel is up. Either can ask for level select.
     const tap = input.takeTap();
-    if (tap && flow.tap(tap.x, tap.y, cssW, cssH) === 'levels') {
-      // For now this still goes to the hub; Task 4 of
-      // docs/superpowers/plans/2026-09-15-level-select-and-corner-buttons.md
-      // turns it into level select. Relative, with no leading slash, for the
-      // same reason the start screen's own hub button is: GitHub Pages serves
-      // from a sub-folder.
-      window.location.href = '../../index.html';
+    const action = input.takeAction();
+    if ((tap && flow.tap(tap.x, tap.y, cssW, cssH) === 'levels') ||
+        (action && flow.act(action) === 'levels')) {
+      showLevels();
     }
   }
 

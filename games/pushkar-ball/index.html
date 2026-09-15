@@ -33,6 +33,7 @@
 
     The tap that leaves it is also what lets a phone go full screen and make any
     sound at all, so there always has to be at least one tap before play begins.
+    Its Play button leads to level select, below.
 
     There is no writing on any button — the only text is the game's own name,
     exactly as Taras Town shows its own on its opening panel.
@@ -56,6 +57,20 @@
         </svg>
       </button>
     </div>
+  </div>
+
+  <!--
+    Level select: the game's main screen. One tile per level, built by main.js
+    from the level list and the saved progress, so a level added later appears
+    here without touching this file. The only text is each level's number.
+  -->
+  <div id="levels-screen" class="hidden">
+    <button id="levels-hub-button" class="hub-link" aria-label="All games">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M6 24 L24 8 L42 24 L36 24 L36 40 L12 40 L12 24 Z"/>
+      </svg>
+    </button>
+    <div id="level-grid"></div>
   </div>
 
   <!-- Shown automatically by CSS whenever the phone is held upright. -->

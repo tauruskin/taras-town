@@ -22,7 +22,7 @@ html, body {
 
 #game { display: block; width: 100%; height: 100%; }
 
-#start-screen {
+#start-screen, #levels-screen {
   position: fixed;
   inset: 0;
   display: flex;
@@ -30,7 +30,7 @@ html, body {
   justify-content: center;
   background: linear-gradient(#4FC3F7, #B3E5FC);
 }
-#start-screen.hidden { display: none; }
+#start-screen.hidden, #levels-screen.hidden { display: none; }
 
 .panel {
   display: flex;
@@ -90,6 +90,40 @@ button svg { width: 60%; height: 60%; fill: #fff; }
   background: rgba(255, 255, 255, .28);
 }
 .hub-link svg { width: 68%; height: 68%; }
+
+/* Level select. Four tiles to a row, sized against the screen HEIGHT for the
+   same reason the opening panel is: at 740x280 two rows of 26vh tiles and a
+   gap are 154px, which clears the hub button above them. */
+#level-grid {
+  --tile: clamp(52px, 26vh, 110px);
+  display: grid;
+  grid-template-columns: repeat(4, var(--tile));
+  gap: clamp(8px, 3vh, 18px);
+}
+.tile {
+  position: relative;
+  width: var(--tile);
+  aspect-ratio: 1;
+  border-radius: 18%;
+  background: #fff;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, .2);
+  font: inherit;
+  font-weight: 800;
+  font-size: calc(var(--tile) * .42);
+  color: #33444F;
+}
+.tile:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, .2); }
+/* The next level to play stands out; finished ones carry a star; locked ones
+   are faded, show a padlock, and do not press in. No red anywhere: the ball is
+   the only red thing in this game. */
+.tile.next { background: #FFC93C; }
+.tile.locked { background: rgba(255, 255, 255, .45); cursor: default; }
+.tile.locked:active { transform: none; box-shadow: 0 5px 0 rgba(0, 0, 0, .2); }
+/* `.tile svg.lock` (0,2,1) and `.tile svg.star` (0,2,1) outrank the global
+   `button svg` (0,0,2), so these sizes and fills win over its 60% white. */
+.tile svg.lock { width: 46%; height: 46%; fill: #78868F; }
+.tile svg.star { position: absolute; top: 6%; right: 6%; width: 30%; height: 30%; fill: #FFC93C; }
+.tile.next svg.star { fill: #fff; }
 
 /* Portrait: cover everything and ask for a turn, without a word. */
 #rotate-screen {
