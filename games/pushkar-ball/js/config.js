@@ -110,6 +110,25 @@ export const CONFIG = {
   },
 
   // ---------------------------------------------------------------------
+  // Breakable wood
+  // ---------------------------------------------------------------------
+  // A plank wall. Wood gives way and stone never does: a crate gives way by
+  // sliding, planks by breaking. It stops everything — ball, crate, roller —
+  // until the ball rolls into it hard, and then it is gone for the rest of that
+  // play of the level, respawns included. See
+  // docs/superpowers/specs/2026-09-15-moving-spikes-and-breakable-wood-design.md.
+  BREAKABLE: {
+    // How fast the ball must be heading into it, in px/s. Not a skill test —
+    // from rest the ball passes this in about 28px — but it separates rolling
+    // into the planks from leaning on them, which is what lets a slow knock
+    // rattle them and teach "harder" without a word.
+    SPEED: 300,
+    WOBBLE_TIME: 0.3,    // s a slower knock rattles it for
+    WOBBLE_PX: 3,        // how far the rattle moves the drawing, never the collider
+    BOARD_W: 10,         // one board, so a wall is drawn as w / BOARD_W boards
+  },
+
+  // ---------------------------------------------------------------------
   // Checkpoints
   // ---------------------------------------------------------------------
   // A checkpoint is not a collider and never touches the segment world: it is

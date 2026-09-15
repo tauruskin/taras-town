@@ -917,6 +917,40 @@ function makeGate(g) {
 }
 
 /**
+ * A plank wall: a solid box until it is broken, then nothing at all.
+ *
+ * `segments` is emptied rather than the object removed, so the level's own
+ * list, and anything a test holds, keeps pointing at the same thing. It owes
+ * dx/dy/vx/vy because the ball can land on top of it, and player.js adds a
+ * carrier's `dx` without asking — the crate NaN bug in CLAUDE.md.
+ *
+ * `cracked` is permanent once knocked and only ever drawn; `wobbleT` counts
+ * down in `Level.update` the way a pad's `squashT` does.
+ */
+function makeBreakable(d) {
+  const b = {
+    x: d.x, y: d.y, w: d.w, h: d.h,
+    breakable: true,
+    broken: false,
+    cracked: false,
+    wobbleT: 0,
+    dx: 0, dy: 0, vx: 0, vy: 0,
+    segments: boxSegments(d.x, d.y, d.w, d.h),
+
+    bump() {
+      b.cracked = true;
+      b.wobbleT = CONFIG.BREAKABLE.WOBBLE_TIME;
+    },
+
+    overlaps(x, y, r) {
+      return !b.broken && x + r > b.x && x - r < b.x + b.w && y + r > b.y && y - r < b.y + b.h;
+    },
+  };
+  for (const s of b.segments) s.owner = b;
+  return b;
+}
+
+/**
  * A balance beam: a plank that pivots about a fixed fulcrum, tilting toward
  * whichever end carries more weight. Only a crate weighs it down — never the
  * ball — the same rule the pressure switch already follows, so the puzzle is
@@ -1221,6 +1255,10 @@ class Level {
     // movers they must stay OUT of the static grid built below.
     this.gates = (data.gates || []).map(makeGate);
 
+    // Breakables ARE colliders, and dynamic in the one way that matters —
+    // they stop existing — so like gates they stay OUT of the static grid.
+    this.breakables = (data.breakables || []).map(makeBreakable);
+
     // Beams ARE colliders too, and dynamic for the same reason gates are —
     // they move (rotate, in this case), so they must stay OUT of the static
     // grid built below.
@@ -1274,6 +1312,7 @@ class Level {
     }
     for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
     for (const p of this.pads) p.squashT = Math.max(0, p.squashT - dt);
+    for (const b of this.breakables) b.wobbleT = Math.max(0, b.wobbleT - dt);
     // A switch is pressed by any crate resting on it — never the ball
     // itself. Crates are updated above this line, so `grounded` is already
     // this step's answer, not last step's. `animT` is purely cosmetic — how
@@ -1311,6 +1350,7 @@ class Level {
     const out = [...this.statics];
     for (const m of this.movers) out.push(...m.segments);
     for (const g of this.gates) out.push(...g.segments);
+    for (const b of this.breakables) out.push(...b.segments);
     for (const beam of this.beams) out.push(...beam.segments);
     for (const c of this.crates) if (c !== crate) out.push(...c.segments);
     return out;
@@ -1327,6 +1367,7 @@ class Level {
     const out = [...this.grid.near(x, y, r)];
     for (const m of this.movers) if (m.overlaps(x, y, r)) out.push(...m.segments);
     for (const g of this.gates) if (g.overlaps(x, y, r)) out.push(...g.segments);
+    for (const b of this.breakables) if (b.overlaps(x, y, r)) out.push(...b.segments);
     for (const beam of this.beams) if (beam.overlaps(x, y, r)) out.push(...beam.segments);
     for (const c of this.crates) if (c.overlaps(x, y, r)) out.push(...c.segments);
     return out;
@@ -1439,6 +1480,29 @@ class Level {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Break a plank wall: its segments go, for good, and it throws the same pop
+   * a stomped enemy does, in wood. player.js decides WHEN; this is only what
+   * breaking is. The pieces are at fixed angles for the reason stompEnemy's
+   * are: the level looks the same every time.
+   */
+  breakWood(b) {
+    b.broken = true;
+    b.segments = [];
+    const P = CONFIG.ENEMY.POP;
+    for (let i = 0; i < P.COUNT; i++) {
+      const a = (i / P.COUNT) * Math.PI * 2;
+      this.particles.push({
+        x: b.x + b.w / 2, y: b.y + b.h / 2,
+        vx: Math.cos(a) * P.SPEED,
+        vy: Math.sin(a) * P.SPEED,
+        angle: a,
+        life: P.LIFE,
+        wood: true,
+      });
+    }
   }
 }
 

@@ -269,6 +269,9 @@ export class Ball {
     }
 
     // --- move, and be pushed back out ------------------------------------
+    // Read before resolution, which takes speed away on contact — see "break
+    // wood" below, which needs to know how hard the ball was going.
+    const vxIn = this.vx;
     const contacts = step(this, level, dt, C);
 
     // Grounded is DERIVED from the contacts, never set by the terrain. That is
@@ -303,6 +306,27 @@ export class Ball {
       this.coyote = 0;
       this.platform = null;
       platform.squashT = C.BOUNCE.SQUASH_TIME;
+    }
+
+    // --- break wood -------------------------------------------------------
+    //
+    // A plank wall gives way to a ball hitting it side-on, heading into it,
+    // at BREAKABLE.SPEED or more. The speed is handed back afterwards, so the
+    // ball smashes through instead of stopping dead in the doorway it just
+    // made. Anything slower only rattles it. A ball that is not moving at all
+    // is not knocking, so it does not rattle it for ever by resting against it.
+    for (const c of contacts) {
+      const wood = c.seg.owner;
+      if (!wood || !wood.breakable || wood.broken) continue;
+      if (Math.abs(c.nx) < C.CRATE.PUSH_NX || Math.abs(vxIn) < 1) continue;
+      if (Math.sign(c.nx) === Math.sign(vxIn)) continue;
+      if (Math.abs(vxIn) >= C.BREAKABLE.SPEED) {
+        level.breakWood(wood);
+        this.vx = vxIn;
+      } else {
+        wood.bump();
+      }
+      break;
     }
 
     this.spin += (this.vx / this.r) * dt;
