@@ -652,10 +652,11 @@ export const CONFIG = {
     // IS_BALL regardless of green.
     WATER: '#2E9CCA',
     WATER_RIPPLE: '#BFE9F5',
-    // Wood means "you can push this". The level's boundary walls are boxes
-    // too, and they used to be drawn in exactly this wood, which made the rule
-    // a lie the moment crates became pushable — so the walls have their own
-    // stone colours below and nothing wooden is ever fixed in place.
+    // Wood gives way; stone never does. A crate gives way by sliding and a
+    // plank wall by breaking, and both are drawn in this wood. The level's
+    // boundary walls are boxes too, and they used to be drawn in exactly this
+    // wood, which made the rule a lie the moment crates became pushable — so
+    // the walls have their own stone colours below.
     CRATE: '#C98A4B',
     CRATE_LINE: '#9C6631',
     WALL: '#9AA7B0',

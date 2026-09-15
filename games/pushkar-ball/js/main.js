@@ -220,6 +220,7 @@ function draw() {
   drawWater();
   drawWalls();
   drawCrates();
+  drawBreakables();
   drawCheckpoints();
   drawSwitches();
   drawSpikes(ctx, level.spikes, CONFIG);
@@ -529,6 +530,38 @@ function drawCrates() {
 }
 
 /**
+ * Plank walls: a row of upright boards with daylight between them, in the
+ * crate's own wood — so it reads as wood, and so as something that gives way —
+ * but never a solid box, so it is never mistaken for a crate. A knock rattles
+ * the drawing (never the collider) and leaves a crack for good. A broken one
+ * is simply not drawn; its pieces are `level.particles`.
+ */
+function drawBreakables() {
+  const C = CONFIG.COLOURS;
+  const B = CONFIG.BREAKABLE;
+  for (const b of level.breakables) {
+    if (b.broken) continue;
+    const x0 = b.x + (b.wobbleT > 0 ? Math.sin(b.wobbleT * 60) * B.WOBBLE_PX : 0);
+    const n = Math.max(1, Math.round(b.w / B.BOARD_W));
+    const bw = b.w / n;
+    ctx.fillStyle = C.CRATE;
+    for (let i = 0; i < n; i++) ctx.fillRect(x0 + i * bw + 1, b.y, bw - 2, b.h);
+    ctx.strokeStyle = C.CRATE_LINE;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < n; i++) ctx.strokeRect(x0 + i * bw + 1, b.y + 1, bw - 2, b.h - 2);
+    if (b.cracked) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + b.w * 0.2, b.y + b.h * 0.15);
+      ctx.lineTo(x0 + b.w * 0.6, b.y + b.h * 0.4);
+      ctx.lineTo(x0 + b.w * 0.3, b.y + b.h * 0.6);
+      ctx.lineTo(x0 + b.w * 0.8, b.y + b.h * 0.85);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  }
+}
+
+/**
  * The checkpoints: a little flag on a pole, grey until reached and green
  * after.
  *
@@ -597,7 +630,7 @@ function drawGates() {
  * fulcrum, plus a small stone wedge underneath as the pivot. Stone-family
  * grey, like a gate — the beam itself cannot be pushed, only ridden or
  * weighed down by a crate — never wood, which in this game always means
- * "you can push this".
+ * something that gives way.
  */
 function drawBeams() {
   const C = CONFIG.COLOURS;
@@ -676,7 +709,8 @@ function drawPads() {
  * `drawPads` has with `level.pads`.
  *
  * Drawn in the same colours a live enemy is drawn in (`drawSpikyBody` in
- * enemies.js), so the debris visibly belongs to what it came from.
+ * enemies.js), so the debris visibly belongs to what it came from. Pieces of
+ * broken planks carry `wood` and are drawn in the crate's colours instead.
  */
 function drawParticles() {
   const C = CONFIG.COLOURS;
@@ -693,9 +727,9 @@ function drawParticles() {
     ctx.lineTo(-s * 0.6, s * 0.6);
     ctx.lineTo(-s * 0.6, -s * 0.6);
     ctx.closePath();
-    ctx.fillStyle = C.ENEMY;
+    ctx.fillStyle = p.wood ? C.CRATE : C.ENEMY;
     ctx.fill();
-    ctx.strokeStyle = C.ENEMY_EDGE;
+    ctx.strokeStyle = p.wood ? C.CRATE_LINE : C.ENEMY_EDGE;
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
