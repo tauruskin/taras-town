@@ -1,4 +1,14 @@
-# Level select, and restart / levels buttons during play
+# Level select, and restart / levels buttons during play — DONE
+
+Built per the plan in `docs/superpowers/plans/2026-09-15-level-select-and-corner-buttons.md`.
+Two deviations along the way: `sw.js`'s `CACHE` was left at `pushkar-games-v2`
+rather than bumped as this spec's Architecture section says — that text was
+wrong, since `sw.js`'s own comment above `CACHE` says a bump is only needed
+when a listed file is renamed or removed, not when new paths are added to
+`PRECACHE`. The corner buttons also ended up with their own colours,
+`COLOURS.CORNER`/`COLOURS.CORNER_MARK`, rather than reusing the move buttons'
+`COLOURS.BUTTON`/`COLOURS.BUTTON_MARK` this spec describes below, so they read
+as distinct from the move buttons rather than part of the same set.
 
 Pushkar Ball today goes straight from its opening screen into level 1 and plays
 the levels in order. The only ways out of a level are finishing it (the results

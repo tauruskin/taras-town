@@ -16,22 +16,28 @@ else from them — no artwork, no names, no level layouts.
 
 ## What is here, and what is not
 
-This is **phase 1**, and phase 1 is only about how the ball feels. One
-hand-built level, a flag at the end that does nothing when you reach it, and
-that is the whole game.
+**Seven levels**, chosen from a level-select screen rather than played in a
+fixed order: level one is always open, and finishing a level opens the next
+one. A tile shows its level's number, a star once it is finished, a highlight
+on the one open tile not yet finished, and an unresponsive padlock on anything
+still locked. Progress — which levels are open, which are finished — is saved
+on the device, and a private-mode browser, or any storage that refuses to
+save, gets a playable game with no memory rather than an error.
 
-Falling down a hole is the one way to fail, and it costs nothing: the ball
-reappears at the start of the level immediately, with the camera already there.
-No lives to run out, no screen to dismiss, no wait. That is the hub's rule
-rather than a design flourish — where a game can be failed, failing has to be
-harmless and instantly undone.
+Losing all three hearts, or falling down a hole, sends the ball back to its
+level's last checkpoint — the start of the level, if none has been reached yet
+— and costs nothing else: no screen to dismiss, no wait, and nothing that
+follows the player between attempts except the hearts refilling. That is the
+hub's rule rather than a design flourish — where a game can be failed, failing
+has to be harmless and instantly undone.
 
-Deliberately absent, and not to be built ahead of time: hazards, enemies,
-gems, lives, checkpoints, a menu, a level-select screen, saved progress, and
-sound of any kind. Every number in `js/config.js` is a guess until somebody has
-played it with a thumb, and anything built on top of those numbers before that
-happens is work thrown away. The plan for phases 2 to 4 is in
-[`docs/superpowers/specs/2026-09-08-pushkar-ball-design.md`](../../docs/superpowers/specs/2026-09-08-pushkar-ball-design.md).
+Deliberately absent, and not to be built ahead of time: gems, and sound of any
+kind. Every number in `js/config.js` is a guess until somebody has played it
+with a thumb, and anything built on top of those numbers before that happens
+is work thrown away. The original plan is in
+[`docs/superpowers/specs/2026-09-08-pushkar-ball-design.md`](../../docs/superpowers/specs/2026-09-08-pushkar-ball-design.md);
+level select and the corner buttons were added later and are documented in
+[`docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md`](../../docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md).
 
 ## How it's built
 
@@ -68,10 +74,15 @@ Touch first, because the hub is a phone app:
 |---|---|
 | Bottom left, two round buttons | roll left, roll right |
 | Bottom right, the big one | jump |
+| Top right, two small round buttons | restart the level (curved arrow), level select (grid) |
 
 Every one is a picture, never a word. A keyboard works at the same time and
 neither disables the other, so a phone with a keyboard attached does not have
 to choose: **←/→ or A/D** to roll, **space, ↑ or W** to jump.
+
+The results panel that appears on finishing a level carries the same two
+pictures: a curved arrow to play the level again, and a grid to level select.
+Level select itself has the house, top-left, back to the hub of all games.
 
 **Every button's position comes from `js/ui.js`**, and `js/config.js`'s `UI`
 block holds its size. Nothing else may decide where a button is, and no test
@@ -89,9 +100,10 @@ when one does.
 | `js/camera.js` | follow with lookahead and a vertical deadzone, clamped to the level | never |
 | `js/ui.js` | where every on-screen button is, and what it looks like | canvas only |
 | `js/input.js` | the on-screen buttons and the keyboard, as one thing | yes |
+| `js/save.js` | which levels are open and finished, in `localStorage` under `pushkar-ball-save`; the storage is handed in, and every failure gives a fresh game | never |
 | `js/main.js` | canvas sizing, the loop, and the drawing of the world | yes |
 
-**The five modules marked "never" must stay that way.** They must not touch
+**The modules marked "never" must stay that way.** They must not touch
 `document`, `window`, `Image` or `Audio`, at import time or in their update
 paths. This is not tidiness — it is the whole reason the simulation can be
 imported straight into Node and tested exactly, in a couple of seconds, with
@@ -246,6 +258,13 @@ geometry is worked out at draw time.
 things worth having fall out of that: the level looks identical on every
 attempt, so a player learns the timing instead of re-reading it; and a test can
 assert where a platform is at time *t* without running the game at all.
+
+**A new level must be appended to `LEVELS`, never inserted in the middle.**
+`save.js`'s `unlocked` is a *count* of how many levels from the start are open,
+not a set of unlocked ids — it has no idea which level is which, only how far
+into the list play has reached. Inserting a level shifts every id after it
+down the list, so a player with existing saved progress would find levels
+silently relocked or wrongly unlocked the next time they opened the game.
 
 ## Changing how it feels
 
