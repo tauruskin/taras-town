@@ -41,10 +41,27 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   if (!play.ok) fail(`the play button is off a ${W}x${H} screen`);
   await shoot(`${W}x${H}-1-start`);
 
-  // In play: all three controls on screen, and the ball visible.
+  // Level select: the way back to the hub, and every tile, on screen.
+  await ev("document.getElementById('start-button').click()");
+  await sleep(400);
+  const sel = await ev(`(() => {
+    const on = (r) => r.x >= 0 && r.y >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
+    const hub = document.getElementById('levels-hub-button').getBoundingClientRect();
+    const tiles = [...document.querySelectorAll('#level-grid .tile')].map((t) => t.getBoundingClientRect());
+    const overlaps = tiles.some((r) => r.x < hub.right && r.right > hub.x && r.y < hub.bottom && r.bottom > hub.y);
+    return { hub: on(hub), tiles: tiles.length, off: tiles.filter((r) => !on(r)).length, overlaps };
+  })()`);
+  if (!sel.hub) fail(`level select's hub button is off a ${W}x${H} screen`);
+  if (sel.tiles === 0) fail(`level select shows no tiles on ${W}x${H}`);
+  if (sel.off) fail(`${sel.off} of ${sel.tiles} level tiles are off a ${W}x${H} screen`);
+  if (sel.overlaps) fail(`a level tile overlaps the hub button on ${W}x${H}`);
+  console.log(`   level select: ${sel.tiles} tiles, all on screen`);
+  await shoot(`${W}x${H}-2-levels`);
+
+  // In play: all five controls on screen, and the ball visible.
   await boot(cdp, URL, W, H);
   await sleep(900);
-  for (const name of ['left', 'right', 'jump']) {
+  for (const name of ['left', 'right', 'jump', 'restart', 'levels']) {
     const b = Buttons[name](W, H);
     if (b.x - b.r < 0 || b.y - b.r < 0 || b.x + b.r > W || b.y + b.r > H) {
       fail(`the ${name} button is off a ${W}x${H} screen`);
@@ -52,8 +69,8 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   }
   const ball = await ballAt(ev);
   if (!ball) fail(`the ball is not visible on ${W}x${H}`);
-  else console.log(`   ball at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}, all three buttons on screen`);
-  await shoot(`${W}x${H}-2-playing`);
+  else console.log(`   ball at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}, all five buttons on screen`);
+  await shoot(`${W}x${H}-3-playing`);
 }
 
 for (const p of problems) fail(p);

@@ -78,7 +78,7 @@ export async function connect(port, tag) {
   return { send, sleep, ev, shoot, problems };
 }
 
-/** Put the browser on a given screen, clear any storage, and start the game. */
+/** Put the browser on a given screen, clear any storage, and start level one. */
 export async function boot({ send, sleep, ev }, url, w, h) {
   await send('Emulation.setDeviceMetricsOverride', {
     width: w, height: h, deviceScaleFactor: 2, mobile: true,
@@ -93,7 +93,11 @@ export async function boot({ send, sleep, ev }, url, w, h) {
   });
   await send('Page.navigate', { url });
   await sleep(1600);
+  // Play opens level select; storage was just cleared, so only level one is
+  // open, and its tile is the first.
   await ev("document.getElementById('start-button').click()");
+  await sleep(300);
+  await ev("document.querySelector('#level-grid .tile').click()");
   await sleep(500);
 }
 
