@@ -8,7 +8,7 @@
  * simulated while the panel is up" all lived behind a DOM. None of them needs
  * one. So the whole state machine is here, DOM-free, and main.js is left with
  * the loop, the camera and the drawing — plus the one thing that genuinely
- * needs a browser, which is going to another page. `tap` hands "levels" back
+ * needs a browser, which is showing another screen. `tap` hands "levels" back
  * as a value for exactly that reason.
  *
  * It is handed an Input-shaped object rather than importing input.js, so
@@ -119,7 +119,7 @@ export class Flow {
    * back for the caller to act on, or null if it was not on a panel button —
    * which includes every tap while the level is being played.
    *
-   * 'levels' is handed back rather than acted on because going to another page
+   * 'levels' is handed back rather than acted on because showing another screen
    * is the one thing in this whole flow that needs a browser, and keeping it
    * out is what lets node test everything else.
    */
