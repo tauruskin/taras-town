@@ -351,10 +351,11 @@ export const CONFIG = {
     // tests/offline/risers.mjs holds it to at least 30. See
     // docs/superpowers/specs/2026-09-15-moving-spikes-and-breakable-wood-design.md
     // and docs/superpowers/specs/2026-09-16-level3-roller-and-level4-rising-spikes-design.md.
-    // Level 4's fifth patch, over its tunnel, is deliberately excluded: it is
-    // authored at RISE_H with no `rise` at all, because that patch's own
-    // lesson is "waiting never helps, you must find another way," and giving
-    // it a cycle would blur that lesson with this one.
+    // Level 4's fifth patch, over its tunnel, is deliberately excluded: it
+    // has no `rise` at all and keeps its own separately-tuned static height,
+    // because that patch's own lesson is "waiting never helps, you must find
+    // another way," and giving it a cycle would blur that lesson with this
+    // one.
     RISE_H: 180,
     // Seconds for one whole rise and fall. A route that waits for the patch to
     // stay under a threshold for its crossing finished cleanly at 3-5s
