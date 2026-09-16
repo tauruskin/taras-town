@@ -236,7 +236,7 @@ const ROUTES = {
   // at full speed, breaks them and rolls underneath. Section 3d proves the
   // crate way too, and that there is no third.
   4: (level, lead) => {
-    const run = runner(level, lead);
+    const run = waitForLow(level, lead);
     const wood = level.breakables[0];
     return (ball) => {
       if (ball.x > wood.x - 500 && ball.x < wood.x + 150) return { right: true };
@@ -297,7 +297,7 @@ const ROUTES = {
 // the trigger divides the distance left by the current fall speed and ignores
 // gravity: -0.1 presses roughly 0.075s early.
 function crateRoute4(level, lead, late) {
-  const run = runner(level, lead);
+  const run = waitForLow(level, lead);
   const crate = level.crates[0];
   const wood = level.breakables[0];
   let stage = 'run', stuck = 0, lastX = crate.x, landed = 0;

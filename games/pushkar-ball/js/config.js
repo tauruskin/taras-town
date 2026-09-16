@@ -344,18 +344,24 @@ export const CONFIG = {
     // ball's radius or the shape of the test, not this number.
     FORGIVE: 5,
 
-    // A rising patch — levels 2 and 3 — climbs from H to this and back on a
-    // sine of level time. Tall enough that no unaided jump clears it: a jump's
-    // underside peaks 131px up, so this leaves 44px after FORGIVE, and
+    // A rising patch — levels 2, 3, and (added Sep 16 2026) four of level
+    // 4's five patches — climbs from H to this and back on a sine of level
+    // time. Tall enough that no unaided jump clears it: a jump's underside
+    // peaks 131px up, so this leaves 44px after FORGIVE, and
     // tests/offline/risers.mjs holds it to at least 30. See
-    // docs/superpowers/specs/2026-09-15-moving-spikes-and-breakable-wood-design.md.
+    // docs/superpowers/specs/2026-09-15-moving-spikes-and-breakable-wood-design.md
+    // and docs/superpowers/specs/2026-09-16-level3-roller-and-level4-rising-spikes-design.md.
+    // Level 4's fifth patch, over its tunnel, is deliberately excluded: it is
+    // authored at RISE_H with no `rise` at all, because that patch's own
+    // lesson is "waiting never helps, you must find another way," and giving
+    // it a cycle would blur that lesson with this one.
     RISE_H: 180,
     // Seconds for one whole rise and fall. A route that waits for the patch to
     // stay under a threshold for its crossing finished cleanly at 3-5s
     // (simulated at 90px; the suite now uses a stricter 75); 7s lost a run.
     // If level 2 stops finishing cleanly, 5 is the proven slow value.
-    CYCLE_SLOW: 6,       // level 2
-    CYCLE_FAST: 3.5,     // level 3
+    CYCLE_SLOW: 6,       // level 2; level 4's two patches near its spawn
+    CYCLE_FAST: 3.5,     // level 3; level 4's two later patches
   },
 
   // ---------------------------------------------------------------------

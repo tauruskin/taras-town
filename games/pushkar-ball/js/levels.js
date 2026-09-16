@@ -530,6 +530,12 @@ export const LEVELS = [
     // Past checkpoint two, on the long flat home, it asks something new: a
     // patch no jump clears, on a slab over a boarded-up tunnel — a way must be
     // MADE, with the crate or by smashing the planks.
+    //
+    // Added Sep 16 2026: the four open-ground patches now rise, ramped from
+    // CYCLE_SLOW near spawn to CYCLE_FAST by the time checkpoint one's own
+    // patch is reached — jumping a spike was this level's original lesson;
+    // timing one is now layered on top of it. The tunnel patch is
+    // deliberately excluded — see its own comment in `spikes` below.
     id: 4,
     theme: 'hills',
     bounds: { w: 15200, h: 1080 },
@@ -584,21 +590,30 @@ export const LEVELS = [
     ],
 
     spikes: [
-      // The rehearsal: narrow, flat, unmissable, close to spawn.
-      { x: 700, y: 760, w: 70 },
+      // The rehearsal: narrow, flat, unmissable, close to spawn. Rising,
+      // added Sep 16 2026 — CYCLE_SLOW, the same cycle level 2 uses, so the
+      // very first patch a player meets in this level is also the gentlest
+      // introduction to "spikes can move" this game has. Phase 0: no other
+      // rising patch is ever on screen with it, so there is nothing for a
+      // shared phase to desynchronise from.
+      { x: 700, y: 760, w: 70, rise: { period: CONFIG.SPIKE.CYCLE_SLOW, phase: 0 } },
       // A second, still-easy patch on the same long flat — one more rep of
-      // the new idea before the gap and the first checkpointed stretch.
-      { x: 3400, y: 760, w: 90 },
+      // the idea before the gap and the first checkpointed stretch. Also
+      // CYCLE_SLOW: still rehearsal, not yet the level's real test.
+      { x: 3400, y: 760, w: 90, rise: { period: CONFIG.SPIKE.CYCLE_SLOW, phase: 0 } },
       // The first patch that is really asked of the player, well after the
       // gap so the gap and the spikes are never one piece of timing.
-      { x: 7200, y: 760, w: 100 },
+      // CYCLE_FAST from here on — the same cycle level 3 uses — since this
+      // is where the level stops rehearsing and starts testing.
+      { x: 7200, y: 760, w: 100, rise: { period: CONFIG.SPIKE.CYCLE_FAST, phase: 0 } },
       // On the high ground, in plain view from the top of the ramp before it
       // has to be jumped.
-      { x: 11100, y: 620, w: 90 },
+      { x: 11100, y: 620, w: 90, rise: { period: CONFIG.SPIKE.CYCLE_FAST, phase: 0 } },
       // The patch that does not come down. It stands on the slab over the
       // tunnel and no jump from the ground clears it. Two ways past: shove the
       // crate against the planks and jump from it, or roll into the planks
-      // hard enough to break them and go underneath.
+      // hard enough to break them and go underneath. Deliberately left
+      // static — see config.js's SPIKE.RISE_H comment for why.
       { x: 13400, y: 680, w: 100, h: 80 },
     ],
 
