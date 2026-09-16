@@ -474,22 +474,23 @@ export const LEVELS = [
       // checkpoint itself is never obstructed.
       //
       // from=4300 and to=5900 are the segment's own starting margins (280
-      // units from the flat's start at 4020, 220 from its end at 6400,
-      // comfortably inside where the 260px gap begins) and needed no
-      // widening — unlike the walker's own flat, this one had plenty of
-      // room. What did need sweeping was `dir` and `x`: the proposed
-      // dir=-1 (starting mid-patrol, heading toward `from`) failed 6 of 30
-      // at lead 0.7, all deaths=1 finishes — not the walker/roller
-      // cascade a first attempt on the shared flat found (there is no
-      // walker within two gaps of here to cascade with), but the same
-      // underlying problem alone: at lead 0.7 the runner's 70×0.7=49px
-      // jump-trigger window is sometimes too narrow to clear the roller in
-      // one pass, and a graze followed too soon by a second one still
-      // spends all three hearts. dir=1 (starting mid-patrol, heading toward
-      // `to` instead) passed all 30 outright; x was then swept every 5
-      // units from 4900 to 5100 to confirm dir=1 was not a single lucky
-      // point but a wide passing region, and it held clean throughout.
-      // Settled on x=5000, the middle of that confirmed-clean stretch.
+      // units from the flat's start at 4020, and a generous 500 from its
+      // end at 6400 — nowhere near tight against where the 260px gap
+      // begins) and needed no widening — unlike the walker's own flat, this
+      // one had plenty of room. What did need sweeping was `dir` and `x`:
+      // the proposed dir=-1 (starting mid-patrol, heading toward `from`)
+      // failed 6 of 30 at lead 0.7, all deaths=1 finishes — not the
+      // walker/roller cascade a first attempt on the shared flat found
+      // (there is no walker within two gaps of here to cascade with), but
+      // the same underlying problem alone: at lead 0.7 the runner's
+      // 70×0.7=49px jump-trigger window is sometimes too narrow to clear
+      // the roller in one pass, and a graze followed too soon by a second
+      // one still spends all three hearts. dir=1 (starting mid-patrol,
+      // heading toward `to` instead) passed all 30 outright; x was then
+      // swept every 5 units from 4900 to 5100 to confirm dir=1 was not a
+      // single lucky point but a wide passing region, and it held clean
+      // throughout. Settled on x=5000, the middle of that confirmed-clean
+      // stretch.
       { kind: 'roller', x: 5000, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 4300, to: 5900, dir: 1 },
     ],
 
