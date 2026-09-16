@@ -352,11 +352,13 @@ export const LEVELS = [
     // anywhere near it. Its ground, boxes and checkpoints are unchanged from
     // the original level two.
     //
-    // It also brings back one thing already taught: a walker, from level
-    // two, on the long flat between the first two gaps — see `enemies`
-    // below. Not a new idea, so it gets no checkpoint and no rehearsal of its
-    // own; it is here so that what level two taught does not simply stop
-    // the moment level two ends.
+    // It also brings back what level two already taught: a walker, on the
+    // long flat between the first two gaps, and — added Sep 16 2026 — a
+    // roller, on its own flat between the next two gaps, deliberately not
+    // sharing the walker's flat so the two enemies' hit chances can never
+    // compound. Neither is a new idea, so neither gets a checkpoint or a
+    // rehearsal of its own; they are here so that what level two taught
+    // does not simply stop the moment level two ends.
     id: 3,
     theme: 'hills',
     bounds: { w: 13600, h: 1080 },
@@ -456,6 +458,39 @@ export const LEVELS = [
       // level two as shipped on the same sampling (8 in 230, likewise all at
       // lead 0.7, six of them to its walker one alone).
       { kind: 'walker', x: 2675, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
+
+      // A roller, level 2's real test rather than its calm one — level
+      // four's own comment calls it "the most active of the three
+      // enemies... the one that has to be tracked and timed." On its own
+      // flat, NOT the walker's: the long run between the 220px and 260px
+      // gaps, currently empty. A gap sits on each side of the walker's own
+      // flat and this one, so there is no shared knockback/recovery
+      // interaction between the two the way a first attempt on the walker's
+      // own flat found — a walker hit's knockback and brief slowdown cannot
+      // carry a ball into a roller separated from it by a gap.
+      //
+      // Also well clear of checkpoint one at x=6260, which sits inside this
+      // same flat near its end: `to` stops 360 units short of it, so the
+      // checkpoint itself is never obstructed.
+      //
+      // from=4300 and to=5900 are the segment's own starting margins (280
+      // units from the flat's start at 4020, 220 from its end at 6400,
+      // comfortably inside where the 260px gap begins) and needed no
+      // widening — unlike the walker's own flat, this one had plenty of
+      // room. What did need sweeping was `dir` and `x`: the proposed
+      // dir=-1 (starting mid-patrol, heading toward `from`) failed 6 of 30
+      // at lead 0.7, all deaths=1 finishes — not the walker/roller
+      // cascade a first attempt on the shared flat found (there is no
+      // walker within two gaps of here to cascade with), but the same
+      // underlying problem alone: at lead 0.7 the runner's 70×0.7=49px
+      // jump-trigger window is sometimes too narrow to clear the roller in
+      // one pass, and a graze followed too soon by a second one still
+      // spends all three hearts. dir=1 (starting mid-patrol, heading toward
+      // `to` instead) passed all 30 outright; x was then swept every 5
+      // units from 4900 to 5100 to confirm dir=1 was not a single lucky
+      // point but a wide passing region, and it held clean throughout.
+      // Settled on x=5000, the middle of that confirmed-clean stretch.
+      { kind: 'roller', x: 5000, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 4300, to: 5900, dir: 1 },
     ],
 
     // Two, not one per gap. The first sits right before the level's tightest
