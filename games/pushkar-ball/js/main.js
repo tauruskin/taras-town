@@ -100,14 +100,14 @@ function levelBegan(f) {
   camera.update(CONFIG.STEP, ball, viewW, viewH);
 }
 
-// Winning, the results panel, retry and moving on all live in flow.js, where
-// node can test them. This file keeps the loop, the camera and the drawing.
 // Progress, from the device's own storage. Reaching `localStorage` can itself
 // throw in a locked-down browser, so even getting hold of it is guarded; a
 // null store simply means a game with no memory, which save.js handles.
 const store = (() => { try { return window.localStorage; } catch (_) { return null; } })();
 let progress = loadProgress(store, LEVELS);
 
+// Winning, the results panel, retry and moving on all live in flow.js, where
+// node can test them. This file keeps the loop, the camera and the drawing.
 const flow = new Flow(input, {
   levels: LEVELS,
   onStart: levelBegan,
