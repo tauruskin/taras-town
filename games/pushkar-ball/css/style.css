@@ -123,7 +123,6 @@ button svg { width: 60%; height: 60%; fill: #fff; }
    `button svg` (0,0,2), so these sizes and fills win over its 60% white. */
 .tile svg.lock { width: 46%; height: 46%; fill: #78868F; }
 .tile svg.star { position: absolute; top: 6%; right: 6%; width: 30%; height: 30%; fill: #FFC93C; }
-.tile.next svg.star { fill: #fff; }
 
 /* Portrait: cover everything and ask for a turn, without a word. */
 #rotate-screen {
