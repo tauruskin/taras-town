@@ -1,32 +1,32 @@
 # Level 3 gets a roller, and level 4's spikes start rising — DONE
 
-Implemented in
-`docs/superpowers/plans/2026-09-16-level3-roller-and-level4-rising-spikes.md`.
-What changed on the way:
-
-- **Level 3's roller ended up on a different flat than this spec planned**,
-  not just at a different point on the same one. The plan below has it
-  sharing the walker's flat (x=1500-3800); sweeping `finish.mjs` during
-  implementation found that placement structurally impossible to pass every
-  test combination, so the roller moved to its own flat entirely — ground
-  segment 3, `[[4020, 760], [6400, 760]]`, between the 220px gap before it
-  and the 260px gap after it — with the user's explicit approval for the
-  deviation. The shipped enemy is
-  `{ kind: 'roller', x: 5000, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 4300,
-  to: 5900, dir: 1 }`, found the same way the walker below already was: by
-  sweeping placements against `finish.mjs`, not by guessing.
-- **Level 4's four risers all share `phase: 0`** rather than being
-  staggered. They sit thousands of units apart on a level a player only ever
-  sees one screen of at a time, so no two are ever on screen together and a
-  shared phase desynchronises nothing there is any reason to desynchronise.
-- **The spec's Testing section expected `offline/enemies.mjs` and
-  `offline/risers.mjs`/`hazards.mjs` to need extending.** Neither did.
-  Both turned out to be mechanism-only suites with no level lookups — they
-  test a walker's, roller's or riser's own formula against synthetic
-  fixtures, never against `LEVELS` — so they had nothing to extend.
-  `finish.mjs`'s existing generic checks (every level finished 30 ways, and
-  from every checkpoint) already exercised the new roller and the new
-  risers once the level data, and for level 4 the route, existed.
+> Implemented in
+> `docs/superpowers/plans/2026-09-16-level3-roller-and-level4-rising-spikes.md`.
+> What changed on the way:
+>
+> - **Level 3's roller ended up on a different flat than this spec planned**,
+>   not just at a different point on the same one. The plan below has it
+>   sharing the walker's flat (x=1500-3800); sweeping `finish.mjs` during
+>   implementation found that placement structurally impossible to pass every
+>   test combination, so the roller moved to its own flat entirely — ground
+>   segment 3, `[[4020, 760], [6400, 760]]`, between the 220px gap before it
+>   and the 260px gap after it — with the user's explicit approval for the
+>   deviation. The shipped enemy is
+>   `{ kind: 'roller', x: 5000, y: 760 - CONFIG.ENEMY.ROLLER.R, from: 4300,
+>   to: 5900, dir: 1 }`, found the same way the walker below already was: by
+>   sweeping placements against `finish.mjs`, not by guessing.
+> - **Level 4's four risers all share `phase: 0`** rather than being
+>   staggered. They sit thousands of units apart on a level a player only ever
+>   sees one screen of at a time, so no two are ever on screen together and a
+>   shared phase desynchronises nothing there is any reason to desynchronise.
+> - **The spec's Testing section expected `offline/enemies.mjs` and
+>   `offline/risers.mjs`/`hazards.mjs` to need extending.** Neither did.
+>   Both turned out to be mechanism-only suites with no level lookups — they
+>   test a walker's, roller's or riser's own formula against synthetic
+>   fixtures, never against `LEVELS` — so they had nothing to extend.
+>   `finish.mjs`'s existing generic checks (every level finished 30 ways, and
+>   from every checkpoint) already exercised the new roller and the new
+>   risers once the level data, and for level 4 the route, existed.
 
 The user asked (Sep 16 2026) for two small difficulty additions to Pushkar
 Ball: more enemies in level 3, and moving spikes in level 4. Both reuse
