@@ -390,7 +390,10 @@ for (const data of LEVELS) {
         const lo = e.x - e.amplitude - r, hi = e.x + e.amplitude + r;
         if (lo < ghi && hi > glo) fail(`level ${data.id}: a walker patrols under the gate at x=${g.x}`);
       } else if (e.kind === 'roller') {
-        if (e.from < ghi && e.to > glo) fail(`level ${data.id}: a roller patrols under the gate at x=${g.x}`);
+        // from/to bound the roller's centre, so its body reaches R past
+        // either end — the same allowance the walker gets above.
+        const r = CONFIG.ENEMY.ROLLER.R;
+        if (e.from - r < ghi && e.to + r > glo) fail(`level ${data.id}: a roller patrols under the gate at x=${g.x}`);
       }
     }
   }
