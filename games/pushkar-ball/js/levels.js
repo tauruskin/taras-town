@@ -1037,7 +1037,13 @@ function makeGate(g) {
  * only drawing reads it.
  */
 function makeBridge(d) {
-  const dir = d.dir || 1;
+  // Bad data fails loudly, the way makeSender does: a bridge with no width or
+  // a direction that is neither way would load as no bridge at all, and a
+  // level that cannot be crossed says nothing about why.
+  const dir = d.dir === undefined ? 1 : d.dir;
+  if (!(d.w > 0)) throw new Error(`bridge at (${d.x}, ${d.y}) has no positive width`);
+  if (dir !== 1 && dir !== -1) throw new Error(`bridge at (${d.x}, ${d.y}) has dir ${d.dir}, not 1 or -1`);
+  if (!Number.isFinite(d.x) || !Number.isFinite(d.y)) throw new Error(`bridge has no finite x/y (${d.x}, ${d.y})`);
   const br = {
     kind: 'bridge',
     x: d.x, y: d.y, w: d.w, dir,

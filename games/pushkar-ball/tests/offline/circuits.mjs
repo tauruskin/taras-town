@@ -376,10 +376,73 @@ console.log('\n18. a crate on a withdrawing bridge falls and comes back');
   const crate = level.crates[0];
   if (!crate.grounded || Math.abs(crate.y - (GROUND - 100)) > 1) fail(`setup: the crate is not resting on the bridge (y=${crate.y.toFixed(1)})`);
   level.senders[0].pressed = false;
-  for (let i = 0; i < Math.round(3 / STEP); i++) level.update(STEP);
-  console.log(`   crate falls=${crate.falls}, x=${crate.x}`);
-  if (crate.falls < 1) fail('a crate on a withdrawn bridge did not fall and return');
-  if (crate.x !== 1020) fail(`the returned crate is at x=${crate.x}, not where the level put it`);
+  // Sample every step: the proof of a return is the crate seen back at
+  // exactly where the level put it, at some step after it first fell. Its
+  // x alone proves nothing — it never moves sideways here.
+  let backAtStart = false;
+  for (let i = 0; i < Math.round(3 / STEP); i++) {
+    level.update(STEP);
+    if (crate.falls >= 1 && crate.x === 1020 && crate.y === 200) backAtStart = true;
+  }
+  console.log(`   crate falls=${crate.falls}, seen back at (1020, 200) after a fall: ${backAtStart}`);
+  if (crate.falls < 1) fail('a crate on a withdrawn bridge did not fall');
+  if (!backAtStart) fail('a crate that fell off a withdrawn bridge was never seen back where the level put it');
+}
+
+console.log('\n19. a bridge sliding LEFT carries the ball across the same gap');
+{
+  const level = stage({
+    ground: [[[40, GROUND], [1000, GROUND]], [[1420, GROUND], [2960, GROUND]]],
+    senders: [{ id: 'b', kind: 'button', x: 300, y: GROUND, face: 'right' }],
+    bridges: [{ x: 1420, y: GROUND, w: 420, dir: -1, needs: ['b'] }],
+  });
+  level.senders[0].pressed = true;
+  drive(new Ball(2400, GROUND - 20), level, {}, CONFIG.BRIDGE.OPEN_TIME + 0.1);
+  const br = level.bridges[0];
+  if (br.openT !== 1) fail(`the bridge is not fully out (openT ${br.openT})`);
+  const [lo, hi] = br.span();
+  if (lo !== 1000 || hi !== 1420) fail(`a left-sliding bridge spans [${lo}, ${hi}], not [1000, 1420]`);
+  if (br.segments.length !== 1 || br.segments[0].ny >= 0) fail('a left-sliding bridge must be exactly one segment, solid side up');
+  const ball = new Ball(1800, GROUND - 20);
+  let lowest = 0, minSpeed = Infinity;
+  const input = { left: true, right: false, takeJump: () => false };
+  for (let i = 0; i < Math.round(3 / STEP); i++) {
+    level.update(STEP);
+    ball.update(STEP, input, level);
+    if (ball.x > 950 && ball.x < 1470) { lowest = Math.max(lowest, ball.y); minSpeed = Math.min(minSpeed, Math.abs(ball.vx)); }
+    if (![ball.x, ball.y, ball.vx, ball.vy].every(Number.isFinite)) { fail('the ball went NaN on the bridge'); break; }
+  }
+  console.log(`   crossing left: lowest y=${lowest.toFixed(1)}, slowest |vx|=${minSpeed.toFixed(0)}, ended at x=${ball.x.toFixed(0)}`);
+  if (ball.x > 900) fail('the ball did not get across the left-sliding bridge');
+  if (lowest > GROUND - 20 + 2) fail(`the ball dipped to y=${lowest.toFixed(1)} crossing — a bump at a joint`);
+  if (minSpeed < CONFIG.MAX_SPEED * 0.9) fail(`the ball slowed to ${minSpeed.toFixed(0)} crossing — it caught on a joint`);
+}
+
+console.log('\n20. bad bridge data fails loudly');
+{
+  const bad = [
+    ['no width', { x: 1000, y: GROUND, needs: ['b'] }],
+    ['zero width', { x: 1000, y: GROUND, w: 0, needs: ['b'] }],
+    ['negative width', { x: 1000, y: GROUND, w: -420, needs: ['b'] }],
+    ['dir 2', { x: 1000, y: GROUND, w: 420, dir: 2, needs: ['b'] }],
+    ["dir 'left'", { x: 1000, y: GROUND, w: 420, dir: 'left', needs: ['b'] }],
+    ['no x', { y: GROUND, w: 420, needs: ['b'] }],
+    ['NaN y', { x: 1000, y: NaN, w: 420, needs: ['b'] }],
+  ];
+  let refused = 0;
+  for (const [what, br] of bad) {
+    let threw = false;
+    try {
+      stage({ senders: [{ id: 'b', kind: 'button', x: 300, y: GROUND, face: 'right' }], bridges: [br] });
+    } catch { threw = true; }
+    if (threw) refused++; else fail(`a bridge with ${what} loaded without complaint`);
+  }
+  let threw = false;
+  try {
+    stage({ senders: [{ id: 'b', kind: 'button', x: 300, y: GROUND, face: 'right' }], bridges: [{ x: 1000, y: GROUND, w: 420, needs: ['b'] }] });
+  } catch (e) { threw = e; }
+  if (threw) fail(`a good bridge with dir left out threw: ${threw.message}`);
+  console.log(`   ${refused} of ${bad.length} bad bridges refused`);
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
