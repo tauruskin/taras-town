@@ -1018,6 +1018,58 @@ function makeGate(g) {
 }
 
 /**
+ * A bridge: a stone slab that slides out of the ground's edge across a gap
+ * while powered, and back in when not. `x, y` is the edge it slides from,
+ * `dir` which way (1 right, -1 left), `w` how far.
+ *
+ * Only its TOP is solid — one segment, authored left to right like ground so
+ * its solid side is up, and colinear with the ground it slides from, so
+ * rolling on is exactly as smooth as rolling along. A box would put a
+ * vertical face at the joint for the ball to catch on.
+ *
+ * It does not carry what stands on it: the slab slides out from under, it
+ * does not drag the ball along, so `dx`/`vx` stay 0. It still owes all four
+ * carrier fields, because the ball records it as its platform, and
+ * player.js adds `platform.dx` without asking — the crate NaN bug in
+ * CLAUDE.md.
+ *
+ * `warn` is set by Level.update when a timer it needs is about to run out;
+ * only drawing reads it.
+ */
+function makeBridge(d) {
+  const dir = d.dir || 1;
+  const br = {
+    kind: 'bridge',
+    x: d.x, y: d.y, w: d.w, dir,
+    needs: d.needs || [],
+    openT: 0,
+    warn: false,
+    dx: 0, dy: 0, vx: 0, vy: 0,
+    segments: [],
+
+    /** The slab's current reach, as [left, right]. */
+    span() {
+      const ext = d.w * br.openT;
+      return dir > 0 ? [d.x, d.x + ext] : [d.x - ext, d.x];
+    },
+
+    update(dt, isPowered) {
+      br.openT = rampToward(br.openT, isPowered ? 1 : 0, dt, 1 / CONFIG.BRIDGE.OPEN_TIME);
+      const [lo, hi] = br.span();
+      br.segments = hi - lo > 1 ? [segment(lo, d.y, hi, d.y)] : [];
+      for (const s of br.segments) s.owner = br;
+    },
+
+    overlaps(x, y, r) {
+      const [lo, hi] = br.span();
+      return hi - lo > 1 && x + r > lo && x - r < hi && y + r > d.y - 1 && y - r < d.y + 1;
+    },
+  };
+  br.update(0, false);
+  return br;
+}
+
+/**
  * A plank wall: a solid box until it is broken, then nothing at all.
  *
  * `segments` is emptied rather than the object removed, so the level's own
@@ -1374,6 +1426,10 @@ class Level {
     // `switchId` becomes `needs: [switchId]`.
     this.gates = (data.gates || []).map((g) => makeGate({ ...g, needs: g.needs || (g.switchId ? [g.switchId] : []) }));
 
+    // Bridges are colliders that change length, so like gates they stay OUT
+    // of the static grid.
+    this.bridges = (data.bridges || []).map(makeBridge);
+
     // Breakables ARE colliders, and dynamic in the one way that matters —
     // they stop existing — so like gates they stay OUT of the static grid.
     this.breakables = (data.breakables || []).map(makeBreakable);
@@ -1441,6 +1497,10 @@ class Level {
     if (b && !b.dying) pressers.push({ x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded });
     updateSenders(this.senders, dt, pressers, CONFIG);
     for (const g of this.gates) g.update(dt, powered(g.needs, this.senders), pressers.some((p) => g.isUnder(p)));
+    for (const br of this.bridges) {
+      br.update(dt, powered(br.needs, this.senders));
+      br.warn = warning(br.needs, this.senders, CONFIG);
+    }
     if (this.particles.length) {
       for (const p of this.particles) {
         p.x += p.vx * dt;
@@ -1478,6 +1538,7 @@ class Level {
     const out = [...this.statics];
     for (const m of this.movers) out.push(...m.segments);
     for (const g of this.gates) out.push(...g.segments);
+    for (const br of this.bridges) out.push(...br.segments);
     for (const b of this.breakables) out.push(...b.segments);
     for (const beam of this.beams) out.push(...beam.segments);
     for (const c of this.crates) if (c !== crate) out.push(...c.segments);
@@ -1495,6 +1556,7 @@ class Level {
     const out = [...this.grid.near(x, y, r)];
     for (const m of this.movers) if (m.overlaps(x, y, r)) out.push(...m.segments);
     for (const g of this.gates) if (g.overlaps(x, y, r)) out.push(...g.segments);
+    for (const br of this.bridges) if (br.overlaps(x, y, r)) out.push(...br.segments);
     for (const b of this.breakables) if (b.overlaps(x, y, r)) out.push(...b.segments);
     for (const beam of this.beams) if (beam.overlaps(x, y, r)) out.push(...beam.segments);
     for (const c of this.crates) if (c.overlaps(x, y, r)) out.push(...c.segments);

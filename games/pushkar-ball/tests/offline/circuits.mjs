@@ -307,5 +307,80 @@ console.log('\n15. a ball resting flush against a gate\'s face does not hold it 
   if (gate.openT !== 0) fail(`a ball leaning on the gate's face held it open (openT ${gate.openT.toFixed(2)}, ball x ${ball.x.toFixed(1)})`);
 }
 
+console.log('\n16. a bridge carries the ball across a gap at full speed');
+{
+  const level = stage({
+    ground: [[[40, GROUND], [1000, GROUND]], [[1420, GROUND], [2960, GROUND]]],
+    senders: [{ id: 'b', kind: 'button', x: 300, y: GROUND, face: 'right' }],
+    bridges: [{ x: 1000, y: GROUND, w: 420, dir: 1, needs: ['b'] }],
+  });
+  level.senders[0].pressed = true;
+  drive(new Ball(600, GROUND - 20), level, {}, CONFIG.BRIDGE.OPEN_TIME + 0.1);
+  const br = level.bridges[0];
+  if (br.openT !== 1) fail(`the bridge is not fully out (openT ${br.openT})`);
+  if (br.segments.length !== 1 || br.segments[0].ny >= 0) fail('a bridge must be exactly one segment, solid side up');
+  const ball = new Ball(600, GROUND - 20);
+  let lowest = 0, minVx = Infinity;
+  const input = { left: false, right: true, takeJump: () => false };
+  for (let i = 0; i < Math.round(3 / STEP); i++) {
+    level.update(STEP);
+    ball.update(STEP, input, level);
+    if (ball.x > 950 && ball.x < 1470) { lowest = Math.max(lowest, ball.y); minVx = Math.min(minVx, ball.vx); }
+    if (![ball.x, ball.y, ball.vx, ball.vy].every(Number.isFinite)) { fail('the ball went NaN on the bridge'); break; }
+  }
+  console.log(`   crossing: lowest y=${lowest.toFixed(1)}, slowest vx=${minVx.toFixed(0)}, ended at x=${ball.x.toFixed(0)}`);
+  if (ball.x < 1500) fail('the ball did not get across the bridge');
+  if (lowest > GROUND - 20 + 2) fail(`the ball dipped to y=${lowest.toFixed(1)} crossing — a bump at a joint`);
+  if (minVx < CONFIG.MAX_SPEED * 0.9) fail(`the ball slowed to ${minVx.toFixed(0)} crossing — it caught on a joint`);
+}
+
+console.log('\n17. an unpowered bridge withdraws from under the ball, and warns first');
+{
+  const level = stage({
+    ground: [[[40, GROUND], [1000, GROUND]], [[1420, GROUND], [2960, GROUND]]],
+    senders: [{ id: 't', kind: 'timer', x: 300, y: GROUND, face: 'right', time: 1.5 }],
+    bridges: [{ x: 1000, y: GROUND, w: 420, dir: 1, needs: ['t'] }],
+  });
+  const t = level.senders[0];
+  // Get the bridge fully out first, with time to spare, before the ball is
+  // put on it — at t=0 there is no bridge to stand on.
+  t.pressed = true; t.left = 10;
+  for (let i = 0; i < Math.round(1 / STEP); i++) level.update(STEP);
+  t.left = 1.5;
+  const ball = new Ball(1300, GROUND - 20);
+  let warned = false;
+  const input = { left: false, right: false, takeJump: () => false };
+  for (let i = 0; i < Math.round(1.4 / STEP); i++) {
+    level.update(STEP);
+    ball.update(STEP, input, level);
+    if (level.bridges[0].warn) warned = true;
+  }
+  if (!warned) fail('the bridge never warned in its last second');
+  if (ball.y > GROUND - 20 + 1) fail('the ball fell before the timer ran out');
+  drive(ball, level, {}, 1.5);
+  console.log(`   after the timer: ball y=${ball.y.toFixed(0)}, deaths=${ball.deaths}`);
+  if (ball.y < GROUND + 50 && !ball.deaths) fail('the bridge did not withdraw from under the ball');
+}
+
+console.log('\n18. a crate on a withdrawing bridge falls and comes back');
+{
+  const level = stage({
+    ground: [[[40, GROUND], [1000, GROUND]], [[1420, GROUND], [2960, GROUND]]],
+    boxes: [{ x: 0, y: 0, w: 40, h: 1080 }, { x: 2960, y: 0, w: 40, h: 1080 },
+            { x: 1020, y: 200, w: 100, h: 100, movable: true }],
+    senders: [{ id: 'b', kind: 'button', x: 300, y: GROUND, face: 'right' }],
+    bridges: [{ x: 1000, y: GROUND, w: 420, dir: 1, needs: ['b'] }],
+  });
+  level.senders[0].pressed = true;
+  for (let i = 0; i < Math.round(2 / STEP); i++) level.update(STEP);
+  const crate = level.crates[0];
+  if (!crate.grounded || Math.abs(crate.y - (GROUND - 100)) > 1) fail(`setup: the crate is not resting on the bridge (y=${crate.y.toFixed(1)})`);
+  level.senders[0].pressed = false;
+  for (let i = 0; i < Math.round(3 / STEP); i++) level.update(STEP);
+  console.log(`   crate falls=${crate.falls}, x=${crate.x}`);
+  if (crate.falls < 1) fail('a crate on a withdrawn bridge did not fall and return');
+  if (crate.x !== 1020) fail(`the returned crate is at x=${crate.x}, not where the level put it`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
 process.exit(failures ? 1 : 0);
