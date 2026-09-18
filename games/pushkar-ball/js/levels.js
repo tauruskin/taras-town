@@ -19,7 +19,7 @@ import { CONFIG } from './config.js';
 // Hazards are geometry, not colliders, so this brings in a hit test and
 // nothing that touches the segment world or the DOM.
 import { hitsSpikes, spikeHit, spikeHeight } from './hazards.js';
-import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './enemies.js';
+import { makeWalker, makeRoller, makePopper, makeCharger, enemyHit, projectileHit } from './enemies.js';
 // The wiring: senders and the needs logic. circuits.js imports nothing, so
 // this adds no cycle and nothing that touches the DOM.
 import { makeSender, postBox, updateSenders, resetSenders as clearSenders, powered, warning, rampToward } from './circuits.js';
@@ -1665,7 +1665,8 @@ class Level {
     // tested only — except the roller, which asks the real physics engine
     // to move it and so needs to know the level (`this`, below) rather than
     // just its own starting data.
-    const MAKERS = { walker: makeWalker, roller: makeRoller, popper: makePopper };
+    // The charger moves the same way the roller does.
+    const MAKERS = { walker: makeWalker, roller: makeRoller, popper: makePopper, charger: makeCharger };
     this.enemies = (data.enemies || []).map((e) => MAKERS[e.kind](e, CONFIG));
 
     // Purely decorative: the triangles a stomp scatters. Nothing else in
@@ -1719,7 +1720,9 @@ class Level {
     // there. But it is still drawn squashing flat where it stood, and a timed
     // gate running out over it must not come down through the picture — so
     // it still counts as something under a gate. Anything else ever added
-    // here needs the same two questions asked of it separately.
+    // here needs the same two questions asked of it separately. Crates and
+    // the ball are not the only things in these lists any more — an enemy
+    // that uses the world, so far the charger, joins them below.
     const pressers = this.crates.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, heavy: true, resting: c.grounded }));
     const blockers = pressers.slice();
     const b = this.ball;
@@ -1727,6 +1730,16 @@ class Level {
       const box = { x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded };
       blockers.push(box);
       if (!b.dying) pressers.push(box);
+    }
+    // Enemies that use the world — so far the charger. Each one answers the
+    // two questions above for itself: it presses with its own box, it is
+    // heavy only when it says so (a charger, only while dazed), and a gate
+    // never closes on it. A popped one is not there at all.
+    for (const e of this.enemies) {
+      if (!e.alive || !e.presses) continue;
+      const box = { ...e.box(), heavy: e.heavy, resting: e.grounded };
+      pressers.push(box);
+      blockers.push(box);
     }
     updateSenders(this.senders, dt, pressers, CONFIG);
     this.opened = [];
@@ -1885,7 +1898,9 @@ class Level {
       const mid = s.x + s.w / 2;
       return body.x >= mid ? 1 : -1;
     }
-    const e = enemyHit(body, this.enemies);
+    // A dazed charger is harmless to touch — it can be stomped, or rolled
+    // straight through.
+    const e = enemyHit(body, this.enemies.filter((x) => !x.harmless));
     if (e) return body.x >= e.x ? 1 : -1;
     const p = projectileHit(body, this.enemies, this.time);
     if (p) return body.x >= p.x ? 1 : -1;
@@ -1905,6 +1920,9 @@ class Level {
   stompEnemy(body) {
     const e = enemyHit(body, this.enemies);
     if (!e) return false;
+    // A charger can be stomped only while dazed. Any other landing on it is
+    // left to hazardKnockDir, which player.js asks next, and costs a heart.
+    if (e.stompable === false) return false;
     const box = e.box();
     if (body.vy > 0 && body.y < box.y + CONFIG.ENEMY.STOMP_MARGIN) {
       e.alive = false;

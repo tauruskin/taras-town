@@ -5,6 +5,7 @@
 const { CONFIG } = await import('../../js/config.js');
 const { makeCharger } = await import('../../js/enemies.js');
 const { loadLevel } = await import('../../js/levels.js');
+const { Ball } = await import('../../js/player.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -223,6 +224,115 @@ function chargeAt(level, c, ahead, seconds, each) {
   if (backAt === null) fail('a popped charger never came back');
   else if (backAt < K.RETURN + 1 - DT) fail(`came back at ${backAt.toFixed(2)}s, with the ball still near home`);
   if (c.alive && (Math.abs(c.x - 1000) > 30 || c.dir !== -1)) fail(`came back at x=${c.x.toFixed(0)} facing ${c.dir}, not home facing -1`);
+}
+
+// --- 11. in a level: a charge into a button's cap presses it ----------------
+{
+  const level = room({
+    senders: [{ id: 'b', kind: 'button', x: 1400, y: FLOOR, face: 'left' }],
+    enemies: [{ kind: 'charger', x: 1000, y: CY, from: 600, to: 2400, dir: 1 }],
+  });
+  const c = level.enemies[0];
+  level.noteBall(fakeBall(1150));
+  let dazed = false;
+  for (let i = 0; i < Math.round(3 / DT); i++) {
+    if (c.state === 'charge') level.noteBall(fakeBall(600, CY - 300));
+    level.update(DT);
+    if (c.state === 'dazed') dazed = true;
+  }
+  console.log(`\n11. charge into a button: pressed=${level.senders[0].pressed}, dazed=${dazed}`);
+  if (!level.senders[0].pressed) fail('a charge into a button\'s capped side did not press it');
+  if (!dazed) fail('a button\'s post did not daze it');
+}
+
+// --- 12. a plate: held only while dazed; a gate never closes on it -----------
+{
+  const level = room({
+    boxes: [{ x: 1460, y: 560, w: 40, h: 200 }],
+    senders: [{ id: 'p', kind: 'plate', x: 1350, y: FLOOR, w: 110 }],
+    enemies: [{ kind: 'charger', x: 1400, y: CY, from: 1100, to: 1434, dir: -1 }],
+  });
+  const c = level.enemies[0];
+  const p = level.senders[0];
+  let pressedPatrolling = false;
+  for (let i = 0; i < Math.round(3 / DT); i++) {
+    level.update(DT);
+    if (c.state === 'patrol' && p.pressed) pressedPatrolling = true;
+  }
+  console.log(`\n12a. patrolling over a plate: ever pressed=${pressedPatrolling}`);
+  if (pressedPatrolling) fail('a patrolling charger held a plate — only a dazed one may');
+
+  // Now lure it right, into the stone, onto the plate: once it faces that
+  // way with room to wind up, or it would not see the ball at all.
+  while (c.dir !== 1 || c.x > 1300) level.update(DT);
+  level.noteBall(fakeBall(c.x + 150));
+  let heldWhileDazed = true, sawDazed = false;
+  for (let i = 0; i < Math.round(3 / DT); i++) {
+    if (c.state === 'charge') level.noteBall(fakeBall(600, CY - 300));
+    level.update(DT);
+    if (c.state === 'dazed' && c.stateT > 0.1) { sawDazed = true; if (!p.pressed) heldWhileDazed = false; }
+  }
+  console.log(`12b. dazed on the plate: seen=${sawDazed}, held throughout=${heldWhileDazed}, at x=${c.x.toFixed(0)}`);
+  if (!sawDazed) fail('the charge did not end dazed on the plate');
+  if (!heldWhileDazed) fail('a dazed charger on the plate did not hold it');
+}
+{
+  // A gate whose power goes while the charger is under it holds. The gate
+  // is opened by hand first: a charger authored inside a closed gate would
+  // be pushed out of it by the physics before anything was tested.
+  const level = room({
+    senders: [{ id: 't', kind: 'timer', x: 700, y: FLOOR, face: 'right', time: 0.5 }],
+    gates: [{ x: 1180, y: 560, w: 40, h: 200, needs: ['t'] }],
+    enemies: [{ kind: 'charger', x: 1200, y: CY, from: 1190, to: 1210, dir: 1 }],
+  });
+  const g0 = level.gates[0];
+  g0.openT = 1;
+  g0.update(0, true, false);
+  level.senders[0].pressed = true; level.senders[0].left = 0.5;
+  for (let i = 0; i < Math.round(2 / DT); i++) level.update(DT);
+  const g = level.gates[0];
+  console.log(`12c. a gate over a charger after its timer ran out: openT=${g.openT.toFixed(2)}`);
+  if (g.openT < 0.5) fail('a gate came down on a charger');
+}
+
+// --- 13. the real ball: landing on a charger that is not dazed is a hit -----
+function dropOn(state) {
+  const level = room({ enemies: [{ kind: 'charger', x: 1000, y: CY, from: 990, to: 1010, dir: 1 }] });
+  const c = level.enemies[0];
+  const ball = new Ball(1000, 500);
+  const input = { left: false, right: false, takeJump: () => false };
+  for (let i = 0; i < Math.round(2 / DT); i++) {
+    if (state === 'dazed' && c.state !== 'dazed' && c.alive) { c.state = 'dazed'; c.stateT = 0; }
+    level.update(DT);
+    ball.update(DT, input, level);
+    if (!c.alive || ball.hits) break;
+  }
+  return { hits: ball.hits, popped: !c.alive };
+}
+{
+  const walking = dropOn('patrol');
+  const dazed = dropOn('dazed');
+  console.log(`\n13. landing on it: patrolling -> hits=${walking.hits} popped=${walking.popped}; dazed -> hits=${dazed.hits} popped=${dazed.popped}`);
+  if (walking.popped) fail('a patrolling charger was stomped — only a dazed one may be');
+  if (walking.hits !== 1) fail('landing on a patrolling charger did not cost a heart');
+  if (!dazed.popped) fail('landing on a dazed charger did not pop it');
+  if (dazed.hits) fail('landing on a dazed charger cost a heart');
+}
+
+// --- 14. touching a dazed charger from the side is harmless -----------------
+{
+  const level = room({ enemies: [{ kind: 'charger', x: 1000, y: CY, from: 990, to: 1010, dir: 1 }] });
+  const c = level.enemies[0];
+  const ball = new Ball(800, FLOOR - CONFIG.BALL.R);
+  const input = { left: false, right: true, takeJump: () => false };
+  for (let i = 0; i < Math.round(1.5 / DT); i++) {
+    c.state = 'dazed'; c.stateT = 0;      // held dazed for the test's length
+    level.update(DT);
+    ball.update(DT, input, level);
+  }
+  console.log(`\n14. rolled through a dazed charger: hits=${ball.hits}, now at x=${ball.x.toFixed(0)}`);
+  if (ball.hits) fail('touching a dazed charger cost a heart');
+  if (ball.x < 1100) fail('a dazed charger stopped the ball — it is not a collider');
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CHARGER CHECKS PASSED');
