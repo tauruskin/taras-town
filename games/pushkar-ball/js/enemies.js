@@ -383,6 +383,7 @@ export function drawEnemies(ctx, enemies, time, cfg) {
   for (const e of enemies) {
     if (!e.alive) continue;
     if (e.kind === 'popper') drawPopper(ctx, e, cfg);
+    else if (e.kind === 'charger') drawCharger(ctx, e, time, cfg);
     else drawSpikyBody(ctx, e, cfg);
   }
   for (const e of enemies) {
@@ -438,6 +439,122 @@ function drawPopper(ctx, e, cfg) {
   ctx.fill();
 
   drawAngryFace(ctx, e.x, e.y, e.r * 0.5, cfg);
+}
+
+/**
+ * A charger: a low, wide body with two horns pointing the way it faces, a
+ * heavy brow and the shared angry face — a different silhouette from the
+ * walker's ring of spikes, so the two never read as the same thing.
+ *
+ * The pose is the warning, and there is no text: a crouch, a pawing foot and
+ * dust for the wind-up; a lean and streaks for the charge; a wobble and
+ * stars for dazed, the stars going one by one as the daze runs out. Nothing
+ * held, nothing thrown.
+ */
+function drawCharger(ctx, e, time, cfg) {
+  const C = cfg.COLOURS, K = cfg.ENEMY.CHARGER;
+  const r = e.r, d = e.dir;
+  const feet = e.y + r;
+  let squash = 1, lean = 0, paw = 0;
+  if (e.state === 'windup') { squash = 0.82; paw = Math.sin(e.stateT * 28) * r * 0.25; }
+  if (e.state === 'charge') lean = 0.22;
+  if (e.state === 'dazed') lean = Math.sin(time * 9) * 0.12;
+
+  // Behind the body: dust while winding up, streaks while charging.
+  if (e.state === 'windup') {
+    ctx.fillStyle = C.CHARGER_DUST;
+    for (let i = 0; i < 3; i++) {
+      const grow = (e.stateT * 3 + i / 3) % 1;
+      ctx.beginPath();
+      ctx.arc(e.x - d * (r * 1.1 + grow * r), feet - r * 0.2 - grow * r * 0.5, r * (0.18 + 0.2 * grow), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (e.state === 'charge') {
+    ctx.strokeStyle = C.CHARGER_DUST;
+    ctx.lineWidth = 4;
+    for (const k of [0.3, 0.8, 1.3]) {
+      ctx.beginPath();
+      ctx.moveTo(e.x - d * r * 1.4, feet - r * k);
+      ctx.lineTo(e.x - d * r * 2.4, feet - r * k);
+      ctx.stroke();
+    }
+  }
+
+  ctx.save();
+  ctx.translate(e.x, feet);
+  ctx.rotate(lean * d);
+  ctx.scale(d, squash);           // draw facing right; the scale mirrors it
+
+  // Stubby legs, the front one pawing during the wind-up.
+  ctx.fillStyle = C.ENEMY_EDGE;
+  ctx.fillRect(-r * 0.8, -r * 0.35, r * 0.4, r * 0.35);
+  ctx.fillRect(r * 0.35 + paw, -r * 0.35, r * 0.4, r * 0.35);
+
+  // A low dome of a body, wider than it is tall.
+  ctx.beginPath();
+  ctx.ellipse(0, -r * 0.35, r * 1.2, r * 1.2, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = C.ENEMY;
+  ctx.fill();
+  ctx.strokeStyle = C.ENEMY_EDGE;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Two horns out of the front of the head, pointing forward.
+  ctx.fillStyle = C.ENEMY_EDGE;
+  for (const up of [0.95, 0.6]) {
+    ctx.beginPath();
+    ctx.moveTo(r * 0.55, -r * up - r * 0.12);
+    ctx.lineTo(r * 1.55, -r * up - r * 0.35);
+    ctx.lineTo(r * 0.75, -r * up + r * 0.14);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // A heavy brow over the face.
+  ctx.fillRect(r * 0.05, -r * 1.12, r * 0.95, r * 0.16);
+  ctx.restore();
+
+  // The shared face, drawn unmirrored so it never reads backwards, pushed
+  // towards the front.
+  drawAngryFace(ctx, e.x + d * r * 0.5, feet - r * 0.8 * squash, r * 0.42, cfg);
+
+  // Dazed: stars round its head, one fewer each third of the daze.
+  if (e.state === 'dazed') {
+    const left = Math.ceil(3 * (1 - e.stateT / K.DAZED));
+    ctx.fillStyle = C.CHARGER_STAR;
+    for (let i = 0; i < left; i++) {
+      const a = time * 3 + (i / 3) * Math.PI * 2;
+      drawStar(ctx, e.x + Math.cos(a) * r * 0.9, feet - r * 1.9 + Math.sin(a) * r * 0.25, r * 0.28);
+    }
+  }
+
+  // Coming back: a puff that swells and fades.
+  if (e.returnT > 0) {
+    const f = 1 - e.returnT / K.PUFF_TIME;
+    ctx.globalAlpha = 1 - f;
+    ctx.fillStyle = C.CHARGER_DUST;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(e.x + Math.cos(a) * r * (0.6 + f), e.y + Math.sin(a) * r * (0.6 + f), r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/** A five-pointed cartoon star. */
+function drawStar(ctx, cx, cy, s) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+    const rr = i % 2 === 0 ? s : s * 0.45;
+    ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fill();
 }
 
 /**

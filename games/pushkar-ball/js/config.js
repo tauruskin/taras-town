@@ -807,6 +807,12 @@ export const CONFIG = {
     ENEMY: '#8B5FBF',
     ENEMY_EDGE: '#5E3D8A',
     ENEMY_EYE: '#2A1B40',
+    // The charger's dust and dazed stars. Neither can read as the ball to
+    // IS_BALL in tests/browser/_helpers.mjs: the dust's red is only 41 above
+    // its blue (the test needs 60), and the stars' green is far above their
+    // blue, not barely above it.
+    CHARGER_DUST: '#D9CBB0',
+    CHARGER_STAR: '#FFD84A',
     DIM: '#0B1E2A',      // what the screen dims towards during a deflate
     // The results panel. Every one of these was checked by hand against
     // IS_BALL in tests/browser/_helpers.mjs, which calls a pixel the ball when
