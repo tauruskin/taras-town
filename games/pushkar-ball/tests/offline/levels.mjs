@@ -293,6 +293,12 @@ for (const data of LEVELS) {
       if (e.x < 0 || e.x > authored.bounds.w) {
         fail(`level ${data.id}: popper ${i} at x=${e.x} is outside the level`);
       }
+    } else if (e.kind === 'charger') {
+      const r = CONFIG.ENEMY.CHARGER.R;
+      if (e.from - r < 0 || e.to + r > authored.bounds.w) {
+        fail(`level ${data.id}: charger ${i} ranges ${e.from}..${e.to}, outside the level`);
+      }
+      if (!(e.from <= e.x && e.x <= e.to)) fail(`level ${data.id}: charger ${i}'s home x=${e.x} is outside its own range`);
     }
   }
 
@@ -394,9 +400,46 @@ for (const data of LEVELS) {
         // either end — the same allowance the walker gets above.
         const r = CONFIG.ENEMY.ROLLER.R;
         if (e.from - r < ghi && e.to + r > glo) fail(`level ${data.id}: a roller patrols under the gate at x=${g.x}`);
+      } else if (e.kind === 'charger') {
+        // A charger is a blocker, so a gate would hang open over it rather
+        // than close through it — which looks just as broken.
+        const r = CONFIG.ENEMY.CHARGER.R;
+        if (e.from - r < ghi && e.to + r > glo) fail(`level ${data.id}: a charger ranges under the gate at x=${g.x}`);
       }
     }
   }
+}
+
+// --- chargers: ground under the whole range, and no checkpoint in sight ----
+//
+// "Never charges off a ledge" rests on this: a charge ends at the end of its
+// range, so if every x in the range, plus the body's radius each side, has
+// ground under it at the charger's own feet, there is no ledge to go off.
+// And the roadmap's "never at a checkpoint": a ball respawning must not be
+// in sight of one — SEE past either end of its range.
+{
+  const R = CONFIG.ENEMY.CHARGER.R, SEE = CONFIG.ENEMY.CHARGER.SEE;
+  let n = 0;
+  for (const data of LEVELS) {
+    const level = loadLevel(data);
+    for (const [i, e] of (data.enemies || []).entries()) {
+      if (e.kind !== 'charger') continue;
+      n++;
+      const feet = e.y + R;
+      for (let x = e.from - R; x <= e.to + R; x += 5) {
+        const held = level.statics.some((s) => s.ny < -0.9 &&
+          Math.min(s.ax, s.bx) <= x && Math.max(s.ax, s.bx) >= x &&
+          Math.abs(s.ay + (s.by - s.ay) * ((x - s.ax) / ((s.bx - s.ax) || 1)) - feet) < 2);
+        if (!held) { fail(`level ${data.id}: charger ${i} has no ground under x=${x} at y=${feet}`); break; }
+      }
+      for (const c of data.checkpoints || []) {
+        if (c.x > e.from - SEE && c.x < e.to + SEE && Math.abs(c.y - feet) < 200) {
+          fail(`level ${data.id}: checkpoint at x=${c.x} is within sight of charger ${i} (${e.from}..${e.to}, SEE ${SEE})`);
+        }
+      }
+    }
+  }
+  console.log(`\nchargers: ${n} checked for ground under their whole range and checkpoints out of sight`);
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL LEVEL CHECKS PASSED');
