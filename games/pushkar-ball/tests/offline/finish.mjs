@@ -362,7 +362,7 @@ const ROUTES = {
     const gateB = level.gates.find((g) => g.needs.includes('t2'));
     const crate = level.crates[0];
     const W = CONFIG.CIRCUIT.POST_W;
-    let stage = null, pressedAt = 0;
+    let stage = null, pressedAt = 0, hopped = false;
     return (ball) => {
       if (!stage) stage = ball.x < t1.x ? 'a' : ball.x < ledge.x - 400 ? 'run' : ball.x < gateB.x ? 'ledge' : 'run3';
       // Room A: a timer in the path; the gate is well inside its time.
@@ -395,11 +395,19 @@ const ROUTES = {
         if (t2.pressed) { stage = 'go'; pressedAt = level.time; }
         else return { left: true };
       }
+      // After the press, a sloppy thumb: it hesitates for longer the sloppier
+      // the lead (0, 0.45, 0.9s), and at the sloppiest hops once for nothing
+      // on the way. Otherwise every record here is the same roll.
       if (stage === 'go') {
+        if (level.time - pressedAt < (lead - 0.7) * 1.5) return {};
         if (ball.x > gateB.x + gateB.w + 20) {
           SPARE9.push({ lead, used: level.time - pressedAt, time: t2.time });
           stage = 'run3';
-        } else return { right: true };
+        } else {
+          const hop = lead > 1.2 && !hopped && ball.grounded && ball.x > t2.x + 150;
+          if (hop) hopped = true;
+          return { right: true, jump: hop };
+        }
       }
       // Room C: push the crate off the plate, into the trench.
       if (stage === 'run3') { if (ball.x > p.x - 300) stage = 'push'; else return run(ball); }
@@ -872,14 +880,16 @@ console.log('\n3i. level nine, timer pressed first');
   const data = LEVELS.find((l) => l.id === 9);
   const cp = data.checkpoints[0];
   const W = CONFIG.CIRCUIT.POST_W;
-  let hits = 0, bPressed = false, wasOn = false;
+  // A hit is any refill, not just switching on: a second touch while it runs
+  // tops the timer up, and would make "pressed first" prove less than it says.
+  let hits = 0, bPressed = false, prevLeft = 0;
   const { ball, level } = play(data, (lv) => {
     const t2 = sender(lv, 't2'), b = sender(lv, 'b');
     const ledge = lv.walls.find((w) => w.x === 7400 && w.y === 670);
     let stage = 'over';
     return (bl) => {
-      if (t2.pressed && !wasOn) hits++;
-      wasOn = t2.pressed;
+      if (t2.left > prevLeft + 1e-9) hits++;
+      prevLeft = t2.left;
       if (b.pressed) bPressed = true;
       if (stage === 'over') {
         if (bl.x > t2.x + W + 100) stage = 'back';

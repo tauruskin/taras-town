@@ -1011,9 +1011,14 @@ export const LEVELS = [
     //       (top 670, bottom 700: a rolling ball's top, 720, passes under
     //       it, and a jump's bottom, 629, rises 41 above it). The timer faces
     //       right, as level eight's room B button did. Pressed first, its
-    //       4.5s run out while the bridge is fetched; pressed last, the run
-    //       to the gate uses well under 60% of it — finish.mjs's SPARE9
-    //       holds every run to that.
+    //       5.5s run out while the bridge is fetched; pressed last, the run
+    //       to the gate uses under 60% of it — finish.mjs's SPARE9 holds
+    //       every run to that, including one that hesitates 0.9s after the
+    //       press and hops for nothing on the way (56% of 5.5s). It was
+    //       4.5s, which that sloppy run overran (68%); 5 still did (61%).
+    //       The timer-first run in finish.mjs's 3i needs about 7.3s — at
+    //       7.25 it still ends at the shut gate, at 7.5 it gets through —
+    //       so 5.5 leaves room on both sides.
     //   C — level six reversed. A crate already on a plate holds the gate
     //       SHUT (its lamp is a ring: needs '!p'). Pushed right, off the
     //       plate, the crate drops into a trench exactly its depth and
@@ -1077,7 +1082,7 @@ export const LEVELS = [
     senders: [
       { id: 't1', kind: 'timer', x: 1400, y: 760, face: 'left', time: 3.5 },
       { id: 'b', kind: 'button', x: 7660, y: 670, face: 'left' },
-      { id: 't2', kind: 'timer', x: 8000, y: 760, face: 'right', time: 4.5 },
+      { id: 't2', kind: 'timer', x: 8000, y: 760, face: 'right', time: 5.5 },
       { id: 'p', kind: 'plate', x: 10000, y: 760, w: 110 },
     ],
 
