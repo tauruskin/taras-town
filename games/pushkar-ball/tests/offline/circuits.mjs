@@ -259,6 +259,9 @@ console.log('\n13. a closing gate does not come down on the ball');
   drive(ball, level, {}, 2);                        // the timer runs out meanwhile
   console.log(`   ball under the gate after the timer ran out: openT=${gate.openT.toFixed(2)}, ball y=${ball.y.toFixed(1)}`);
   if (gate.openT < 0.99) fail(`the gate came down on the ball (openT ${gate.openT.toFixed(2)})`);
+  // The timer has run out, so it is the hold keeping the gate up and not a
+  // timer still counting down.
+  if (level.senders[0].pressed) fail('setup: the timer was still running at the hold check');
   ball.x = 1500;
   drive(ball, level, {}, CONFIG.GATE.OPEN_TIME + 0.2);
   if (gate.openT !== 0) fail(`once the ball moved away the gate did not finish closing (openT ${gate.openT})`);
@@ -271,6 +274,37 @@ console.log('\n14. level six still loads its old switch as a plate');
   if (s.length !== 1 || s[0].kind !== 'plate' || s[0].id !== 'gate1') fail(`level 6's senders are ${JSON.stringify(s.map((x) => [x.id, x.kind]))}`);
   if (level.switches[0] !== s[0]) fail('level.switches is not the plate sender itself');
   if (JSON.stringify(level.gates[0].needs) !== '["gate1"]') fail(`level 6's gate needs ${JSON.stringify(level.gates[0].needs)}`);
+}
+
+console.log('\n15. a ball resting flush against a gate\'s face does not hold it open');
+{
+  const level = stage({
+    senders: [{ id: 't', kind: 'timer', x: 800, y: GROUND, face: 'left', time: 1.5 }],
+    gates: [{ x: 1200, y: GROUND - 200, w: 40, h: 200, needs: ['t'] }],
+  });
+  const gate = level.gates[0];
+  const ball = new Ball(400, GROUND - 20);
+  drive(ball, level, { right: true }, 2);
+  if (!level.senders[0].pressed || gate.openT !== 1) fail(`setup: timer pressed=${level.senders[0].pressed}, gate openT=${gate.openT}`);
+  // Flush against the gate's left face while the timer runs out. Not rolling
+  // right: while the gate is open that carries the ball straight under it
+  // and on, and the test would pass with nothing touching the face at all.
+  // Resting flush is exactly the case the 2-unit inset in isUnder exists for.
+  const flush = 1200 - ball.r;
+  ball.x = flush; ball.y = GROUND - 20; ball.vx = 0; ball.vy = 0;
+  let drift = 0;
+  const watch = (seconds) => {
+    for (let i = 0; i < Math.round(seconds / STEP); i++) {
+      drive(ball, level, {}, STEP);
+      drift = Math.max(drift, Math.abs(ball.x - flush));
+    }
+  };
+  let steps = 0;
+  while (level.senders[0].pressed && steps < 1000) { watch(STEP); steps++; }
+  watch(CONFIG.GATE.OPEN_TIME + 0.3);
+  console.log(`   flush against the face after the timer ran out: openT=${gate.openT.toFixed(2)}, ball x=${ball.x.toFixed(2)} (drifted ${drift.toFixed(3)})`);
+  if (drift > 0.5) fail(`setup: the ball did not stay flush with the gate's face (drifted ${drift.toFixed(3)})`);
+  if (gate.openT !== 0) fail(`a ball leaning on the gate's face held it open (openT ${gate.openT.toFixed(2)}, ball x ${ball.x.toFixed(1)})`);
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
