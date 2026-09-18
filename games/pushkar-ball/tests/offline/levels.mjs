@@ -7,6 +7,7 @@ const { Ball } = await import('../../js/player.js');
 const { LEVELS, loadLevel } = await import('../../js/levels.js');
 const { step } = await import('../../js/physics.js');
 const { hitsSpikes } = await import('../../js/hazards.js');
+const { parseNeed } = await import('../../js/circuits.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -328,6 +329,60 @@ for (const data of LEVELS) {
     const nextStart = ground[i + 1][0];
     if (nextStart[0] < prevEnd[0]) {
       fail(`level ${data.id}: ground polyline ${i + 1} starts at x=${nextStart[0]}, before polyline ${i} ends at x=${prevEnd[0]} — drawWater assumes ground entries are listed left to right`);
+    }
+  }
+}
+
+// --- wiring ------------------------------------------------------------------
+//
+// Every need names a real sender; a sender and each receiver it drives are
+// close enough to be on one phone screen together (CIRCUIT.SEE); and no
+// checkpoint sits between them — a respawn resets buttons, so a checkpoint
+// there would leave a player past the button and facing a shut door.
+console.log('\nwiring');
+for (const data of LEVELS) {
+  const level = loadLevel(data);
+  const ids = level.senders.map((s) => s.id);
+  if (new Set(ids).size !== ids.length) fail(`level ${data.id}: two senders share an id (${ids.join(', ')})`);
+  for (const s of level.senders) {
+    if (s.kind === 'timer' && !(s.time > 0)) fail(`level ${data.id}: timer '${s.id}' has time ${s.time}`);
+    if (s.kind !== 'plate' && s.face !== 'left' && s.face !== 'right') fail(`level ${data.id}: button '${s.id}' faces '${s.face}'`);
+  }
+  for (const r of [...level.gates, ...level.bridges]) {
+    if (!r.needs.length) fail(`level ${data.id}: a ${r.kind} at x=${r.x} needs nothing, so it can never open`);
+    for (const n of r.needs) {
+      const s = level.senders.find((x) => x.id === parseNeed(n).id);
+      if (!s) { fail(`level ${data.id}: a ${r.kind} at x=${r.x} needs '${n}', and there is no such sender`); continue; }
+      const apart = Math.abs(s.x - r.x);
+      if (apart > CONFIG.CIRCUIT.SEE) fail(`level ${data.id}: '${s.id}' is ${apart} from the ${r.kind} it drives; ${CONFIG.CIRCUIT.SEE} is the most one phone screen shows`);
+      const lo = Math.min(s.x, r.x), hi = Math.max(s.x, r.x);
+      for (const c of level.checkpoints) {
+        if (c.x > lo && c.x < hi) fail(`level ${data.id}: checkpoint at x=${c.x} sits between '${s.id}' and the ${r.kind} it drives`);
+      }
+    }
+  }
+
+  // A closing gate only refuses to close on the ball and on a crate — it
+  // asks `isUnder` about pressers, and enemies and spikes are never among
+  // them. A gate whose span overlaps a spike patch, a walker's patrol or a
+  // roller's range can therefore close right through one, which either
+  // looks broken or, for a spike, means the gate is guarding nothing since
+  // the hazard already sits in the gap.
+  for (const g of level.gates) {
+    const glo = g.x, ghi = g.x + g.w;
+    for (const s of level.spikes) {
+      if (s.x < ghi && s.x + s.w > glo) {
+        fail(`level ${data.id}: a spike patch at x=${s.x} sits under the gate at x=${g.x}`);
+      }
+    }
+    for (const e of data.enemies || []) {
+      if (e.kind === 'walker') {
+        const r = CONFIG.ENEMY.WALKER.R;
+        const lo = e.x - e.amplitude - r, hi = e.x + e.amplitude + r;
+        if (lo < ghi && hi > glo) fail(`level ${data.id}: a walker patrols under the gate at x=${g.x}`);
+      } else if (e.kind === 'roller') {
+        if (e.from < ghi && e.to > glo) fail(`level ${data.id}: a roller patrols under the gate at x=${g.x}`);
+      }
     }
   }
 }
