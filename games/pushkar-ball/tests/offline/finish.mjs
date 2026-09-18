@@ -672,6 +672,21 @@ console.log('\n3e. level eight without its buttons');
     else if (reached < br.x) fail(`no attempt reached level 8's gap edge (furthest ${reached.toFixed(0)}) — this proves nothing`);
     else console.log(`   room B without its button: ${tries} jumps, none crossed the ${br.w} gap`);
   }
+  // Room C without either of its buttons: from the shelf, rolling and hopping
+  // at the door, nothing gets past it.
+  {
+    const gateC = data.gates[1];
+    for (const id of ['c', 'd']) {
+      const bare = { ...data, senders: data.senders.filter((s) => s.id !== id) };
+      let furthest = 0;
+      play(bare, () => (b) => {
+        furthest = Math.max(furthest, b.x);
+        return { right: true, jump: b.grounded };
+      }, { from: { x: 11050, y: 570 }, seconds: 6 });
+      if (furthest > gateC.x + gateC.w) fail(`level 8 room C was passed without button ${id} (ball reached x=${furthest.toFixed(0)})`);
+      else console.log(`   room C without button ${id}: got no further than x=${furthest.toFixed(0)}, gate at ${gateC.x}`);
+    }
+  }
 }
 
 // --- 3f. level eight: the shelf needs the crate ------------------------------
@@ -680,6 +695,11 @@ console.log('\n3f. level eight without its crate');
   const data = LEVELS.find((l) => l.id === 8);
   const shelf = data.boxes.find((b) => b.x === 11000 && b.y === 590);
   const bare = { ...data, boxes: data.boxes.filter((b) => !b.movable) };
+  // It starts just right of button c's post, not left of it: the post is a
+  // step too, and the header comment's arithmetic is what rules that step
+  // out (it ends 520 short of the shelf, and a jump carries at most 290).
+  const c = data.senders.find((s) => s.id === 'c');
+  const fromX = c.x + CONFIG.CIRCUIT.POST_W + CONFIG.BALL.R + 10;
   let onShelf = 0, tries = 0, best = Infinity;
   for (let jumpAt = shelf.x - 400; jumpAt <= shelf.x - 5; jumpAt += 5) {
     for (const spam of [false, true]) {
@@ -691,7 +711,7 @@ console.log('\n3f. level eight without its crate');
         const jump = b.x >= jumpAt && (spam || !pressed);
         if (jump) pressed = true;
         return { right: true, jump };
-      }, { from: { x: shelf.x - 500, y: 740 }, seconds: 4 });
+      }, { from: { x: fromX, y: 740 }, seconds: 4 });
       if (up) onShelf++;
     }
   }
@@ -700,6 +720,61 @@ console.log('\n3f. level eight without its crate');
   // the header comment's arithmetic says about 629, 39 below the top at 590.
   else if (best - shelf.y < 30) fail(`without the crate a ball's bottom got to y=${best.toFixed(0)}, within 30 of the shelf top ${shelf.y} — too close to be sure it needs the crate`);
   else console.log(`   ${tries} tries, none reached the shelf; the highest a ball's bottom got beside it was y=${best.toFixed(0)} (shelf top ${shelf.y})`);
+}
+
+// --- 3g. level eight: room C has no dead end ---------------------------------
+//
+// Room C cannot be failed, so a crate shoved somewhere useless is a room with
+// no way out but the restart button. The one way to shove it left is from
+// between it and the shelf, so the crate starts too close to the shelf's face
+// for the ball to get in there. Try the ways a ball could: rolling left off
+// the shelf (plain, and jumping near the crate), and the reviewer's recipe —
+// run right, jump once anywhere across the crate, then hold left. The crate
+// must never be moved left at all, let alone end up against button c's post.
+console.log('\n3g. level eight: room C has no dead end');
+{
+  const data = LEVELS.find((l) => l.id === 8);
+  const start = data.boxes.find((b) => b.movable);
+  const c = data.senders.find((s) => s.id === 'c');
+  const postRight = c.x + CONFIG.CIRCUIT.POST_W;
+  const shelf = data.boxes.find((b) => b.x === 11000 && b.y === 590);
+  const tries = [];
+  // Off the shelf's left edge, holding left; and the same, jumping once as it
+  // comes over the crate.
+  for (const jumpNear of [false, true]) {
+    tries.push({ name: `off the shelf${jumpNear ? ', jumping near the crate' : ''}`,
+      from: { x: shelf.x + 30, y: shelf.y - CONFIG.BALL.R - 2 },
+      drive: () => { let done = false; return (b, t, lv) => {
+        const cr = lv.crates[0];
+        const jump = jumpNear && !done && b.grounded && b.x < cr.x + cr.w + 60;
+        if (jump) done = true;
+        return { left: true, jump };
+      }; } });
+  }
+  // The trap recipe: right from just past button c's post, one jump at
+  // jumpAt, then left for 10s.
+  for (let jumpAt = 10610; jumpAt <= 10790; jumpAt += 20) {
+    tries.push({ name: `jump at ${jumpAt} then left`,
+      from: { x: postRight + 40, y: 740 },
+      drive: () => { let done = false; return (b, t) => {
+        if (t >= 3) return { left: true };
+        const jump = !done && b.grounded && b.x >= jumpAt;
+        if (jump) done = true;
+        return { right: true, jump };
+      }; } });
+  }
+  let bad = 0, least = Infinity;
+  for (const tr of tries) {
+    let lowest = Infinity;
+    play(data, (lv) => { const d = tr.drive(); return (b, t) => { lowest = Math.min(lowest, lv.crates[0].x); return d(b, t, lv); }; },
+      { from: tr.from, seconds: 13 });
+    least = Math.min(least, lowest);
+    if (lowest < start.x - 1) {
+      bad++;
+      fail(`level 8's crate was shoved left to x=${lowest.toFixed(0)} (start ${start.x}${lowest < postRight + 60 ? `, within 60 of button c's post at ${postRight}` : ''}) by: ${tr.name}`);
+    }
+  }
+  if (!bad) console.log(`   ${tries.length} tries at getting behind the crate, none moved it left (lowest x=${least.toFixed(0)}, start ${start.x}, button c's post ends at ${postRight})`);
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------

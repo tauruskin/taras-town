@@ -921,8 +921,10 @@ export const LEVELS = [
     //       61 below one from a crate's top (529). The gate is 240 tall: from
     //       the shelf a jump's bottom reaches 459, which would clear a 200 one.
     //       Room C's floor button's post top (710) would put a jump at 579,
-    //       above the shelf — but the post is 570 from it and a jump carries
-    //       at most 290, so it cannot be used as a step there.
+    //       above the shelf — but the post ends 520 short of it (10480 to
+    //       11000) and a jump carries at most 290, so it cannot be used as a
+    //       step there. The button is 850 from its gate, inside the 900 a
+    //       screen shows.
     id: 8,
     theme: 'hills',
     bounds: { w: 13000, h: 1080 },
@@ -945,15 +947,21 @@ export const LEVELS = [
       // Room C's shelf, standing on the floor like level three's ledge.
       { x: 11000, y: 590, w: 700, h: 170 },
       // Room C's crate. Pushed right, it stops against the shelf's face at
-      // x=10900 and is the step up. Far enough from the floor button (post
-      // at 10400) that hopping the post never lands on it.
-      { x: 10850, y: 660, w: 100, h: 100, movable: true },
+      // x=10900 and is the step up. It starts 20 short of the shelf face —
+      // too narrow for the ball — so the ball can never get behind it and
+      // shove it back against button c's post, which would leave the room
+      // unfinishable (room C has no way to fail, so only the restart button
+      // would get a child out). At 10850 a 50 gap trapped the ball in 22 of
+      // 62 simple tries; 10865 (a 35 gap) still trapped 15 of 176. Far
+      // enough from the floor button (post 10450-10480) that hopping the
+      // post never lands on it. finish.mjs's 3g checks all of this.
+      { x: 10880, y: 660, w: 100, h: 100, movable: true },
     ],
 
     senders: [
       { id: 'a', kind: 'button', x: 1400, y: 760, face: 'left' },
       { id: 'b', kind: 'button', x: 8000, y: 760, face: 'right' },
-      { id: 'c', kind: 'button', x: 10400, y: 760, face: 'left' },
+      { id: 'c', kind: 'button', x: 10450, y: 760, face: 'left' },
       { id: 'd', kind: 'button', x: 11150, y: 590, face: 'left' },
     ],
 
