@@ -4,7 +4,7 @@
 // camera clamps to.
 const { CONFIG } = await import('../../js/config.js');
 const { Ball } = await import('../../js/player.js');
-const { LEVELS, loadLevel } = await import('../../js/levels.js');
+const { LEVELS, loadLevel, revealPoint } = await import('../../js/levels.js');
 const { step } = await import('../../js/physics.js');
 const { hitsSpikes } = await import('../../js/hazards.js');
 const { parseNeed } = await import('../../js/circuits.js');
@@ -336,7 +336,7 @@ for (const data of LEVELS) {
 // --- wiring ------------------------------------------------------------------
 //
 // Every need names a real sender; a sender and each receiver it drives are
-// close enough for the camera's reveal to frame both (CIRCUIT.SEE); and no
+// close enough for the camera's reveal to fire (CIRCUIT.SEE); and no
 // checkpoint sits between them — a respawn resets buttons, so a checkpoint
 // there would leave a player past the button and facing a shut door.
 console.log('\nwiring');
@@ -353,7 +353,16 @@ for (const data of LEVELS) {
     for (const n of r.needs) {
       const s = level.senders.find((x) => x.id === parseNeed(n).id);
       if (!s) { fail(`level ${data.id}: a ${r.kind} at x=${r.x} needs '${n}', and there is no such sender`); continue; }
-      const apart = Math.abs(s.x - r.x);
+      // Measured the way `noteOpening` measures it: from where the ball is
+      // when it presses — against the capped face of a post, or on the
+      // middle of a plate — to the point the reveal would lean toward.
+      // Post-to-gate-edge would be a different number, and a wire could
+      // pass here and still open its door unseen.
+      const R = CONFIG.BALL.R;
+      const from = s.kind === 'plate' ? s.x + s.w / 2
+        : s.face === 'right' ? s.x + CONFIG.CIRCUIT.POST_W + R : s.x - R;
+      const apart = Math.abs(revealPoint(r) - from);
+      console.log(`   level ${data.id}: '${s.id}' -> ${r.kind} at x=${r.x}: ${apart.toFixed(0)} apart`);
       if (apart > CONFIG.CIRCUIT.SEE) fail(`level ${data.id}: '${s.id}' is ${apart} from the ${r.kind} it drives; ${CONFIG.CIRCUIT.SEE} is as far as the camera reveal reaches`);
       const lo = Math.min(s.x, r.x), hi = Math.max(s.x, r.x);
       for (const c of level.checkpoints) {
@@ -363,11 +372,11 @@ for (const data of LEVELS) {
   }
 
   // A closing gate only refuses to close on the ball and on a crate — it
-  // asks `isUnder` about pressers, and enemies and spikes are never among
-  // them. A gate whose span overlaps a spike patch, a walker's patrol or a
-  // roller's range can therefore close right through one, which either
-  // looks broken or, for a spike, means the gate is guarding nothing since
-  // the hazard already sits in the gap.
+  // asks `isUnder` about those two (Level.update's `blockers`), and enemies
+  // and spikes are never among them. A gate whose span overlaps a spike
+  // patch, a walker's patrol or a roller's range can therefore close right
+  // through one, which either looks broken or, for a spike, means the gate
+  // is guarding nothing since the hazard already sits in the gap.
   for (const g of level.gates) {
     const glo = g.x, ghi = g.x + g.w;
     for (const s of level.spikes) {

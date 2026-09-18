@@ -1731,13 +1731,12 @@ class Level {
     this.opened = [];
     for (const g of this.gates) {
       const on = powered(g.needs, this.senders);
-      this.noteOpening(g, on, g.x + g.w / 2);
+      this.noteOpening(g, on, revealPoint(g));
       g.update(dt, on, blockers.some((p) => g.isUnder(p)));
     }
     for (const br of this.bridges) {
       const on = powered(br.needs, this.senders);
-      // The middle of its whole span, out or not: where it will be.
-      this.noteOpening(br, on, br.x + br.dir * br.w / 2);
+      this.noteOpening(br, on, revealPoint(br));
       br.update(dt, on);
       br.warn = warning(br.needs, this.senders, CONFIG);
     }
@@ -1955,6 +1954,19 @@ class Level {
       });
     }
   }
+}
+
+/**
+ * Where the camera leans to show receiver `r` opening: a gate's middle, or
+ * the middle of a bridge's whole span, out or not — where it will be, since
+ * it has only just started to slide.
+ *
+ * Exported so the levels suite measures a wire by the same point the reveal
+ * aims at. Two copies of this would drift, and the suite would then pass a
+ * level whose reveal never fires.
+ */
+export function revealPoint(r) {
+  return r.kind === 'bridge' ? r.x + r.dir * r.w / 2 : r.x + r.w / 2;
 }
 
 export function loadLevel(data) { return new Level(data); }
