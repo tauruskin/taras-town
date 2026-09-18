@@ -282,9 +282,11 @@ export const CONFIG = {
     WIRE_SHEATH: 2,
     WIRE_UNLIT_ALPHA: 0.5,
     // A sender and every receiver it drives are at most this far apart
-    // horizontally. VIEW_H is 540 on every screen, so a 568x320 phone sees
-    // 540 * 568/320 = 958 units across; 900 is what fits both ends of a wire
-    // on it at once. levels.mjs enforces it.
+    // horizontally — how far the camera's reveal (CAMERA.REVEAL_*) will lean
+    // to show a door opening. It is NOT "fits on one screen": the ball sits
+    // mid-screen, so a 568x320 phone shows only ~480 ahead of it. A reveal
+    // limited to REVEAL_MARGIN from the ball can frame both ends up to about
+    // this far. levels.mjs enforces it.
     SEE: 900,
     // Seconds of a timer left at which a bridge it drives starts to shake.
     WARN: 1.0,

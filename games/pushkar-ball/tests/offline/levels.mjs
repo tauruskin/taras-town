@@ -336,7 +336,7 @@ for (const data of LEVELS) {
 // --- wiring ------------------------------------------------------------------
 //
 // Every need names a real sender; a sender and each receiver it drives are
-// close enough to be on one phone screen together (CIRCUIT.SEE); and no
+// close enough for the camera's reveal to frame both (CIRCUIT.SEE); and no
 // checkpoint sits between them — a respawn resets buttons, so a checkpoint
 // there would leave a player past the button and facing a shut door.
 console.log('\nwiring');
@@ -354,7 +354,7 @@ for (const data of LEVELS) {
       const s = level.senders.find((x) => x.id === parseNeed(n).id);
       if (!s) { fail(`level ${data.id}: a ${r.kind} at x=${r.x} needs '${n}', and there is no such sender`); continue; }
       const apart = Math.abs(s.x - r.x);
-      if (apart > CONFIG.CIRCUIT.SEE) fail(`level ${data.id}: '${s.id}' is ${apart} from the ${r.kind} it drives; ${CONFIG.CIRCUIT.SEE} is the most one phone screen shows`);
+      if (apart > CONFIG.CIRCUIT.SEE) fail(`level ${data.id}: '${s.id}' is ${apart} from the ${r.kind} it drives; ${CONFIG.CIRCUIT.SEE} is as far as the camera reveal reaches`);
       const lo = Math.min(s.x, r.x), hi = Math.max(s.x, r.x);
       for (const c of level.checkpoints) {
         if (c.x > lo && c.x < hi) fail(`level ${data.id}: checkpoint at x=${c.x} sits between '${s.id}' and the ${r.kind} it drives`);
