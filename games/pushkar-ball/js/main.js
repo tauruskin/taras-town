@@ -20,6 +20,7 @@ import { Flow } from './flow.js';
 import { loadProgress, saveProgress, markWon } from './save.js';
 import { drawSpikes } from './hazards.js';
 import { drawEnemies } from './enemies.js';
+import { drawWires, drawSenders, drawReceivers } from './circuits.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -281,19 +282,21 @@ function draw() {
   ctx.scale(scale, scale);
   ctx.translate(-camera.x, -camera.y);
 
+  drawWires(ctx, level, CONFIG);
   drawGround();
   drawWater();
   drawWalls();
   drawCrates();
   drawBreakables();
   drawCheckpoints();
-  drawSwitches();
+  drawSenders(ctx, level, CONFIG);
   drawSpikes(ctx, level.spikes, CONFIG);
   drawEnemies(ctx, level.enemies, level.time, CONFIG);
   drawParticles();
   drawPlatforms();
   drawPads();
   drawGates();
+  drawReceivers(ctx, level, level.time, CONFIG);
   drawBeams();
   drawGoal();
   drawBall();
@@ -662,25 +665,6 @@ function drawCheckpoints() {
     ctx.closePath();
     ctx.fillStyle = c.taken ? C.CHECK_ON : C.CHECK_OFF;
     ctx.fill();
-  }
-}
-
-/**
- * The pressure switch: a small raised plate, dark and unlike ordinary
- * ground, that sinks a little while pressed and rises back when it isn't.
- * `sw.animT` is `Level.update`'s own eased value; this only ever reads it.
- */
-function drawSwitches() {
-  const C = CONFIG.COLOURS;
-  const S = CONFIG.SWITCH;
-  for (const sw of level.switches) {
-    const dip = S.PRESS_DEPTH * sw.animT;
-    const topY = sw.y - S.H + dip;
-
-    ctx.fillStyle = C.SWITCH_PLATE_EDGE;
-    ctx.fillRect(sw.x, sw.y - S.H, sw.w, S.H);
-    ctx.fillStyle = C.SWITCH_PLATE;
-    ctx.fillRect(sw.x, topY, sw.w, S.H - dip);
   }
 }
 

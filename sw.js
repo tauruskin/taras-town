@@ -102,6 +102,7 @@ const PRECACHE = [
   './games/pushkar-ball/js/camera.js',
   './games/pushkar-ball/js/hazards.js',
   './games/pushkar-ball/js/enemies.js',
+  './games/pushkar-ball/js/circuits.js',
   './games/pushkar-ball/js/flow.js',
   './games/pushkar-ball/js/save.js',
 ];

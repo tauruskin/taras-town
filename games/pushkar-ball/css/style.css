@@ -91,13 +91,16 @@ button svg { width: 60%; height: 60%; fill: #fff; }
 }
 .hub-link svg { width: 68%; height: 68%; }
 
-/* Level select. Four tiles to a row, sized against the screen HEIGHT for the
+/* Level select. Five tiles to a row, sized against the screen HEIGHT for the
    same reason the opening panel is: at 740x280 two rows of 26vh tiles and a
-   gap are 154px, which clears the hub button above them. */
+   gap are 154px, which clears the hub button above them. Five, not four,
+   since level nine: three rows would not fit a 280px screen, and five 26vh
+   tiles are 398px wide there, well inside 740. Ten levels still fit in two
+   rows; an eleventh needs this rethought. */
 #level-grid {
   --tile: clamp(52px, 26vh, 110px);
   display: grid;
-  grid-template-columns: repeat(4, var(--tile));
+  grid-template-columns: repeat(5, var(--tile));
   gap: clamp(8px, 3vh, 18px);
 }
 .tile {

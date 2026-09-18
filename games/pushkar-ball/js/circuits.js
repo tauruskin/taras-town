@@ -175,3 +175,140 @@ export function warning(needs, senders, cfg) {
     return !!(s && s.kind === 'timer' && s.pressed && s.left < cfg.CIRCUIT.WARN);
   });
 }
+
+// --- Drawing -----------------------------------------------------------------
+//
+// Everything below takes the canvas context as a parameter and is only ever
+// called by main.js. Nothing above calls it, so importing this file into
+// Node never touches a canvas.
+//
+// The one rule a child reads: LIGHT EVERY LAMP ON THE DOOR. A lit lamp is its
+// sender's colour, exactly; an unlit one is dark grey with a faint wash of
+// that colour, so which button it belongs to is still readable, but it never
+// matches the lit colour — tests/browser/wiring.mjs counts exact lit pixels.
+
+function receiversOf(level) {
+  return [...level.gates, ...(level.bridges || [])];
+}
+
+/** Where lamp `i` of a gate or bridge is drawn. A gate's ride up with it. */
+export function receiverLampAt(r, i, cfg) {
+  const P = cfg.CIRCUIT;
+  if (r.kind === 'bridge') return { x: r.x - r.dir * 16, y: r.y - 22 - i * P.LAMP_GAP };
+  return { x: r.x + r.w / 2, y: r.y + r.h - 20 - i * P.LAMP_GAP };
+}
+
+function senderLampAt(s, cfg) {
+  if (s.kind === 'plate') return { x: s.x + s.w / 2, y: s.y - cfg.SWITCH.H / 2 };
+  return capCentre(s, cfg);
+}
+
+function lamp(ctx, x, y, r, colour, lit, ring, cfg) {
+  const C = cfg.COLOURS;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  if (ring) {
+    ctx.lineWidth = r * 0.55;
+    ctx.strokeStyle = lit ? colour : C.LAMP_OFF;
+    ctx.stroke();
+    if (!lit) { ctx.globalAlpha = 0.4; ctx.strokeStyle = colour; ctx.stroke(); ctx.globalAlpha = 1; }
+  } else {
+    ctx.fillStyle = lit ? colour : C.LAMP_OFF;
+    ctx.fill();
+    if (!lit) { ctx.globalAlpha = 0.4; ctx.fillStyle = colour; ctx.fill(); ctx.globalAlpha = 1; }
+  }
+}
+
+/**
+ * Every wire, straight from a sender's lamp to the receiver lamp it lights,
+ * full colour while the sender is on and faint while it is off. Call it
+ * BEFORE the ground is drawn, so a wire reads as buried where it passes under
+ * the ground.
+ */
+export function drawWires(ctx, level, cfg) {
+  ctx.lineWidth = cfg.CIRCUIT.WIRE_W;
+  for (const r of receiversOf(level)) {
+    r.needs.forEach((need, i) => {
+      const s = level.senders.find((x) => x.id === parseNeed(need).id);
+      if (!s) return;
+      const a = senderLampAt(s, cfg), b = receiverLampAt(r, i, cfg);
+      ctx.globalAlpha = s.pressed ? 1 : 0.3;
+      ctx.strokeStyle = s.colour;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    });
+  }
+  ctx.globalAlpha = 1;
+}
+
+/**
+ * Plates, posts and caps. A plate is level six's slab with a small lamp let
+ * into it. A button is a stone post with its cap — which is its lamp — on one
+ * side, sinking into the post while pressed; a timer adds a ring round the
+ * cap that empties as its time runs down.
+ */
+export function drawSenders(ctx, level, cfg) {
+  const C = cfg.COLOURS, P = cfg.CIRCUIT, S = cfg.SWITCH;
+  for (const s of level.senders) {
+    if (s.kind === 'plate') {
+      const dip = S.PRESS_DEPTH * s.animT;
+      ctx.fillStyle = C.SWITCH_PLATE_EDGE;
+      ctx.fillRect(s.x, s.y - S.H, s.w, S.H);
+      ctx.fillStyle = C.SWITCH_PLATE;
+      ctx.fillRect(s.x, s.y - S.H + dip, s.w, S.H - dip);
+      lamp(ctx, s.x + s.w / 2, s.y - S.H / 2 + dip / 2, 4, s.colour, s.pressed, false, cfg);
+      continue;
+    }
+    const p = postBox(s, cfg);
+    ctx.fillStyle = C.WALL;
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.fillStyle = C.WALL_EDGE;
+    ctx.fillRect(p.x, p.y, p.w, 6);
+    const c = capCentre(s, cfg);
+    const into = (s.face === 'right' ? -1 : 1) * S.PRESS_DEPTH * s.animT;
+    if (s.kind === 'timer') {
+      const R = P.CAP_R + P.RING_W;
+      ctx.lineWidth = P.RING_W;
+      ctx.strokeStyle = C.RING_TRACK;
+      ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, Math.PI * 2); ctx.stroke();
+      if (s.pressed && s.time > 0) {
+        ctx.strokeStyle = s.colour;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (s.left / s.time));
+        ctx.stroke();
+      }
+    }
+    lamp(ctx, c.x + into, c.y, P.CAP_R, s.colour, s.pressed, false, cfg);
+  }
+}
+
+/**
+ * Bridges, and every receiver's lamps. A gate's body is drawn by main.js with
+ * the other stone; its lamps go on top of it here. A bridge's lamps sit on a
+ * thin signal pole at its root, and the slab shakes while `warn` is set.
+ */
+export function drawReceivers(ctx, level, time, cfg) {
+  const C = cfg.COLOURS, P = cfg.CIRCUIT, B = cfg.BRIDGE;
+  for (const br of level.bridges || []) {
+    const [lo, hi] = br.span();
+    const shake = br.warn ? Math.sin(time * 50) * B.SHAKE : 0;
+    if (hi - lo > 1) {
+      ctx.fillStyle = C.WALL;
+      ctx.fillRect(lo, br.y + shake, hi - lo, B.H);
+      ctx.fillStyle = C.WALL_EDGE;
+      ctx.fillRect(lo, br.y + shake, hi - lo, 5);
+    }
+    const top = receiverLampAt(br, br.needs.length - 1, cfg).y - P.LAMP_R - 4;
+    ctx.fillStyle = C.WALL_EDGE;
+    ctx.fillRect(br.x - br.dir * 16 - 2, top, 4, br.y - top);
+  }
+  for (const r of receiversOf(level)) {
+    r.needs.forEach((need, i) => {
+      const s = level.senders.find((x) => x.id === parseNeed(need).id);
+      const at = receiverLampAt(r, i, cfg);
+      lamp(ctx, at.x, at.y, P.LAMP_R, s ? s.colour : C.LAMP_OFF, lampLit(need, level.senders), parseNeed(need).invert, cfg);
+    });
+  }
+}
