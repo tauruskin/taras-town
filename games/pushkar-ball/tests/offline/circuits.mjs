@@ -524,5 +524,39 @@ console.log('\n21. an opening the ball can nearly see is reported, once; nothing
   if (seen.length) fail(`a gate closing was reported as ${seen.length} opening(s)`);
 }
 
+console.log('\n22. a deflating ball still holds a closing gate up');
+{
+  // A deflating ball presses nothing — it is not really there — but it is
+  // still drawn squashing flat where it stood, and a gate whose timer runs
+  // out over it must not come down through the picture. Pressing and holding
+  // are separate lists for exactly this.
+  const level = stage({
+    senders: [{ id: 't', kind: 'timer', x: 800, y: GROUND, face: 'left', time: 1.5 }],
+    gates: [{ x: 1200, y: GROUND - 200, w: 40, h: 200, needs: ['t'] }],
+  });
+  const gate = level.gates[0];
+  const timer = level.senders[0];
+  const ball = new Ball(400, GROUND - 20);
+  drive(ball, level, { right: true }, 2);
+  if (!timer.pressed || gate.openT !== 1) fail(`setup: timer pressed=${timer.pressed}, gate openT=${gate.openT}`);
+  ball.x = 1220; ball.y = GROUND - 20; ball.vx = 0; ball.vy = 0;   // stand under the gate
+  // Wait until the timer is nearly out, so it runs out inside the deflate.
+  let guard = 0;
+  while (timer.pressed && timer.left > CONFIG.DEFLATE.TIME / 2 && guard++ < 1000) drive(ball, level, {}, STEP);
+  ball.die();
+  if (!(ball.dying > 0)) fail('setup: ball.die() did not start a deflate');
+  let lowest = gate.openT, ranOut = false;
+  const input = { left: false, right: false, takeJump: () => false };
+  while (ball.dying > 0) {
+    level.update(STEP);
+    if (!timer.pressed) ranOut = true;
+    lowest = Math.min(lowest, gate.openT);
+    ball.update(STEP, input, level);
+  }
+  console.log(`   timer ran out during the deflate: ${ranOut}; lowest openT over the deflating ball ${lowest.toFixed(2)}`);
+  if (!ranOut) fail('setup: the timer did not run out while the ball was deflating');
+  if (lowest < 0.99) fail(`the gate came down on a deflating ball (openT ${lowest.toFixed(2)})`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
 process.exit(failures ? 1 : 0);

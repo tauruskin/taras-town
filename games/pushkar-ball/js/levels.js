@@ -1711,17 +1711,28 @@ class Level {
     for (const b of this.breakables) b.wobbleT = Math.max(0, b.wobbleT - dt);
     // Wiring. Every presser is a box. Crates are this step's — they were
     // updated above — and the ball is last step's, the same one-step lag a
-    // rider on a platform already lives with. A deflating ball presses
-    // nothing: it is not really there.
+    // rider on a platform already lives with.
+    //
+    // Pressing and holding a gate up are two lists, because a deflating ball
+    // belongs in one and not the other. It presses nothing: it is not really
+    // there. But it is still drawn squashing flat where it stood, and a timed
+    // gate running out over it must not come down through the picture — so
+    // it still counts as something under a gate. Anything else ever added
+    // here needs the same two questions asked of it separately.
     const pressers = this.crates.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, heavy: true, resting: c.grounded }));
+    const blockers = pressers.slice();
     const b = this.ball;
-    if (b && !b.dying) pressers.push({ x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded });
+    if (b) {
+      const box = { x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded };
+      blockers.push(box);
+      if (!b.dying) pressers.push(box);
+    }
     updateSenders(this.senders, dt, pressers, CONFIG);
     this.opened = [];
     for (const g of this.gates) {
       const on = powered(g.needs, this.senders);
       this.noteOpening(g, on, g.x + g.w / 2);
-      g.update(dt, on, pressers.some((p) => g.isUnder(p)));
+      g.update(dt, on, blockers.some((p) => g.isUnder(p)));
     }
     for (const br of this.bridges) {
       const on = powered(br.needs, this.senders);
