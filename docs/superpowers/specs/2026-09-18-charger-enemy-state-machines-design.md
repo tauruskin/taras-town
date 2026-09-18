@@ -24,7 +24,8 @@ rules every level here follows. Read sub-project 1's "What the build taught"
 In `js/enemies.js`, beside the existing makers. An enemy written in it has
 `state` (a name), `stateT` (seconds spent in it) and a table of states. Each
 state has an `update(e, dt, level, cfg)` that returns the next state's name
-or nothing, and an optional `enter(e)`. Changing state resets `stateT` and
+or nothing, and an optional `enter(e)`. A timed state reads `stateT` itself;
+there is no separate duration field. Changing state resets `stateT` and
 calls `enter`. A state changes only on a timer or a distance check, never at
 random, so the same situation plays out the same way every time and Node can
 test it. The helper is a few dozen lines and knows nothing about chargers.
@@ -47,10 +48,10 @@ is what proves "never charges off a ledge" without a browser.
 
 | State | What it does | Ends when | Next |
 |---|---|---|---|
-| patrol | walks at `PATROL_SPEED` (~60), turns at the ends of its range | ball on its own level (`|ball.y − y| < LEVEL_TOL`), in front, within `SEE` (~200) | wind-up |
+| patrol | walks at `PATROL_SPEED` (~120), turns at the ends of its range | ball on its own level (`|ball.y − y| < LEVEL_TOL`), in front, within `SEE` (~240) | wind-up |
 | wind-up | stands, crouches, paws, puffs; keeps its facing | `WINDUP` (0.8 s) | charge |
 | charge | straight dash at `CHARGE_SPEED` (~480, faster than the ball's 420; a jump clears it) | meets stone, a gate, a button's post, a crate, or the end of its range | dazed |
-| dazed | stays put; stars circle it and visibly count down | `DAZED` (~2 s) | patrol |
+| dazed | stays put; stars circle it and visibly count down | `DAZED` (~3 s) | patrol |
 | popped | gone | `RETURN` (~4 s) **and** ball further than `SEE` from home | patrol, at home, facing `dir` |
 
 During a charge:
@@ -64,9 +65,11 @@ Dazed stars count down (three stars, one goes each third of `DAZED`), because
 a timer the player needs must show its time.
 
 **Wiring.** While not popped, a charger is added in `Level.update` to both
-lists: a presser `{ heavy: true, resting: grounded }` and a blocker. So a
-charge into a button's capped side presses it, standing on a plate holds it,
-and a gate never closes on it. A popped charger is in neither list. Enemies
+lists: a presser `{ heavy: dazed, resting: grounded }` and a blocker. So a
+charge into a button's capped side presses it, a gate never closes on it,
+and it holds a plate **only while dazed** — the roadmap's "holds a plate
+while dazed". Heavy all the time would let a patrol open a door by walking
+over its plate, which muddles the one thing level 11's room B teaches. A popped charger is in neither list. Enemies
 are added in `Level.update` itself, as the wiring spec says, because they are
 the level's own.
 
@@ -108,8 +111,17 @@ Appended. Two rooms, a checkpoint before each.
   door. A charge that ends on the plate (stopped by stone just past it)
   leaves the charger dazed there, holding the door open for `DAZED`. The
   ball has that long to get through, proved in `finish.mjs` with a stated
-  fraction to spare across the lead/delay sweep. Stomping it releases the
-  plate; it returns and can be lured again.
+  fraction to spare across the lead/delay sweep. Missing the door costs
+  nothing: the charger recovers, patrols, and can be lured again.
+
+Both rooms share one shape, found while planning: the charger lives in a
+closed pen under a stone roof, the ball crosses the roof and drops into a
+small yard beyond it, and the yard's far side is a stone wall with the door
+in it. On the roof the ball is not on the charger's level, so it is not
+seen; in the yard it is. The ball can never get into a pen, so a charger
+that is the room's tool can never be stomped out of the way, and the yard
+cannot be climbed out of except through its door — which is safe only
+because the charger always comes back round and sees him.
 
 Every crate in either level gets a dead-end check.
 
@@ -120,8 +132,10 @@ Every crate in either level gets a dead-end check.
   outcomes; stomp only when dazed; no harm when dazed; the return timer and
   its wait for the ball; presser and blocker membership, and neither when
   popped.
-- **`levels.mjs`:** unbroken ground under every charger's range; the gate-hazard check, which matches enemies by kind
-  name today, taught the charger.
+- **`levels.mjs`:** a charger's range inside the level; unbroken ground
+  under every charger's range; no checkpoint within `SEE` of one; the
+  gate-hazard check, which matches enemies by kind name today, taught the
+  charger.
 - **`finish.mjs`:** routes for levels 10 and 11 across the sweep, with
   stated spare; dead-end probes — can a charger shove a crate flush against
   something? can a stomped or dazed charger leave either room unfinishable?
