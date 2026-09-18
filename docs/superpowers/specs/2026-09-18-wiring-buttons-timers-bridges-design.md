@@ -152,10 +152,11 @@ wire is the clue before pressing, and the reveal is the proof after it.)*
 
 ## Where it lives
 
-A new DOM-free module, **`js/circuits.js`**, owns sender state, the AND/NOT
-evaluation and each receiver's powered flag. `levels.js` keeps the data and
-the gate and bridge bodies (they are colliders and belong with the others),
-and calls `circuits.update(dt, pressers)` once per step. It must never touch
+A new DOM-free module, **`js/circuits.js`**, owns sender state and the
+AND/NOT evaluation. It holds no receiver state: `levels.js` keeps the data
+and the gate and bridge bodies (they are colliders and belong with the
+others), and once per step calls `updateSenders(senders, dt, pressers, cfg)`,
+then evaluates `powered(needs, senders)` for each receiver. It must never touch
 the DOM, for the same reason as every other simulation module: it is what
 lets Node test it.
 

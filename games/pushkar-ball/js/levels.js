@@ -923,8 +923,9 @@ export const LEVELS = [
     //       Room C's floor button's post top (710) would put a jump at 579,
     //       above the shelf — but the post ends 520 short of it (10480 to
     //       11000) and a jump carries at most 290, so it cannot be used as a
-    //       step there. The button is 850 from its gate, inside the 900 a
-    //       screen shows.
+    //       step there. The ball presses the button 890 from the gate's
+    //       middle, inside CIRCUIT.SEE (900) — how far the camera's reveal
+    //       reaches, not how much a screen shows, which is far less.
     id: 8,
     theme: 'hills',
     bounds: { w: 13000, h: 1080 },
