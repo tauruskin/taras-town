@@ -149,6 +149,9 @@ function waitForLow(level, lead) {
   };
 }
 
+/** A level's sender by id. */
+const sender = (level, id) => level.senders.find((s) => s.id === id);
+
 // --- the routes ------------------------------------------------------------
 //
 // Keyed by level id. Each takes the loaded level and a lead, and returns the
@@ -280,6 +283,65 @@ const ROUTES = {
       // spikes, crates, steps) to react to on this stretch, so just hold
       // right — the gate opens on its own.
       return { right: true };
+    };
+  },
+
+  // Level eight: buttons. Each stage is one thing a thumb does. The stage it
+  // starts in comes from where the ball starts, so the same route serves the
+  // spawn and both checkpoints.
+  8: (level, lead) => {
+    const run = runner(level, lead);
+    const a = sender(level, 'a'), b = sender(level, 'b'), c = sender(level, 'c'), d = sender(level, 'd');
+    const crate = level.crates[0];
+    const shelf = level.walls.find((w) => w.x === 11000 && w.y === 590);
+    const bridge = level.bridges[0];
+    const W = CONFIG.CIRCUIT.POST_W;
+    let stage = null, stuck = 0, lastX = crate.x;
+    return (ball) => {
+      if (!stage) stage = ball.x < a.x ? 'a' : ball.x < b.x - 300 ? 'run' : ball.x < c.x - 300 ? 'run2' : 'c';
+      // Room A: roll into the button, then hop its post.
+      if (stage === 'a') { if (a.pressed) stage = 'hopA'; else return { right: true }; }
+      if (stage === 'hopA') {
+        if (ball.x > a.x + W + 30) stage = 'run';
+        return { right: true, jump: ball.grounded };
+      }
+      // The warm-up belongs to the generic runner.
+      if (stage === 'run') { if (ball.x > b.x - 300) stage = 'overB'; else return run(ball); }
+      // Room B: hop the post's plain side, then come back into its cap.
+      if (stage === 'overB') {
+        if (ball.x > b.x + W + 100) stage = 'backB';
+        return { right: true, jump: ball.grounded && b.x - ball.x > 0 && b.x - ball.x < 120 * lead };
+      }
+      if (stage === 'backB') { if (b.pressed) stage = 'cross'; else return { left: true }; }
+      if (stage === 'cross') { if (ball.x > bridge.x + bridge.w + 60) stage = 'run2'; else return { right: true }; }
+      if (stage === 'run2') { if (ball.x > c.x - 300) stage = 'c'; else return run(ball); }
+      // Room C: the floor button, the crate to the shelf, up, the shelf button.
+      if (stage === 'c') { if (c.pressed) stage = 'hopC'; else return { right: true }; }
+      if (stage === 'hopC') {
+        if (ball.grounded && ball.x > c.x + W + 30) stage = 'push';
+        return { right: true, jump: ball.grounded && ball.x < c.x + W + 30 };
+      }
+      if (stage === 'push') {
+        stuck = Math.abs(crate.x - lastX) < 0.01 && crate.x + crate.w > shelf.x - 5 ? stuck + 1 : 0;
+        lastX = crate.x;
+        if (stuck > 30) stage = 'back';
+        return { right: true };
+      }
+      if (stage === 'back') { if (ball.x < crate.x - 160) stage = 'hop'; return { left: true }; }
+      if (stage === 'hop') {
+        if (ball.grounded && ball.platform === crate) stage = 'up';
+        else return { right: true, jump: ball.grounded && ball.platform !== crate && ball.x > crate.x - 50 * lead };
+      }
+      if (stage === 'up') {
+        if (ball.grounded && ball.y < shelf.y) stage = 'd';
+        else return { right: true, jump: ball.grounded && ball.platform === crate };
+      }
+      if (stage === 'd') { if (d.pressed) stage = 'hopD'; else return { right: true }; }
+      if (stage === 'hopD') {
+        if (ball.x > d.x + W + 30) stage = 'end';
+        return { right: true, jump: ball.grounded };
+      }
+      return run(ball);
     };
   },
 };
@@ -575,6 +637,69 @@ console.log('\n3d. level four, both ways past its tall patch');
     if (slow.level.breakables[0].broken) fail('a slow roll into level 4\'s planks broke them');
     else console.log('   a slow roll into the planks left them standing');
   }
+}
+
+// --- 3e. level eight: each room needs its button ----------------------------
+console.log('\n3e. level eight without its buttons');
+{
+  const data = LEVELS.find((l) => l.id === 8);
+  const gateA = data.gates[0];
+  // Room A without its button: hopping and running for all they are worth,
+  // nothing gets past the gate.
+  {
+    const bare = { ...data, senders: data.senders.filter((s) => s.id !== 'a') };
+    const { ball } = play(bare, () => (b) => ({ right: true, jump: b.grounded }), { seconds: 8 });
+    if (ball.x > gateA.x) fail(`level 8 room A was passed without its button (ball at x=${ball.x.toFixed(0)})`);
+    else console.log(`   room A without its button: stopped at x=${ball.x.toFixed(0)}, gate at ${gateA.x}`);
+  }
+  // Room B without its button: no single jump from anywhere clears the gap.
+  {
+    const bare = { ...data, senders: data.senders.filter((s) => s.id !== 'b') };
+    const br = data.bridges[0];
+    let cleared = 0, tries = 0, reached = 0;
+    for (let jumpAt = br.x - 300; jumpAt <= br.x - 5; jumpAt += 5) {
+      tries++;
+      let done = false;
+      const { ball } = play(bare, () => (b) => {
+        reached = Math.max(reached, b.x);
+        const jump = !done && b.grounded && b.x >= jumpAt;
+        if (jump) done = true;
+        return { right: true, jump };
+      }, { from: { x: br.x - 500, y: 740 }, seconds: 4 });
+      if (ball.deaths === 0 && ball.x > br.x + br.w + 20) cleared++;
+    }
+    if (cleared) fail(`level 8's gap was crossed without its bridge ${cleared} time(s) of ${tries}`);
+    else if (reached < br.x) fail(`no attempt reached level 8's gap edge (furthest ${reached.toFixed(0)}) — this proves nothing`);
+    else console.log(`   room B without its button: ${tries} jumps, none crossed the ${br.w} gap`);
+  }
+}
+
+// --- 3f. level eight: the shelf needs the crate ------------------------------
+console.log('\n3f. level eight without its crate');
+{
+  const data = LEVELS.find((l) => l.id === 8);
+  const shelf = data.boxes.find((b) => b.x === 11000 && b.y === 590);
+  const bare = { ...data, boxes: data.boxes.filter((b) => !b.movable) };
+  let onShelf = 0, tries = 0, best = Infinity;
+  for (let jumpAt = shelf.x - 400; jumpAt <= shelf.x - 5; jumpAt += 5) {
+    for (const spam of [false, true]) {
+      tries++;
+      let pressed = false, up = false;
+      play(bare, () => (b) => {
+        if (b.x > shelf.x - 60) best = Math.min(best, b.y + CONFIG.BALL.R);
+        if (b.grounded && b.y < shelf.y) up = true;
+        const jump = b.x >= jumpAt && (spam || !pressed);
+        if (jump) pressed = true;
+        return { right: true, jump };
+      }, { from: { x: shelf.x - 500, y: 740 }, seconds: 4 });
+      if (up) onShelf++;
+    }
+  }
+  if (onShelf) fail(`level 8's shelf was reached without the crate ${onShelf} time(s) of ${tries}`);
+  // `best` is the highest (smallest y) a ball's BOTTOM got beside the shelf;
+  // the header comment's arithmetic says about 629, 39 below the top at 590.
+  else if (best - shelf.y < 30) fail(`without the crate a ball's bottom got to y=${best.toFixed(0)}, within 30 of the shelf top ${shelf.y} — too close to be sure it needs the crate`);
+  else console.log(`   ${tries} tries, none reached the shelf; the highest a ball's bottom got beside it was y=${best.toFixed(0)} (shelf top ${shelf.y})`);
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------

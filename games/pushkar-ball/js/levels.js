@@ -903,6 +903,94 @@ export const LEVELS = [
       { x: 8150, y: 760 },
     ],
   },
+  {
+    // Level eight: buttons. Stage: INTRODUCTION — see the roadmap,
+    // docs/superpowers/specs/2026-09-18-mechanisms-and-enemies-roadmap.md,
+    // and the spec, docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md.
+    // The one new idea: hitting a button changes the world, and it stays
+    // changed. Read by its lamps: light every lamp on the door.
+    //
+    // Room A comes FIRST, before any warm-up: it cannot be failed, so the
+    // level may as well open with its new idea. Then level six's warm-up
+    // shape (a proven 200 gap, the recurring stone step, a walker), then:
+    //   B — a 420 gap (the widest proven jumpable is 260) and a bridge; its
+    //       button faces RIGHT, so it is hopped on the way in and has to be
+    //       come back to. The wire shows where.
+    //   C — a gate with two lamps on a stone shelf. The shelf's top (590) is
+    //       39 above a jump from the floor (a ball's bottom reaches 629) and
+    //       61 below one from a crate's top (529). The gate is 240 tall: from
+    //       the shelf a jump's bottom reaches 459, which would clear a 200 one.
+    //       Room C's floor button's post top (710) would put a jump at 579,
+    //       above the shelf — but the post is 570 from it and a jump carries
+    //       at most 290, so it cannot be used as a step there.
+    id: 8,
+    theme: 'hills',
+    bounds: { w: 13000, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 12760, y: 760 },
+
+    ground: [
+      [[40, 760], [2600, 760]],
+      // Past the proven 200 gap: the step, the walker, room B's button.
+      [[2800, 760], [8600, 760]],
+      // Past room B's 420 gap: room C and the flag.
+      [[9020, 760], [12960, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 12960, y: 0, w: 40, h: 1080 },
+      // The recurring low stone step, 60 tall.
+      { x: 3600, y: 700, w: 200, h: 60 },
+      // Room C's shelf, standing on the floor like level three's ledge.
+      { x: 11000, y: 590, w: 700, h: 170 },
+      // Room C's crate. Pushed right, it stops against the shelf's face at
+      // x=10900 and is the step up. Far enough from the floor button (post
+      // at 10400) that hopping the post never lands on it.
+      { x: 10850, y: 660, w: 100, h: 100, movable: true },
+    ],
+
+    senders: [
+      { id: 'a', kind: 'button', x: 1400, y: 760, face: 'left' },
+      { id: 'b', kind: 'button', x: 8000, y: 760, face: 'right' },
+      { id: 'c', kind: 'button', x: 10400, y: 760, face: 'left' },
+      { id: 'd', kind: 'button', x: 11150, y: 590, face: 'left' },
+    ],
+
+    gates: [
+      { x: 1800, y: 560, w: 40, h: 200, needs: ['a'] },
+      { x: 11300, y: 350, w: 40, h: 240, needs: ['c', 'd'] },
+    ],
+
+    bridges: [
+      { x: 8600, y: 760, w: 420, dir: 1, needs: ['b'] },
+    ],
+
+    platforms: [],
+
+    enemies: [
+      // Level six's walker, about 800 further on because room A sits in
+      // front of the warm-up here. A walker's margin is fussy (see level
+      // six's own comment) and the arrival time has changed, so its x was
+      // found by sweeping finish.mjs's 3-lead-by-10-delay matrix in 25-unit
+      // steps from 4900 to 5600, not carried over. 5200, the first guess,
+      // loses all three hearts on one combination (lead 0.7). The passing
+      // regions are narrow and periodic — 4900, 5050-5100, 5250, 5475 — and
+      // 5075 is the middle of the widest: 5040 to 5100 all pass at 10-unit
+      // steps, 5110 does not, and amplitude 260-300 all pass here. As for
+      // level six, a denser sweep (5 leads, delay every 0.1s, 250 runs) still
+      // finds 5 that lose all three hearts, every one at lead 0.7. Do not
+      // nudge this without re-running the sweep.
+      { kind: 'walker', x: 5075, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
+    ],
+
+    // Before room B, and between room B's bridge and room C. Neither may sit
+    // between a button and what it opens — levels.mjs checks.
+    checkpoints: [
+      { x: 7600, y: 760 },
+      { x: 9800, y: 760 },
+    ],
+  },
 ];
 
 /**
