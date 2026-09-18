@@ -16,7 +16,7 @@ else from them — no artwork, no names, no level layouts.
 
 ## What is here, and what is not
 
-**Seven levels**, chosen from a level-select screen rather than played in a
+**Nine levels**, chosen from a level-select screen rather than played in a
 fixed order: level one is always open, and finishing a level opens the next
 one. A tile shows its level's number, a star once it is finished, a highlight
 on the one open tile not yet finished, and an unresponsive padlock on anything
@@ -37,7 +37,9 @@ with a thumb, and anything built on top of those numbers before that happens
 is work thrown away. The original plan is in
 [`docs/superpowers/specs/2026-09-08-pushkar-ball-design.md`](../../docs/superpowers/specs/2026-09-08-pushkar-ball-design.md);
 level select and the corner buttons were added later and are documented in
-[`docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md`](../../docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md).
+[`docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md`](../../docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md),
+and the wiring of levels 8 and 9 in
+[`docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`](../../docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md).
 
 ## How it's built
 
@@ -96,6 +98,7 @@ when one does.
 | `js/config.js` | every tunable number and colour | never |
 | `js/physics.js` | segments, the broad-phase grid, circle-vs-segment resolution, the step, and the two box questions a crate asks | never |
 | `js/levels.js` | the level data, the loader that expands it, moving platforms, crates | never |
+| `js/circuits.js` | wiring: plates, buttons, timers, the AND/NOT needs, and the drawing of lamps, wires and bridges | canvas only, handed in |
 | `js/player.js` | the ball: acceleration, friction, jump, coyote time, buffering, spin, pushing, respawning | never |
 | `js/camera.js` | follow with lookahead and a vertical deadzone, clamped to the level | never |
 | `js/ui.js` | where every on-screen button is, and what it looks like | canvas only |
@@ -228,6 +231,54 @@ design. That a crate can genuinely reach the unreachable is proved in
 `tests/offline/crates.mjs`, on a level built for it, with a ledge placed higher
 than `JUMP_V² / 2·GRAVITY` so the jump provably cannot clear it from the floor.
 
+## Wiring
+
+Levels 8 and 9 are built from **senders** that drive **receivers**, all in
+`js/circuits.js`. A *plate* is level six's switch: on while something heavy
+rests on it, which today means a crate and never the ball. A *button* is a
+cap on one side of a short stone post: anything that hits the capped side
+presses it, and it stays pressed. A *timer* is a button with a ring round the
+cap that drains over `time` seconds and then lets go. The one sentence a child
+can learn from those, with no text to help: *heavy things hold plates down;
+anything that hits a button presses it.* A gate slides up and a bridge slides
+out across a gap while powered, and each lists what it `needs` — every id on,
+and an id written `!id` off. AND and NOT, nothing more.
+
+Every sender has a lamp in its own colour, and every receiver has one lamp per
+input on a thin signal pole planted in the ground; an inverted input's lamp is
+a **ring**, lit while its sender is *off*. The rule is the same everywhere:
+*light every lamp on the door.* A sheathed wire runs from each sender to each
+receiver it drives and lights with it, so before pressing anything the player
+can see what it will do. The pole does not move: a gate's lamps used to ride up
+with the gate, straight into the corner buttons. Because the camera keeps the
+ball in the middle, a phone shows only about 480 units ahead, and a sender can
+be up to `CIRCUIT.SEE` (900) from what it drives — so when something the
+player did opens a door or a bridge within that distance, the camera leans to
+show it for `CAMERA.REVEAL_TIME` and eases back, never letting the ball within
+`REVEAL_MARGIN` of the edge. Only an opening: a timer running out behind the
+player shuts its door without dragging the camera back.
+
+The rules that keep it fair. **A hit is the moment of touching**, not the
+touching, or a ball parked against a timer would hold its door open for ever;
+resting on top of a post presses nothing. **A respawn resets buttons and
+timers**, which is only safe because no checkpoint sits between a sender and
+what it drives, and a sender is within `CIRCUIT.SEE` of its receivers —
+`levels.mjs` enforces both. **A gate never closes onto the ball or a crate**
+under its closed footprint; it holds and finishes closing once they have moved,
+and since it asks only about those, `levels.mjs` forbids spikes and patrolling
+enemies under any gate. **A bridge's top is its only solid part**, it slides
+out from under what stands on it rather than carrying it, and it shakes for
+its last `CIRCUIT.WARN` second before a timer withdraws it; it still owes
+`dx`/`dy`/`vx`/`vy` like every carrier. And **every crate gets a dead-end
+check**: level 8 and level 9 each had a way for the ball to get behind a crate
+and shove it flush against something, leaving a room that cannot be failed and
+cannot be finished. Both were found only by trying to break the room on
+purpose, and `finish.mjs` (3g, 3k) now tries. Bad sender or bridge data — a
+timer with no time, a plate with no width, a bridge with no width or a
+direction that is neither way — throws when the level loads rather than
+building a door that can never open. The rest, including what was tried and
+thrown away, is in the spec.
+
 ## Levels are data
 
 A level is a plain object; the loader expands it into segments, moving
@@ -251,6 +302,11 @@ geometry is worked out at draw time.
                { x, y, w, h },                     // authored height
                { x, y, w, rise: { period, phase } } ], // rises to SPIKE.RISE_H and back
   breakables:[ { x, y, w, h } ],                   // a plank wall
+  senders:   [ { id, kind: 'plate', x, y, w },            // held by a crate
+               { id, kind: 'button', x, y, face },         // latched; face 'left' | 'right'
+               { id, kind: 'timer', x, y, face, time } ],  // lets go after `time` s
+  gates:     [ { x, y, w, h, needs: ['a', '!b'] } ],        // all lamps lit → open
+  bridges:   [ { x, y, w, dir, needs } ],                   // slides out across a gap
 }
 ```
 

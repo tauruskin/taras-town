@@ -266,6 +266,19 @@ is in its own README; these are the things to know before touching it.
   and a crate shoved down a hole returns to where the level put it. The bad
   outcome to design against is a crate left somewhere that makes a level
   impossible — a child cannot undo that and cannot be told why.
+- **Wiring lives in `js/circuits.js`**: senders (plate, button, timer) and
+  the AND/NOT `needs` of gates and bridges. A button is pressed by a *hit* —
+  the moment of touching — not by touching, or a ball parked against a timer
+  holds its door open for ever. A respawn resets buttons and timers, which is
+  only safe because `levels.mjs` forbids a checkpoint between a sender and
+  what it drives. Anything that can press something joins the *presser* list
+  in `Level.update`; the ball joins it through `level.noteBall`, and future
+  enemies join it the same way. A phone shows only ~480 units ahead of the
+  ball, so a door opened off screen is shown by the camera's *reveal*
+  (`camera.reveal`), not by keeping wires short. And **every crate needs a
+  dead-end check** — can the ball get behind it and shove it flush against
+  something? Levels 8 and 9 each had one, found only by trying to break the
+  room on purpose (`finish.mjs` 3g, 3k).
 - **Falling out of the level respawns the ball at the spawn immediately**, and
   the camera snaps rather than easing back across the whole level. Every piece
   of carried state has to be cleared, not just position: a surviving `buffer`

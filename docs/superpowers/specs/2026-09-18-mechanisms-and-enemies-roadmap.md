@@ -5,7 +5,9 @@ the order it is built in, and the rules every piece of it follows. Each
 sub-project below still gets its own design spec, plan and build, the same
 cycle every mechanic in this game has been through. Sub-project 1 is
 specified in
-`docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`.
+`docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`,
+and **built** (levels 8 and 9, 2026-09-18); its "What the build taught"
+section is worth reading before designing sub-project 2.
 **Nothing below sub-project 1 is designed yet** beyond what this page says,
 and nothing should be built from this page directly.
 
@@ -40,6 +42,14 @@ more of the same.
 - **No dead ends.** Every room stays solvable from every state a player can
   get it into, or puts itself back. The restart button exists and is not a
   licence to design a trap.
+- **Every crate gets a dead-end check** in `finish.mjs`: can the ball get
+  behind it and shove it flush against something? Both of sub-project 1's
+  crate rooms could be trapped that way, no route found it, and only trying
+  to break the room on purpose did.
+- **A far-off receiver is shown by the camera, not by the screen's width.**
+  The ball sits mid-screen, so a phone shows only ~480 units ahead; opening
+  something within `CIRCUIT.SEE` leans the camera to show it (sub-project 1's
+  spec).
 - **No trial-and-error failures.** A player who is paying attention can see
   what is about to happen: timers show their time, enemies telegraph, bridges
   shake before they go.
@@ -74,8 +84,8 @@ considered and left out — each could be a later programme's).
 
 | Level | Stage | Content | Sub-project |
 |---|---|---|---|
-| 8 | Introduction | buttons, a gate and a bridge; a two-lamp gate solved with a crate | 1 |
-| 9 | Reinforcement + Reversal | timers ("set up the room first"); an inverted plate that a crate holds *shut* | 1 |
+| 8 | Introduction | buttons, a gate and a bridge; a two-lamp gate solved with a crate | 1 (built) |
+| 9 | Reinforcement + Reversal | timers ("set up the room first", with a button detour, not a crate); an inverted plate that a crate holds *shut*, with a kerb so the crate cannot be pinned the wrong way | 1 (built) |
 | 10 | Introduction | the charger, somewhere safe | 2 |
 | 11 | Combination | lure the charger through a plank wall and into a button | 2 |
 | 12 | Mastery | wiring, charger, shell, popper redirection | 3 |
