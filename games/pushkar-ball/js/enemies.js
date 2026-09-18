@@ -1,5 +1,5 @@
 /**
- * enemies.js — the three enemy types.
+ * enemies.js — the enemy types.
  *
  * Like a spike, an enemy is NOT a collider: the ball never bounces off one,
  * it rolls into (or lands on) one and something happens — a stomp defeats
@@ -9,7 +9,9 @@
  * simulation needed to know where either one is at time *t*, which is what
  * lets a test assert an exact position with no browser.
  *
- * The roller is the one exception — see makeRoller's own comment.
+ * The roller is the one exception — see makeRoller's own comment. The
+ * charger is written in the small state-machine shape below
+ * (`enterState`/`runStates`), which every new enemy uses.
  */
 import { circleHitsBox } from './hazards.js';
 import { step } from './physics.js';
@@ -161,6 +163,185 @@ export function makeRoller(e, cfg) {
     },
   };
   return r;
+}
+
+/**
+ * The shape every new enemy is written in: a table of named states, each an
+ * `update(e, dt, level, cfg)` that returns the next state's name or nothing,
+ * and optionally an `enter(e)`. `e.stateT` is seconds in the current state;
+ * a timed state reads it itself.
+ *
+ * A state changes only on a timer or a distance check, never at random —
+ * the same situation plays out the same way every time, which is what lets a
+ * child learn it and Node test it.
+ */
+export function enterState(e, states, name) {
+  e.state = name;
+  e.stateT = 0;
+  if (states[name].enter) states[name].enter(e);
+}
+
+/** One step of a state machine: age the state, ask it, and change if told to. */
+export function runStates(e, states, dt, level, cfg) {
+  e.stateT += dt;
+  const next = states[e.state].update(e, dt, level, cfg);
+  if (next && next !== e.state) enterState(e, states, next);
+}
+
+/**
+ * Move a charger one step through the real physics, like the roller, and
+ * report the contact in front of it, if any — something with a near-vertical
+ * normal pointing back at it. Also keeps `grounded`, which the wiring reads.
+ */
+function stepCharger(c, level, dt, cfg) {
+  const contacts = step(c, level, dt, cfg);
+  c.grounded = contacts.some((k) => k.ny < -0.5);
+  return contacts.find((k) => Math.abs(k.nx) > 0.5 && Math.sign(k.nx) === -c.dir) || null;
+}
+
+/** Is the ball on this charger's level, in front of it, and within SEE? */
+function sees(c, level, K) {
+  const b = level && level.ball;
+  if (!b || b.dying) return false;
+  const dx = b.x - c.x;
+  return Math.sign(dx) === c.dir && Math.abs(dx) < K.SEE && Math.abs(b.y - c.y) < K.LEVEL_TOL;
+}
+
+const CHARGER = {
+  patrol: {
+    update(c, dt, level, cfg) {
+      const K = cfg.ENEMY.CHARGER;
+      if (c.x <= c.from) c.dir = 1;
+      if (c.x >= c.to) c.dir = -1;
+      if (sees(c, level, K)) return 'windup';
+      c.vx = c.dir * K.PATROL_SPEED;
+      // Anything solid in front turns it round — planks included: only a
+      // charge breaks wood.
+      if (stepCharger(c, level, dt, cfg)) c.dir = -c.dir;
+    },
+  },
+  windup: {
+    enter(c) { c.vx = 0; },
+    update(c, dt, level, cfg) {
+      c.vx = 0;
+      stepCharger(c, level, dt, cfg);
+      if (c.stateT >= cfg.ENEMY.CHARGER.WINDUP) return 'charge';
+    },
+  },
+  charge: {
+    update(c, dt, level, cfg) {
+      c.vx = c.dir * cfg.ENEMY.CHARGER.CHARGE_SPEED;
+      const hit = stepCharger(c, level, dt, cfg);
+      // Never past the end of its range. levels.mjs proves there is ground
+      // under all of it, which is what "never charges off a ledge" rests on.
+      const end = c.dir > 0 ? c.to : c.from;
+      if (c.dir > 0 ? c.x >= end : c.x <= end) {
+        c.x = end;
+        return 'dazed';
+      }
+      if (!hit) return;
+      const owner = hit.seg.owner;
+      if (owner && owner.breakable) {
+        level.breakWood(owner);
+        return;
+      }
+      if (owner && owner.movable) {
+        c.shoving = owner;
+        c.shoveLeft = cfg.ENEMY.CHARGER.CRATE_SHOVE;
+      }
+      return 'dazed';
+    },
+  },
+  dazed: {
+    enter(c) { c.vx = 0; },
+    update(c, dt, level, cfg) {
+      c.vx = 0;
+      stepCharger(c, level, dt, cfg);
+      // A crate it ran into slides on a little, at a crate's own push speed,
+      // through the crate's own tryPush — which refuses anything that would
+      // put it inside something, so a shove can never wedge a crate.
+      if (c.shoving) {
+        const moved = c.shoving.tryPush(c.dir * cfg.CRATE.PUSH_SPEED * dt, dt, level.solidsFor(c.shoving), cfg);
+        c.shoveLeft -= Math.abs(moved);
+        if (!moved || c.shoveLeft <= 0) c.shoving = null;
+      }
+      if (c.stateT >= cfg.ENEMY.CHARGER.DAZED) return 'patrol';
+    },
+  },
+  popped: {
+    enter(c) { c.vx = 0; c.vy = 0; c.shoving = null; },
+    update(c, dt, level, cfg) {
+      const K = cfg.ENEMY.CHARGER;
+      if (c.stateT < K.RETURN) return;
+      // Never back on top of him: it waits for the ball to be out of sight
+      // of home.
+      const b = level && level.ball;
+      if (b && Math.abs(b.x - c.home.x) < K.SEE && Math.abs(b.y - c.home.y) < K.SEE) return;
+      c.x = c.home.x; c.y = c.home.y;
+      c.dir = c.home.dir;
+      c.alive = true;
+      c.returnT = K.PUFF_TIME;
+      return 'patrol';
+    },
+  },
+};
+
+/**
+ * Charger: patrols, notices the ball in front of it, winds up, charges in a
+ * straight line until it meets something, and sits dazed. See the spec,
+ * docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md.
+ *
+ * Moves through the real physics, like the roller, so gates, stone, crates
+ * and slopes stop it with no special case. Hurts on any contact except while
+ * dazed; can be stomped only while dazed; a popped one comes back.
+ *
+ * @param e   level data: { x, y, from, to, dir?: 1|-1 } — x, y is home
+ */
+export function makeCharger(e, cfg) {
+  const K = cfg.ENEMY.CHARGER;
+  const c = {
+    kind: 'charger',
+    alive: true,
+    r: K.R,
+    x: e.x,
+    y: e.y,
+    vx: 0,
+    vy: 0,
+    dir: e.dir ?? 1,
+    from: e.from,
+    to: e.to,
+    home: { x: e.x, y: e.y, dir: e.dir ?? 1 },
+    grounded: false,
+    shoving: null,
+    shoveLeft: 0,
+    returnT: 0,          // cosmetic: its return puff
+    state: 'patrol',
+    stateT: 0,
+
+    // What Level.update and the hit rules ask of any enemy that uses the
+    // world. The roadmap's "holds a plate while dazed" is `heavy`.
+    presses: true,
+    get heavy() { return c.state === 'dazed'; },
+    get stompable() { return c.state === 'dazed'; },
+    get harmless() { return c.state === 'dazed'; },
+
+    update(dt, t, level, cfg) {
+      // stompEnemy only ever sets `alive`; the machine notices.
+      if (!c.alive && c.state !== 'popped') enterState(c, CHARGER, 'popped');
+      c.returnT = Math.max(0, c.returnT - dt);
+      runStates(c, CHARGER, dt, level, cfg);
+    },
+
+    box() {
+      return { x: c.x - c.r, y: c.y - c.r, w: c.r * 2, h: c.r * 2 };
+    },
+
+    /** A charger never throws anything. */
+    activeProjectile(t) {
+      return null;
+    },
+  };
+  return c;
 }
 
 /**

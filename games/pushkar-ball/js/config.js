@@ -470,6 +470,21 @@ export const CONFIG = {
       R: 20,
       SPEED: 140,     // px/s, its patrol push speed
     },
+    // The charger — see enemies.js's makeCharger and the spec,
+    // docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md.
+    // Every one of these is a guess awaiting a thumb.
+    CHARGER: {
+      R: 26,              // half its hit box; drawn a little wider, never taller
+      PATROL_SPEED: 120,  // px/s — slow, a third of the ball's top speed
+      SEE: 240,           // px ahead it notices the ball, about six ball-widths
+      LEVEL_TOL: 60,      // px of height difference still "on its own level"
+      WINDUP: 0.8,        // s of crouch and puff before a charge — the warning
+      CHARGE_SPEED: 480,  // px/s — faster than the ball's 420, so a jump, not a run
+      DAZED: 3.0,         // s it sits stunned after a charge: stompable, harmless
+      RETURN: 4.0,        // s a popped charger stays gone at the least
+      CRATE_SHOVE: 60,    // px a charge slides a crate it runs into
+      PUFF_TIME: 0.4,     // s its return puff is drawn for
+    },
   },
 
   // ---------------------------------------------------------------------
