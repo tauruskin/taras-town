@@ -532,6 +532,10 @@ function drawGround() {
  * already uses to find where a jump is needed, just applied to drawing
  * instead of driving. Purely decorative: the ball still just falls through
  * a gap, exactly as it always has.
+ *
+ * Except where the gap has a floor: a stone box spanning it from rim to rim,
+ * no higher than the lower rim — level nine's dry trench. Water drawn there
+ * sat on top of the stone and told a child the crate would sink.
  */
 function drawWater() {
   const C = CONFIG.COLOURS;
@@ -542,6 +546,8 @@ function drawWater() {
     const startB = lines[i + 1][0];
     const gapW = startB[0] - endA[0];
     if (gapW < 20) continue;   // touching, not a real gap
+    const rim = Math.min(endA[1], startB[1]);
+    if (level.walls.some((b) => b.x <= endA[0] && b.x + b.w >= startB[0] && b.y >= rim)) continue;
 
     const top = Math.max(endA[1], startB[1]) + W.DEPTH_BELOW;
     ctx.fillStyle = C.WATER;
