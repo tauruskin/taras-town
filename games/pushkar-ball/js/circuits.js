@@ -48,6 +48,8 @@ export function rampToward(value, target, dt, rate) {
  */
 export function makeSender(d, index, cfg) {
   if (!KINDS.includes(d.kind)) throw new Error(`sender '${d.id}' has unknown kind '${d.kind}'`);
+  if (d.kind === 'timer' && !(d.time > 0)) throw new Error(`timer '${d.id}' has no positive time`);
+  if (d.kind === 'plate' && !(d.w > 0)) throw new Error(`plate '${d.id}' has no positive width`);
   const W = cfg.COLOURS.WIRE;
   return {
     id: d.id,
@@ -71,11 +73,18 @@ export function postBox(s, cfg) {
   return { x: s.x, y: s.y - P.POST_H, w: P.POST_W, h: P.POST_H };
 }
 
-/** The thin strip beside the capped side that a presser has to reach. */
+/**
+ * The thin strip beside the capped side that a presser has to reach. Starts
+ * REACH below the post's top, not at it: a presser resting flush on top of
+ * the post (or rolling off its top corner) must not press it — there is
+ * deliberately no "up" face, only the capped side — and starting the zone
+ * exactly at the post top let float dust (a presser's bottom a hair below
+ * the top) overlap it and press by accident.
+ */
 export function hitZone(s, cfg) {
   const P = cfg.CIRCUIT;
   const x = s.face === 'right' ? s.x + P.POST_W : s.x - P.REACH;
-  return { x, y: s.y - P.POST_H, w: P.REACH, h: P.POST_H };
+  return { x, y: s.y - P.POST_H + P.REACH, w: P.REACH, h: P.POST_H - P.REACH };
 }
 
 /** Where the cap — which is also the sender's lamp — is drawn. */

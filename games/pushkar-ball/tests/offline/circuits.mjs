@@ -31,6 +31,8 @@ console.log('\n1. a plate is weighed, never hit');
   if (!ss[0].pressed) fail('a crate resting on a plate did not press it');
   tick(ss, []);
   if (ss[0].pressed) fail('a plate stayed pressed with nothing on it');
+  tick(ss, [{ x: 700, y: 660, w: 100, h: 100, heavy: true, resting: true }]);
+  if (ss[0].pressed) fail('a crate beside a plate, not overlapping it, pressed it');
 }
 
 console.log('\n2. a button latches');
@@ -103,6 +105,16 @@ console.log('\n6. reset');
   ss[0].pressed = true; ss[1].pressed = true; ss[1].left = 2;
   C.resetSenders(ss);
   if (ss[0].pressed || ss[1].pressed || ss[1].left !== 0) fail('reset left a sender on');
+
+  // A presser still touching after a reset (e.g. a crate parked against a
+  // button after a respawn) re-presses it immediately — the post is
+  // literally being pushed, so that is intended, not a leftover.
+  const ss2 = senders([{ id: 'b2', kind: 'button', x: 500, y: 760, face: 'left' }]);
+  tick(ss2, [touchLeft]);
+  if (!ss2[0].pressed) fail('setup: touching did not press before the reset re-press check');
+  C.resetSenders(ss2);
+  tick(ss2, [touchLeft]);
+  if (!ss2[0].pressed) fail('a presser still touching after reset did not re-press it');
 }
 
 console.log('\n7. warning');
@@ -113,6 +125,13 @@ console.log('\n7. warning');
   ss[0].left = P.WARN - 0.1;
   if (!C.warning(['t'], ss, CONFIG)) fail(`did not warn with ${P.WARN - 0.1}s left`);
   if (C.warning(['!t'], ss, CONFIG)) fail('an inverted input warned — it is about to turn ON, not off');
+
+  const ss2 = senders([{ id: 't2', kind: 'timer', x: 500, y: 760, face: 'left', time: 3 }]);
+  if (C.warning(['t2'], ss2, CONFIG)) fail('an unpressed timer warned');
+
+  const ss3 = senders([{ id: 'b2', kind: 'button', x: 500, y: 760, face: 'left' }]);
+  ss3[0].pressed = true;
+  if (C.warning(['b2'], ss3, CONFIG)) fail('a pressed button warned as if it were a running-out timer');
 }
 
 console.log('\n8. colours come from the list, in order');
@@ -126,6 +145,41 @@ console.log('\n8. colours come from the list, in order');
   let threw = false;
   try { senders([{ id: 'x', kind: 'lever', x: 0, y: 0 }]); } catch (_) { threw = true; }
   if (!threw) fail('an unknown sender kind was accepted silently');
+
+  threw = false;
+  try { senders([{ id: 'y', kind: 'timer', x: 0, y: 0, time: 0 }]); } catch (_) { threw = true; }
+  if (!threw) fail('a timer with no positive time was accepted silently');
+
+  threw = false;
+  try { senders([{ id: 'z', kind: 'plate', x: 0, y: 0, w: 0 }]); } catch (_) { threw = true; }
+  if (!threw) fail('a plate with no positive width was accepted silently');
+
+  const five = senders([
+    { id: 'a', kind: 'button', x: 0, y: 0 },
+    { id: 'b', kind: 'button', x: 0, y: 0 },
+    { id: 'c', kind: 'button', x: 0, y: 0 },
+    { id: 'd', kind: 'button', x: 0, y: 0 },
+    { id: 'e', kind: 'button', x: 0, y: 0 },
+  ]);
+  if (five[4].colour !== CONFIG.COLOURS.WIRE[0]) fail('the fifth sender did not wrap around to WIRE[0]');
+}
+
+console.log('\n9. resting on top of a post does not press it, only hanging over its capped side does');
+{
+  const postTop = 760 - P.POST_H;
+  const over = (bottom) => ({ x: 500 - 20, y: bottom - 40, w: 40, h: 40, heavy: false, resting: true });
+
+  let ss = senders([{ id: 'r1', kind: 'button', x: 500, y: 760, face: 'left' }]);
+  tick(ss, [over(postTop)]);
+  if (ss[0].pressed) fail('a presser resting exactly on top of a post pressed it');
+
+  ss = senders([{ id: 'r2', kind: 'button', x: 500, y: 760, face: 'left' }]);
+  tick(ss, [over(postTop + 1e-9)]);
+  if (ss[0].pressed) fail('a presser resting a hair below the post top pressed it (float dust)');
+
+  ss = senders([{ id: 'r3', kind: 'button', x: 500, y: 760, face: 'left' }]);
+  tick(ss, [over(postTop + 10)]);
+  if (!ss[0].pressed) fail('a presser hanging 10 units over the capped side did not press it');
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
