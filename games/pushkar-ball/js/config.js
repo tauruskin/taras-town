@@ -249,6 +249,14 @@ export const CONFIG = {
     RING_W: 5,       // drawn width of a timer's ring
     LAMP_R: 8,       // drawn radius of one of a receiver's lamps
     LAMP_GAP: 22,    // between a receiver's lamps, centre to centre
+    // How high a bridge's first lamp sits on its signal pole, above the deck.
+    // Well above a floor button's cap (POST_H / 2 = 25 up), so a wire that
+    // runs along the ground at cap height passes BEHIND the pole rather than
+    // into its lamp. At 22 it did: level nine's t2 wire ran straight through
+    // the bridge's yellow lamp on its way to the gate, and the ledge button's
+    // wire came down to meet it just over t2's post, so both read as wired to
+    // the bridge.
+    POLE_H: 60,
     WIRE_W: 3,
     // A sender and every receiver it drives are at most this far apart
     // horizontally. VIEW_H is 540 on every screen, so a 568x320 phone sees

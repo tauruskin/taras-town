@@ -194,7 +194,7 @@ function receiversOf(level) {
 /** Where lamp `i` of a gate or bridge is drawn. A gate's ride up with it. */
 export function receiverLampAt(r, i, cfg) {
   const P = cfg.CIRCUIT;
-  if (r.kind === 'bridge') return { x: r.x - r.dir * 16, y: r.y - 22 - i * P.LAMP_GAP };
+  if (r.kind === 'bridge') return { x: r.x - r.dir * 16, y: r.y - P.POLE_H - i * P.LAMP_GAP };
   return { x: r.x + r.w / 2, y: r.y + r.h - 20 - i * P.LAMP_GAP };
 }
 
