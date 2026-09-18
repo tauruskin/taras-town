@@ -234,6 +234,36 @@ export const CONFIG = {
     OPEN_TIME: 0.6,
   },
 
+  // Wiring: buttons, timers, lamps and wires. A plate is SWITCH, above — it
+  // keeps its old name because level six has always called it that.
+  CIRCUIT: {
+    // A button's stone post. 50 tall so it reads as a post and not a kerb,
+    // and so a jump (which clears 131) hops it with room to spare.
+    POST_W: 30,
+    POST_H: 50,
+    // How close to the capped side a presser has to come to press it. The
+    // presser is stopped by the post itself, so this only has to be more
+    // than floating-point dust.
+    REACH: 4,
+    CAP_R: 11,       // drawn radius of the cap, which is also the sender's lamp
+    RING_W: 5,       // drawn width of a timer's ring
+    LAMP_R: 8,       // drawn radius of one of a receiver's lamps
+    LAMP_GAP: 22,    // between a receiver's lamps, centre to centre
+    WIRE_W: 3,
+    // A sender and every receiver it drives are at most this far apart
+    // horizontally. VIEW_H is 540 on every screen, so a 568x320 phone sees
+    // 540 * 568/320 = 958 units across; 900 is what fits both ends of a wire
+    // on it at once. levels.mjs enforces it.
+    SEE: 900,
+    // Seconds of a timer left at which a bridge it drives starts to shake.
+    WARN: 1.0,
+  },
+  BRIDGE: {
+    OPEN_TIME: 0.8,  // seconds to slide fully out, or fully back in
+    H: 18,           // drawn thickness — only the top is solid
+    SHAKE: 2,        // drawn wobble while warning, in units
+  },
+
   BEAM: {
     // Seconds for a full swing between a beam's minAngle and maxAngle, in
     // either direction. Reuses the gate's own "OPEN_TIME"-style single
@@ -694,6 +724,14 @@ export const CONFIG = {
     // must never read as wood.
     SWITCH_PLATE: '#5E6B73',
     SWITCH_PLATE_EDGE: '#3E474D',
+    // One colour per sender, in the order a level lists them, so a lamp on a
+    // door matches the button that lights it. Checked against IS_BALL in
+    // tests/browser/_helpers.mjs: the blue, purple and green have r < b, and
+    // the yellow's green channel is far too high — none can be taken for the
+    // ball. Told apart by lightness as well as hue.
+    WIRE: ['#2F80ED', '#F2C94C', '#9B51E0', '#27AE60'],
+    LAMP_OFF: '#4A5358',
+    RING_TRACK: '#E8EDF0',
     // A stone-family grey, distinct from CRATE's wood — the beam itself
     // cannot be pushed, only ridden or weighed down by a crate, so it must
     // never read as pushable the way the gate already doesn't.
