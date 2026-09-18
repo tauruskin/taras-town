@@ -152,6 +152,12 @@ function waitForLow(level, lead) {
 /** A level's sender by id. */
 const sender = (level, id) => level.senders.find((s) => s.id === id);
 
+// Every prepared run through level nine's timed room records how much of the
+// timer it used. Checked after section 2: every run, from every lead, delay
+// and checkpoint, must leave at least 40% of the time unused — the proof
+// that room is not a pixel-perfect run.
+const SPARE9 = [];
+
 // --- the routes ------------------------------------------------------------
 //
 // Keyed by level id. Each takes the loaded level and a lead, and returns the
@@ -344,6 +350,63 @@ const ROUTES = {
       return run(ball);
     };
   },
+
+  // Level nine: timers. Room B is the one to read: the bridge's button on the
+  // floating ledge first, then the timer — which faces right, so it is
+  // hopped and come back to — then run. The timer is pressed last, which is
+  // the whole lesson.
+  9: (level, lead) => {
+    const run = runner(level, lead);
+    const t1 = sender(level, 't1'), b = sender(level, 'b'), t2 = sender(level, 't2'), p = sender(level, 'p');
+    const ledge = level.walls.find((w) => w.x === 7400 && w.y === 670);
+    const gateB = level.gates.find((g) => g.needs.includes('t2'));
+    const crate = level.crates[0];
+    const W = CONFIG.CIRCUIT.POST_W;
+    let stage = null, pressedAt = 0;
+    return (ball) => {
+      if (!stage) stage = ball.x < t1.x ? 'a' : ball.x < ledge.x - 400 ? 'run' : ball.x < gateB.x ? 'ledge' : 'run3';
+      // Room A: a timer in the path; the gate is well inside its time.
+      if (stage === 'a') { if (t1.pressed) stage = 'hopA'; else return { right: true }; }
+      if (stage === 'hopA') {
+        if (ball.x > t1.x + W + 30) stage = 'run';
+        return { right: true, jump: ball.grounded };
+      }
+      if (stage === 'run') { if (ball.x > ledge.x - 400) stage = 'ledge'; else return run(ball); }
+      // Room B, first the bridge: up onto the floating ledge. Jumped from far
+      // enough out that the ball is above the ledge's lip when it gets there.
+      // A ball that misses rolls on underneath; it goes back and tries again.
+      if (stage === 'ledge') {
+        if (ball.grounded && ball.y < ledge.y) stage = 'b';
+        else if (ball.grounded && ball.x > ledge.x + ledge.w) stage = 'retry';
+        else return { right: true, jump: ball.grounded && ball.y > ledge.y && ledge.x - ball.x > 0 && ledge.x - ball.x < 165 * lead };
+      }
+      if (stage === 'retry') { if (ball.x < ledge.x - 400) stage = 'ledge'; return { left: true }; }
+      if (stage === 'b') { if (b.pressed) stage = 'hopB'; else return { right: true }; }
+      if (stage === 'hopB') {
+        if (ball.grounded && ball.y > ledge.y && ball.x > ledge.x + ledge.w) stage = 'overT2';
+        return { right: true, jump: ball.grounded && ball.y < ledge.y };
+      }
+      // Then the timer: hop its plain side, come back into its cap, run.
+      if (stage === 'overT2') {
+        if (ball.x > t2.x + W + 100) stage = 'backT2';
+        return { right: true, jump: ball.grounded && t2.x - ball.x > 0 && t2.x - ball.x < 120 * lead };
+      }
+      if (stage === 'backT2') {
+        if (t2.pressed) { stage = 'go'; pressedAt = level.time; }
+        else return { left: true };
+      }
+      if (stage === 'go') {
+        if (ball.x > gateB.x + gateB.w + 20) {
+          SPARE9.push({ lead, used: level.time - pressedAt, time: t2.time });
+          stage = 'run3';
+        } else return { right: true };
+      }
+      // Room C: push the crate off the plate, into the trench.
+      if (stage === 'run3') { if (ball.x > p.x - 300) stage = 'push'; else return run(ball); }
+      if (stage === 'push') { if (crate.y > 700) stage = 'end'; else return { right: true }; }
+      return run(ball);
+    };
+  },
 };
 
 // Level four's other way: shove the crate against the planks, back off at
@@ -460,6 +523,16 @@ for (const data of LEVELS) {
     if (bad.length) fail(`level ${data.id}: a ball respawned at checkpoint ${i} (${c.x},${c.y}) did not finish cleanly — ${bad.join('; ')}`);
   }
   if (data.checkpoints?.length) console.log(`   level ${data.id}: finished from each of its ${data.checkpoints.length} checkpoints`);
+}
+
+// --- 2b. level nine's timed room is never a pixel-perfect run ---------------
+console.log('\n2b. level nine: time to spare at the timed gate');
+if (!SPARE9.length) fail('no run of level nine ever reached its timed gate — nothing was measured');
+else {
+  const worst = SPARE9.reduce((w, s) => Math.max(w, s.used / s.time), 0);
+  const tight = SPARE9.filter((s) => s.used > 0.6 * s.time);
+  if (tight.length) fail(`${tight.length} of ${SPARE9.length} runs used more than 60% of level nine's timer (worst ${(worst * 100).toFixed(0)}%)`);
+  else console.log(`   ${SPARE9.length} runs; the slowest used ${(worst * 100).toFixed(0)}% of the timer`);
 }
 
 // --- 3. level three cannot be finished without its crate --------------------
@@ -775,6 +848,142 @@ console.log('\n3g. level eight: room C has no dead end');
     }
   }
   if (!bad) console.log(`   ${tries.length} tries at getting behind the crate, none moved it left (lowest x=${least.toFixed(0)}, start ${start.x}, button c's post ends at ${postRight})`);
+}
+
+// --- 3h. level nine: room A needs its timer --------------------------------
+console.log('\n3h. level nine without its first timer');
+{
+  const data = LEVELS.find((l) => l.id === 9);
+  const bare = { ...data, senders: data.senders.filter((s) => s.id !== 't1') };
+  const { ball } = play(bare, () => (b) => ({ right: true, jump: b.grounded }), { seconds: 8 });
+  if (ball.x > data.gates[0].x) fail(`level 9 room A was passed without its timer (x=${ball.x.toFixed(0)})`);
+  else console.log(`   stopped at x=${ball.x.toFixed(0)}`);
+}
+
+// --- 3i. level nine: pressing the timer first does not get through ---------
+//
+// From checkpoint one: hop the timer's plain side, come back into its cap —
+// pressed FIRST — then jump back over it without touching it, roll under the
+// ledge and turn round, up onto the ledge for the bridge, and back to the
+// gate. Must arrive to a shut gate. It must also really have pressed both,
+// or it proves nothing.
+console.log('\n3i. level nine, timer pressed first');
+{
+  const data = LEVELS.find((l) => l.id === 9);
+  const cp = data.checkpoints[0];
+  const W = CONFIG.CIRCUIT.POST_W;
+  let hits = 0, bPressed = false, wasOn = false;
+  const { ball, level } = play(data, (lv) => {
+    const t2 = sender(lv, 't2'), b = sender(lv, 'b');
+    const ledge = lv.walls.find((w) => w.x === 7400 && w.y === 670);
+    let stage = 'over';
+    return (bl) => {
+      if (t2.pressed && !wasOn) hits++;
+      wasOn = t2.pressed;
+      if (b.pressed) bPressed = true;
+      if (stage === 'over') {
+        if (bl.x > t2.x + W + 100) stage = 'back';
+        return { right: true, jump: bl.grounded && t2.x - bl.x > 0 && t2.x - bl.x < 120 };
+      }
+      if (stage === 'back') { if (t2.pressed) stage = 'away'; else return { left: true }; }
+      if (stage === 'away') {
+        if (bl.x < ledge.x - 300) stage = 'ledge';
+        return { left: true, jump: bl.grounded && bl.x - (t2.x + W) > 0 && bl.x - (t2.x + W) < 120 };
+      }
+      if (stage === 'ledge') {
+        if (bl.grounded && bl.y < ledge.y) stage = 'b';
+        else return { right: true, jump: bl.grounded && bl.y > ledge.y && ledge.x - bl.x > 0 && ledge.x - bl.x < 165 };
+      }
+      if (stage === 'b') { if (b.pressed) stage = 'hop'; else return { right: true }; }
+      if (stage === 'hop') {
+        if (bl.grounded && bl.y > ledge.y && bl.x > ledge.x + ledge.w) stage = 'overAgain';
+        return { right: true, jump: bl.grounded && bl.y < ledge.y };
+      }
+      // Over the timer's plain side, never back into its cap, and on to the gate.
+      return { right: true, jump: bl.grounded && t2.x - bl.x > 0 && t2.x - bl.x < 120 };
+    };
+  }, { from: { x: cp.x, y: cp.y - CONFIG.BALL.R - CONFIG.CHECKPOINT.CLEARANCE }, seconds: 25 });
+  const gateB = level.gates.find((g) => g.needs.includes('t2'));
+  console.log(`   timer pressed ${hits} time(s), bridge button ${bPressed ? 'pressed' : 'NOT pressed'}, ball ended at x=${ball.x.toFixed(0)} (gate at ${gateB.x})`);
+  if (hits !== 1) fail(`the timer-first run pressed the timer ${hits} times — it must be exactly once to prove anything`);
+  if (!bPressed) fail('the timer-first run never pressed the bridge button — it proves nothing');
+  if (ball.x > gateB.x + gateB.w) fail('pressing the timer first still got through level nine\'s timed gate');
+}
+
+// --- 3j. level nine: the crate left on the plate keeps the door shut -------
+console.log('\n3j. level nine, crate left on the plate');
+{
+  const data = LEVELS.find((l) => l.id === 9);
+  const gateC = data.gates.find((g) => g.needs.includes('!p'));
+  const { ball, level } = play(data, () => () => ({ right: true }), { from: { x: gateC.x - 150, y: 740 }, seconds: 6 });
+  const g = level.gates.find((x) => x.needs.includes('!p'));
+  console.log(`   gate openT=${g.openT.toFixed(2)}, ball at x=${ball.x.toFixed(0)}`);
+  if (g.openT > 0.1) fail(`with the crate on the plate, level nine's last gate opened (openT ${g.openT.toFixed(2)})`);
+  if (ball.x > gateC.x) fail('with the crate on the plate, the ball got past level nine\'s last gate');
+}
+
+// --- 3k. level nine: room C has no dead end ---------------------------------
+//
+// The ball can hop the crate and push it LEFT. Without the kerb left of the
+// plate nothing stops it short of room B's gate — shut once its timer has
+// run out — and a crate flush against that can never be got behind again, in
+// a room with no way to fail. So from the right of the crate, try to shove
+// it left every way: holding left, jumping near it and then holding left,
+// and hopping over it going left and landing on the far side. The crate
+// must never go further left than the kerb, AND from wherever it ends up,
+// the ball must still be able to push it into the trench: back over it to
+// its left, then right.
+console.log('\n3k. level nine: room C has no dead end');
+{
+  const data = LEVELS.find((l) => l.id === 9);
+  const kerb = data.boxes.find((b) => !b.movable && b.h < 60 && b.x > 9000);
+  const plate = data.senders.find((s) => s.id === 'p');
+  const floor = kerb ? kerb.x + kerb.w : plate.x;
+  const gateC = data.gates.find((g) => g.needs.includes('!p'));
+  const tries = [];
+  // Just right of the crate (between it and the trench), and from past the
+  // trench, where the ball has jumped out of it.
+  for (const fromX of [10124, 10300, 10400]) {
+    tries.push({ name: `hold left from ${fromX}`, fromX,
+      drive: () => (b, t) => ({ left: true }) });
+    for (let jumpAfter = 0; jumpAfter <= 1.5; jumpAfter += 0.25) {
+      tries.push({ name: `from ${fromX}, one jump after ${jumpAfter}s, then left`, fromX,
+        drive: () => { let done = false; return (b, t) => {
+          const jump = !done && b.grounded && t >= jumpAfter;
+          if (jump) done = true;
+          return { left: true, jump };
+        }; } });
+    }
+    tries.push({ name: `from ${fromX}, hopping all the time`, fromX,
+      drive: () => (b) => ({ left: true, jump: b.grounded }) });
+  }
+  let bad = 0, least = Infinity, recovered = 0;
+  for (const tr of tries) {
+    let lowest = Infinity;
+    // 10s of trying to shove it left, then the way back: hop over it leftwards
+    // until clear of it, then hold right until it is in the trench.
+    let stage = 'shove', t0 = 0;
+    const { level } = play(data, (lv) => {
+      const d = tr.drive();
+      return (b, t) => {
+        const cr = lv.crates[0];
+        lowest = Math.min(lowest, cr.x);
+        if (stage === 'shove') { if (t > 10) { stage = 'over'; t0 = t; } else return d(b, t); }
+        if (stage === 'over') {
+          if (b.grounded && b.x < cr.x - 60) stage = 'push';
+          else return { left: true, jump: b.grounded };
+        }
+        return { right: true };
+      };
+    }, { from: { x: tr.fromX, y: 738 }, seconds: 30 });
+    least = Math.min(least, lowest);
+    const cr = level.crates[0];
+    const g = level.gates.find((x) => x.needs.includes('!p'));
+    if (lowest < floor - 1) { bad++; fail(`level 9's crate was shoved left to x=${lowest.toFixed(0)}, past the kerb at ${floor}, by: ${tr.name}`); }
+    else if (cr.y <= 700 || g.openT < 0.9) { bad++; fail(`after "${tr.name}", pushing level 9's crate right again did not drop it in the trench (crate at ${cr.x.toFixed(0)},${cr.y.toFixed(0)}, gate openT ${g.openT.toFixed(2)})`); }
+    else recovered++;
+  }
+  if (!bad) console.log(`   ${tries.length} tries at shoving the crate left: it got no further than x=${least.toFixed(0)} (kerb at ${floor}), and every time it was pushed back into the trench after (gate at ${gateC.x} open)`);
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------

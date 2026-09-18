@@ -999,6 +999,112 @@ export const LEVELS = [
       { x: 9800, y: 760 },
     ],
   },
+  {
+    // Level nine: timers, and a reversal. Stage: REINFORCEMENT, then
+    // REVERSAL — see the roadmap and the wiring spec named in level eight.
+    //
+    // Room A first again, as in level eight: a timer in the path, its gate
+    // 400 on, 3.5s to get there — about three times what it takes.
+    // Then level eight's warm-up exactly (same gap, step, walker), then:
+    //   B — set up the room first. A timed gate beyond a 420 gap. The gap's
+    //       bridge is driven by an ordinary button on a floating stone ledge
+    //       (top 670, bottom 700: a rolling ball's top, 720, passes under
+    //       it, and a jump's bottom, 629, rises 41 above it). The timer faces
+    //       right, as level eight's room B button did. Pressed first, its
+    //       4.5s run out while the bridge is fetched; pressed last, the run
+    //       to the gate uses well under 60% of it — finish.mjs's SPARE9
+    //       holds every run to that.
+    //   C — level six reversed. A crate already on a plate holds the gate
+    //       SHUT (its lamp is a ring: needs '!p'). Pushed right, off the
+    //       plate, the crate drops into a trench exactly its depth and
+    //       becomes floor. The trench (100 deep) is shallower than a jump
+    //       (131), so a ball that falls in first always gets out, with the
+    //       crate still there to push.
+    //
+    //       The trench is 120 wide, not the crate's own 100. A crate falls
+    //       only once nothing at all is under it, and while it is pushed it
+    //       is lifted up to CRATE.STEP_UP (6) onto whatever it meets; over a
+    //       110 trench it crossed the 10-unit window in 0.07s, dropped 5,
+    //       and was lifted straight onto the far side, leaving the ball in
+    //       the trench and the plate empty but the crate hanging over the
+    //       hole. 120 gives 0.13s and a 20 drop. The crate lands against the
+    //       far wall, leaving a 19 slot on its left that a ball rolls over
+    //       (at 130 the 29 slot caught a ball rolling slowly).
+    //
+    //       A low stone kerb, 12 tall, stands just left of the plate. The
+    //       ball can hop over the crate and push it LEFT, and nothing else
+    //       would stop it short of room B's gate, which is shut once its
+    //       timer has run out: a crate flush against a gate can never be got
+    //       behind again, and room C has no way to fail. A crate cannot climb
+    //       more than STEP_UP, so the kerb stops it at 10000, still on the
+    //       plate, and the ball can hop back over it and push it right. A
+    //       ball rolls over the kerb from a run-up of a ball's width or
+    //       more; stopped right against it, it has to hop. finish.mjs's 3k
+    //       checks the kerb.
+    id: 9,
+    theme: 'hills',
+    bounds: { w: 13000, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 12760, y: 760 },
+
+    ground: [
+      [[40, 760], [2600, 760]],
+      [[2800, 760], [8300, 760]],
+      // Past room B's 420 gap, up to room C's trench.
+      [[8720, 760], [10130, 760]],
+      // Past the trench (10130-10250).
+      [[10250, 760], [12960, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 12960, y: 0, w: 40, h: 1080 },
+      { x: 3600, y: 700, w: 200, h: 60 },
+      // Room B's floating ledge.
+      { x: 7400, y: 670, w: 300, h: 30 },
+      // Room C's trench: stone either side under the ground, so nothing in
+      // the trench can roll out underneath the ground's one-sided surface,
+      // and a stone floor 100 down.
+      { x: 10030, y: 760, w: 100, h: 320 },
+      { x: 10130, y: 860, w: 120, h: 220 },
+      { x: 10250, y: 760, w: 100, h: 320 },
+      // Room C's kerb: a crate pushed left stops against it, on the plate.
+      { x: 9960, y: 748, w: 40, h: 12 },
+      // Room C's crate, resting on the plate from the start.
+      { x: 10005, y: 660, w: 100, h: 100, movable: true },
+    ],
+
+    senders: [
+      { id: 't1', kind: 'timer', x: 1400, y: 760, face: 'left', time: 3.5 },
+      { id: 'b', kind: 'button', x: 7660, y: 670, face: 'left' },
+      { id: 't2', kind: 'timer', x: 8000, y: 760, face: 'right', time: 4.5 },
+      { id: 'p', kind: 'plate', x: 10000, y: 760, w: 110 },
+    ],
+
+    gates: [
+      { x: 1800, y: 560, w: 40, h: 200, needs: ['t1'] },
+      { x: 8850, y: 560, w: 40, h: 200, needs: ['t2'] },
+      { x: 10500, y: 560, w: 40, h: 200, needs: ['!p'] },
+    ],
+
+    bridges: [
+      { x: 8300, y: 760, w: 420, dir: 1, needs: ['b'] },
+    ],
+
+    platforms: [],
+
+    enemies: [
+      // Level eight's walker, at level eight's final x: room A and the
+      // warm-up are the same shape, so the walker is met at the same time.
+      // finish.mjs re-proves it here anyway.
+      { kind: 'walker', x: 5075, y: 760 - CONFIG.ENEMY.WALKER.R, amplitude: 280 },
+    ],
+
+    checkpoints: [
+      { x: 7000, y: 760 },
+      { x: 9600, y: 760 },
+    ],
+  },
 ];
 
 /**
