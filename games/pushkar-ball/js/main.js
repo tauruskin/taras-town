@@ -236,6 +236,8 @@ function frame(now) {
       const before = ball, revivingBefore = ball.reviving;
       flow.step(CONFIG.STEP);
       if (ball === before && revivingBefore === 0 && ball.reviving > 0) camera.snap(ball);
+      // A door or bridge the player just opened, off the edge: lean to show it.
+      for (const r of level.opened) camera.reveal(r.x);
 
       camera.update(CONFIG.STEP, ball, viewW, viewH);
       accumulator -= CONFIG.STEP;

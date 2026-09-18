@@ -204,5 +204,103 @@ for (const [w, h] of SCREENS) {
   snapAgrees('after a jump and a landing');
 }
 
+// --- the reveal -----------------------------------------------------------
+//
+// When a button opens a door that is off the screen, the camera leans to show
+// it for REVEAL_TIME and then comes back. Everything here runs TWO cameras on
+// the same ball — one that is told to reveal and one that is not — so "does
+// nothing" and "comes back" are measured against the camera the game would
+// have had, not against a number written down here.
+//
+// Only the two short phones: they are where a door can be out of sight at all
+// (a wire is at most CIRCUIT.SEE long, and a bigger screen sees further).
+{
+  const C = CONFIG.CAMERA;
+  const wide = () => loadLevel({
+    id: 95, theme: 'hills',
+    bounds: { w: 6000, h: 1080 },
+    spawn: { x: 3000, y: 600 },
+    ground: [[[40, 760], [5960, 760]]],
+    boxes: [], platforms: [],
+  });
+  const still = { left: false, right: false, takeJump: () => false };
+
+  for (const [w, h] of [[568, 320], [740, 280]]) {
+    const scale = h / CONFIG.VIEW_H;
+    const viewH = CONFIG.VIEW_H;
+    const viewW = w / scale;
+    const half = viewW / 2;
+    const room = half - C.REVEAL_MARGIN;       // how far the camera may stray from the ball
+
+    // A settled pair of cameras, and a ball at rest on the flat.
+    const setup = () => {
+      const level = wide();
+      const ball = new Ball(level.spawn.x, level.spawn.y);
+      const cams = [new Camera(level), new Camera(level)];
+      for (const c of cams) { c.biasY = Camera.biasFor(h, scale, CONFIG.BALL.R, w); c.snap(ball); }
+      const run = (seconds, input = still, each = () => {}) => {
+        for (let i = 0; i < Math.round(seconds / CONFIG.STEP); i++) {
+          level.update(CONFIG.STEP);
+          ball.update(CONFIG.STEP, input, level);
+          for (const c of cams) c.update(CONFIG.STEP, ball, viewW, viewH);
+          each();
+        }
+      };
+      run(2);
+      return { ball, cam: cams[0], twin: cams[1], run };
+    };
+
+    console.log(`\nreveal on ${w}x${h} (view ${viewW.toFixed(0)} wide, camera may stray ${room.toFixed(0)} from the ball):`);
+
+    // 1. It leans toward the midpoint, and the ball never leaves the view
+    //    minus the margin — at rest, and while rolling away from the point.
+    for (const rolling of [false, true]) {
+      const { ball, cam, twin, run } = setup();
+      const rx = ball.x - 0.9 * viewW;                 // well out of sight to the left
+      cam.reveal(rx);
+      let worst = 0;
+      const input = rolling ? { left: false, right: true, takeJump: () => false } : still;
+      run(C.REVEAL_TIME * 0.95, input, () => { worst = Math.max(worst, Math.abs(ball.x - cam.x)); });
+      const want = Math.max((twin.x + rx) / 2, ball.x - room);
+      console.log(`   ${rolling ? 'rolling' : 'at rest'}: camera ${(cam.x - ball.x).toFixed(0)} from the ball ` +
+                  `(aimed at ${(want - ball.x).toFixed(0)}), furthest it strayed ${worst.toFixed(1)}`);
+      if (worst > room + 1e-6) fail(`on ${w}x${h} a reveal let the ball within ${(half - worst).toFixed(1)} of the view's edge (margin ${C.REVEAL_MARGIN})`);
+      if (!rolling && Math.abs(cam.x - want) > 2) fail(`on ${w}x${h} a reveal settled at ${cam.x.toFixed(1)}, not the clamped midpoint ${want.toFixed(1)}`);
+      if (cam.x > twin.x - 100) fail(`on ${w}x${h} a reveal to the left barely moved the camera (${(cam.x - twin.x).toFixed(1)})`);
+    }
+
+    // 2. A point already in view does nothing at all.
+    {
+      const { ball, cam, twin, run } = setup();
+      cam.reveal(ball.x + room - 10);
+      let most = 0;
+      run(C.REVEAL_TIME + 0.5, still, () => { most = Math.max(most, Math.abs(cam.x - twin.x)); });
+      if (most !== 0) fail(`on ${w}x${h} revealing a point already in view moved the camera ${most.toFixed(3)}`);
+    }
+
+    // 3. After REVEAL_TIME it comes back to where it would have been.
+    {
+      const { ball, cam, twin, run } = setup();
+      cam.reveal(ball.x + 0.9 * viewW);
+      run(C.REVEAL_TIME + 1);
+      const off = Math.abs(cam.x - twin.x);
+      console.log(`   one second after the reveal ends: ${off.toFixed(3)} from where it would have been`);
+      if (off > 2) fail(`on ${w}x${h} the camera did not come back after a reveal (${off.toFixed(1)} off)`);
+    }
+
+    // 4. A second reveal replaces the first, and runs its own full time.
+    {
+      const { ball, cam, twin, run } = setup();
+      cam.reveal(ball.x + 0.9 * viewW);
+      run(0.5);
+      if (cam.x < twin.x + 100) fail(`setup: the first reveal did not lean right (${(cam.x - twin.x).toFixed(1)})`);
+      cam.reveal(ball.x - 0.9 * viewW);
+      run(C.REVEAL_TIME * 0.9);
+      console.log(`   a second reveal, the other way: camera ${(cam.x - twin.x).toFixed(0)} from normal`);
+      if (cam.x > twin.x - 100) fail(`on ${w}x${h} a second reveal did not replace the first (camera ${(cam.x - twin.x).toFixed(1)} from normal)`);
+    }
+  }
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CAMERA CHECKS PASSED');
 process.exit(failures ? 1 : 0);

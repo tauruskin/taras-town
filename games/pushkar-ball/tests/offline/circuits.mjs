@@ -445,5 +445,84 @@ console.log('\n20. bad bridge data fails loudly');
   console.log(`   ${refused} of ${bad.length} bad bridges refused`);
 }
 
+console.log('\n21. an opening the ball can nearly see is reported, once; nothing else is');
+{
+  // What the camera's reveal hangs on. `level.opened` is this step's list of
+  // receivers that have just come ON within CIRCUIT.SEE of the ball, so the
+  // camera can lean to show one — and it is only that: never a closing, never
+  // the level's first look at its own wiring, never something across the map.
+  const collect = (ball, level, want, seconds) => {
+    const seen = [];
+    const input = { left: !!want.left, right: !!want.right, takeJump: () => false };
+    for (let i = 0; i < Math.round(seconds / STEP); i++) {
+      level.update(STEP);
+      seen.push(...level.opened);
+      ball.update(STEP, input, level);
+    }
+    return seen;
+  };
+
+  // Rolling into a button: its gate, exactly once, at the gate's middle.
+  let level = stage({
+    senders: [{ id: 'a', kind: 'button', x: 800, y: GROUND, face: 'left' }],
+    gates: [{ x: 1200, y: GROUND - 200, w: 40, h: 200, needs: ['a'] }],
+  });
+  let ball = new Ball(400, GROUND - 20);
+  let seen = collect(ball, level, { right: true }, 4);
+  console.log(`   rolled into a button: ${seen.length} opening(s) reported, at x=${seen.map((o) => o.x).join(', ')}`);
+  if (seen.length !== 1) fail(`a gate opening was reported ${seen.length} times, not once`);
+  else {
+    if (seen[0].receiver !== level.gates[0]) fail('the opening reported was not the gate the button drives');
+    if (seen[0].x !== 1220) fail(`a gate's opening was reported at x=${seen[0].x}, not its middle 1220`);
+  }
+
+  // A bridge is reported at the middle of its whole span, not its root.
+  level = stage({
+    ground: [[[40, GROUND], [1000, GROUND]], [[1420, GROUND], [2960, GROUND]]],
+    senders: [{ id: 'b', kind: 'button', x: 1420 + 300, y: GROUND, face: 'left' }],
+    bridges: [{ x: 1420, y: GROUND, w: 420, dir: -1, needs: ['b'] }],
+  });
+  ball = new Ball(1500, GROUND - 20);
+  seen = collect(ball, level, { right: true }, 3);
+  if (seen.length !== 1 || seen[0].x !== 1210) fail(`a left-sliding bridge was reported ${JSON.stringify(seen.map((o) => o.x))}, not once at 1210`);
+
+  // A gate further than SEE from the ball opens unreported.
+  level = stage({
+    senders: [{ id: 'a', kind: 'button', x: 800, y: GROUND, face: 'left' }],
+    gates: [{ x: 800 + P.SEE + 100, y: GROUND - 200, w: 40, h: 200, needs: ['a'] }],
+  });
+  ball = new Ball(400, GROUND - 20);
+  seen = collect(ball, level, { right: true }, 4);
+  if (!level.senders[0].pressed || level.gates[0].openT !== 1) fail('setup: the far gate never opened');
+  if (seen.length) fail(`a gate ${P.SEE + 100} past the button was reported (${seen.length}) — too far to reveal`);
+
+  // Nothing on the first update: a NOT gate is powered from the start, and
+  // a crate settling onto its plate a moment later is no opening either.
+  level = stage({
+    boxes: [{ x: 0, y: 0, w: 40, h: 1080 }, { x: 2960, y: 0, w: 40, h: 1080 },
+            { x: 505, y: GROUND - 14 - 100 - 30, w: 100, h: 100, movable: true }],
+    senders: [{ id: 'p', kind: 'plate', x: 500, y: GROUND, w: 110 }],
+    gates: [{ x: 900, y: GROUND - 200, w: 40, h: 200, needs: ['!p'] }],
+  });
+  ball = new Ball(300, GROUND - 20);
+  ball.update(STEP, { left: false, right: false, takeJump: () => false }, level);   // the level knows the ball from the start
+  seen = collect(ball, level, {}, 2);
+  if (!level.senders[0].pressed) fail('setup: the crate did not settle onto its plate');
+  if (seen.length) fail(`a level's first look at its wiring was reported as ${seen.length} opening(s)`);
+
+  // A gate closing when its timer runs out is not reported.
+  level = stage({
+    senders: [{ id: 't', kind: 'timer', x: 800, y: GROUND, face: 'left', time: 1.5 }],
+    gates: [{ x: 1200, y: GROUND - 200, w: 40, h: 200, needs: ['t'] }],
+  });
+  ball = new Ball(400, GROUND - 20);
+  seen = collect(ball, level, { right: true }, 2);
+  if (seen.length !== 1) fail(`setup: the timer's gate opening was reported ${seen.length} times`);
+  ball.x = 600; ball.vx = 0;                         // off the post, so nothing re-hits it
+  seen = collect(ball, level, {}, 3);
+  if (level.senders[0].pressed || level.gates[0].openT !== 0) fail('setup: the timer never ran out and shut the gate');
+  if (seen.length) fail(`a gate closing was reported as ${seen.length} opening(s)`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
 process.exit(failures ? 1 : 0);

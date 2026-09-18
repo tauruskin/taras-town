@@ -86,6 +86,19 @@ export const CONFIG = {
     GROUND_CLEAR: 26,
     LOOKAHEAD: 0.35,    // seconds of vx to look ahead, so a fast ball can see
                         // what it is about to hit
+
+    // The reveal: when something the player did opens a door or a bridge
+    // that is off the screen, the camera leans toward it for this long and
+    // then eases back. On a 568x320 phone a button can be up to CIRCUIT.SEE
+    // (900) from what it drives, and the view is only ~958 across with the
+    // ball in its middle — so without this, the cause is on screen and the
+    // effect is not. The wire is the clue before pressing; this is the proof
+    // after it.
+    REVEAL_TIME: 1.2,   // seconds
+    // How far inside the view's edge the ball's CENTRE must stay while the
+    // camera leans away from it: its radius plus 40, so the whole ball and a
+    // little ground round it stay in sight. Leaning must never lose the ball.
+    REVEAL_MARGIN: 60,
   },
 
   // ---------------------------------------------------------------------

@@ -73,6 +73,28 @@ export class Camera {
     // spawn is `{x, y}`, which is all `snap` reads, and `this.level` is
     // assigned first because `snap` may want it.
     this.snap(level.spawn);
+
+    // The reveal in progress, if any: where to lean and for how much longer.
+    // See `reveal`.
+    this.revealX = 0;
+    this.revealLeft = 0;
+  }
+
+  /**
+   * Lean toward world x `x` for CAMERA.REVEAL_TIME, then come back.
+   *
+   * For a door or bridge the player has just opened somewhere off the screen
+   * — level.js reports those in `level.opened` and main.js passes them on.
+   * A new reveal replaces one in progress rather than queueing behind it:
+   * the latest thing the player did is the one worth showing.
+   *
+   * Only the horizontal target changes, and only in `update`; nothing here
+   * touches the ball or the level, so the simulation cannot tell a reveal
+   * happened.
+   */
+  reveal(x) {
+    this.revealX = x;
+    this.revealLeft = CONFIG.CAMERA.REVEAL_TIME;
   }
 
   /**
@@ -104,11 +126,35 @@ export class Camera {
   update(dt, ball, viewW, viewH) {
     const C = CONFIG.CAMERA;
 
-    const tx = ball.x + ball.vx * C.LOOKAHEAD;
+    let tx = ball.x + ball.vx * C.LOOKAHEAD;
+
+    // A reveal aims halfway between where the camera would be and the thing
+    // being shown, not AT the thing: halfway keeps both on screen whenever
+    // they fit, where aiming at the door would put the ball off the edge.
+    // `room` is how far the camera may stray from the ball and still keep it
+    // REVEAL_MARGIN inside the view. If the point is already in sight of the
+    // normal target, there is nothing to show and the target is untouched.
+    const room = viewW / 2 - C.REVEAL_MARGIN;
+    const revealing = this.revealLeft > 0;
+    if (revealing) {
+      this.revealLeft -= dt;
+      if (Math.abs(this.revealX - tx) > room) {
+        tx = clamp((tx + this.revealX) / 2, ball.x - room, ball.x + room);
+      }
+    }
+
     // Frame-rate-independent lerp. A plain `x += (t - x) * k` moves further
     // per second at 120fps than at 30, which makes the camera's feel depend on
-    // the phone. This form does not, and it costs one exp() a step.
+    // the phone. This form does not, and it costs one exp() a step. The same
+    // lerp carries the camera out to a reveal and back from it, so neither
+    // is a cut.
     this.x += (tx - this.x) * (1 - Math.exp(-C.LERP * dt));
+
+    // The target is clamped near the ball, but a lerp toward it trails the
+    // ball, so a ball rolling hard away from the point being shown could
+    // still outrun the margin. Only while revealing: the normal follow never
+    // comes near this, and leaving it alone keeps it exactly as it was.
+    if (revealing) this.x = clamp(this.x, ball.x - room, ball.x + room);
 
     // The camera wants to be `biasY` below the ball, and the deadzone is slack
     // around that, not around the ball itself. Applying the deadzone to the

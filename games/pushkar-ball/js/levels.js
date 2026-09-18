@@ -1619,6 +1619,11 @@ class Level {
     // The ball tells the level where it is each step (see noteBall), so the
     // wiring can count it as a presser. Null until the first step.
     this.ball = null;
+    // The receivers that came ON this step close enough to the ball to be
+    // worth showing — see the end of `update`. Read by main.js, which asks
+    // the camera to lean toward each; empty until the first step, and so
+    // empty for a level the flow has only just built.
+    this.opened = [];
 
     // Checkpoints are not colliders and never touch the segment world; they
     // are places the ball remembers. `taken` is per-run state and belongs on
@@ -1712,9 +1717,17 @@ class Level {
     const b = this.ball;
     if (b && !b.dying) pressers.push({ x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded });
     updateSenders(this.senders, dt, pressers, CONFIG);
-    for (const g of this.gates) g.update(dt, powered(g.needs, this.senders), pressers.some((p) => g.isUnder(p)));
+    this.opened = [];
+    for (const g of this.gates) {
+      const on = powered(g.needs, this.senders);
+      this.noteOpening(g, on, g.x + g.w / 2);
+      g.update(dt, on, pressers.some((p) => g.isUnder(p)));
+    }
     for (const br of this.bridges) {
-      br.update(dt, powered(br.needs, this.senders));
+      const on = powered(br.needs, this.senders);
+      // The middle of its whole span, out or not: where it will be.
+      this.noteOpening(br, on, br.x + br.dir * br.w / 2);
+      br.update(dt, on);
       br.warn = warning(br.needs, this.senders, CONFIG);
     }
     if (this.particles.length) {
@@ -1735,6 +1748,27 @@ class Level {
    */
   noteBall(ball) {
     this.ball = ball;
+  }
+
+  /**
+   * Put receiver `r` in `this.opened` if it has just come on and the ball is
+   * within CIRCUIT.SEE of `x` — so the camera can show the player what they
+   * just did (camera.js, `reveal`).
+   *
+   * Opening only. A timer running out behind the player shuts its door, and
+   * yanking the camera back to a room they have left would show nothing they
+   * did. And nothing on a receiver's very first evaluation: level nine's `!p`
+   * gate is on at time zero, before its crate settles onto the plate, and a
+   * level whose first frame leans at a door nobody touched is a camera
+   * glitch, not cause and effect. SEE is the longest any wire may be, so it
+   * is exactly "something a sender near the ball could have driven"; a door
+   * further off than that was not opened by anything here.
+   */
+  noteOpening(r, on, x) {
+    const was = r.wasOn;
+    r.wasOn = on;
+    const b = this.ball;
+    if (was === false && on && b && Math.abs(x - b.x) <= CONFIG.CIRCUIT.SEE) this.opened.push({ x, receiver: r });
   }
 
   /** Every button and timer back as the level declared it. Called on every respawn. */
