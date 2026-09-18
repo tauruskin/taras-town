@@ -299,6 +299,21 @@ for (const [w, h] of SCREENS) {
       console.log(`   a second reveal, the other way: camera ${(cam.x - twin.x).toFixed(0)} from normal`);
       if (cam.x > twin.x - 100) fail(`on ${w}x${h} a second reveal did not replace the first (camera ${(cam.x - twin.x).toFixed(1)} from normal)`);
     }
+
+    // 5. A snap cancels a reveal in progress. A snap is a respawn, and the
+    //    respawn has just shut every door the reveal was showing — leaning
+    //    on toward one afterwards would show a door the player did not open.
+    {
+      const { ball, cam, twin, run } = setup();
+      cam.reveal(ball.x + 0.9 * viewW);
+      run(C.REVEAL_TIME * 0.3);
+      if (cam.x < twin.x + 50) fail(`setup: the reveal had not leaned before the snap (${(cam.x - twin.x).toFixed(1)})`);
+      cam.snap(ball); twin.snap(ball);
+      let most = 0;
+      run(C.REVEAL_TIME, still, () => { most = Math.max(most, Math.abs(cam.x - twin.x)); });
+      console.log(`   after a snap mid-reveal: at most ${most.toFixed(3)} from a camera that never revealed`);
+      if (most > 0.5) fail(`on ${w}x${h} a reveal outlived a snap (camera up to ${most.toFixed(1)} from normal)`);
+    }
   }
 }
 

@@ -116,10 +116,16 @@ export class Camera {
    * once there are hazards to die on. Written as the expression rather than
    * the number it currently comes to, so that retuning either value in
    * config.js keeps snapping and settling in agreement.
+   *
+   * It also ends any reveal in progress. A respawn has just shut every door
+   * and bridge the senders were holding open (`level.resetSenders`), so a
+   * reveal still running would lean the camera toward a door that is closed
+   * again and that the player, from where they now stand, did not open.
    */
   snap(ball) {
     this.x = ball.x;
     this.y = ball.y + this.biasY - CONFIG.CAMERA.DEADZONE_Y;
+    this.revealLeft = 0;
   }
 
   /** @param viewW,viewH the visible world, in world units */
