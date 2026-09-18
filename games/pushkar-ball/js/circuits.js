@@ -191,11 +191,24 @@ function receiversOf(level) {
   return [...level.gates, ...(level.bridges || [])];
 }
 
-/** Where lamp `i` of a gate or bridge is drawn. A gate's ride up with it. */
+/**
+ * Where a receiver's signal pole stands: its x and the ground it is planted
+ * in. A bridge's is at its root, on the near side. A gate's is just past its
+ * far face, on the ground the CLOSED gate stands on, and never moves. Its
+ * lamps used to ride up with the gate, into the corner buttons. The far side
+ * because the near face is where a crate comes to rest (level six) and would
+ * hide the lamps.
+ */
+function poleAt(r) {
+  if (r.kind === 'bridge') return { x: r.x - r.dir * 16, foot: r.y };
+  return { x: r.x + r.w + 12, foot: r.foot };
+}
+
+/** Where lamp `i` of a gate or bridge is drawn: up its signal pole. */
 export function receiverLampAt(r, i, cfg) {
   const P = cfg.CIRCUIT;
-  if (r.kind === 'bridge') return { x: r.x - r.dir * 16, y: r.y - P.POLE_H - i * P.LAMP_GAP };
-  return { x: r.x + r.w / 2, y: r.y + r.h - 20 - i * P.LAMP_GAP };
+  const p = poleAt(r);
+  return { x: p.x, y: p.foot - P.POLE_H - i * P.LAMP_GAP };
 }
 
 function senderLampAt(s, cfg) {
@@ -285,9 +298,9 @@ export function drawSenders(ctx, level, cfg) {
 }
 
 /**
- * Bridges, and every receiver's lamps. A gate's body is drawn by main.js with
- * the other stone; its lamps go on top of it here. A bridge's lamps sit on a
- * thin signal pole at its root, and the slab shakes while `warn` is set.
+ * Bridges, and every receiver's pole and lamps. A gate's body is drawn by
+ * main.js with the other stone. Every receiver's lamps sit on a thin signal
+ * pole (see poleAt), and a bridge's slab shakes while `warn` is set.
  */
 export function drawReceivers(ctx, level, time, cfg) {
   const C = cfg.COLOURS, P = cfg.CIRCUIT, B = cfg.BRIDGE;
@@ -300,9 +313,13 @@ export function drawReceivers(ctx, level, time, cfg) {
       ctx.fillStyle = C.WALL_EDGE;
       ctx.fillRect(lo, br.y + shake, hi - lo, 5);
     }
-    const top = receiverLampAt(br, br.needs.length - 1, cfg).y - P.LAMP_R - 4;
+  }
+  for (const r of receiversOf(level)) {
+    if (!r.needs.length) continue;
+    const p = poleAt(r);
+    const top = receiverLampAt(r, r.needs.length - 1, cfg).y - P.LAMP_R - 4;
     ctx.fillStyle = C.WALL_EDGE;
-    ctx.fillRect(br.x - br.dir * 16 - 2, top, 4, br.y - top);
+    ctx.fillRect(p.x - 2, top, 4, p.foot - top);
   }
   for (const r of receiversOf(level)) {
     r.needs.forEach((need, i) => {

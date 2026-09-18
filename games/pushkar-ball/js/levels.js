@@ -1184,6 +1184,9 @@ function makeGate(g) {
     ...g,
     kind: 'gate',
     x: g.x, y: g.y,
+    // Where the closed gate stands. Its lamps' signal pole is planted here
+    // and stays put while the gate slides up.
+    foot: g.y + g.h,
     openT: 0,          // 0 closed, 1 fully open
     dx: 0, dy: 0,
     vx: 0, vy: 0,
