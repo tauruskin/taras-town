@@ -33,7 +33,7 @@ All commands run from the repository root, `d:/VIBE CODING/Taras-Town`.
 | `games/pushkar-ball/js/player.js` | `respawn` resets senders; `update` calls `level.noteBall(this)` |
 | `games/pushkar-ball/js/main.js` | draw wires/senders/receivers from circuits; delete `drawSwitches` |
 | `games/pushkar-ball/css/style.css` | level grid: 5 columns, so 9 tiles are 2 rows |
-| `sw.js` | precache `circuits.js`; bump cache name |
+| `sw.js` | precache `circuits.js` (cache name unchanged) |
 | `games/pushkar-ball/tests/offline/circuits.mjs` | **new** |
 | `games/pushkar-ball/tests/offline/levels.mjs` | wiring checks |
 | `games/pushkar-ball/tests/offline/finish.mjs` | routes 8 and 9; spare-time check; negative checks |
@@ -943,7 +943,7 @@ git commit -m "Add bridges: a one-segment slab that slides out while powered"
 - Modify: `games/pushkar-ball/js/circuits.js` (append drawing)
 - Modify: `games/pushkar-ball/js/main.js` (import; `draw()`; delete `drawSwitches`)
 - Modify: `games/pushkar-ball/css/style.css` (`#level-grid`)
-- Modify: `sw.js` (PRECACHE, CACHE)
+- Modify: `sw.js` (PRECACHE only)
 
 - [ ] **Step 1: Append the drawing to `circuits.js`**
 
@@ -1132,10 +1132,7 @@ Delete the function `drawSwitches` and its doc comment from `main.js` (its drawi
 }
 ```
 
-- [ ] **Step 4: Precache the new module** — in `sw.js`, add `'./games/pushkar-ball/js/circuits.js',` directly after `'./games/pushkar-ball/js/enemies.js',`, and change `const CACHE = 'pushkar-games-v2';` to `const CACHE = 'pushkar-games-v3';` so installed copies fetch the new list. Then check no test pins the old name:
-
-Run: `grep -rn "pushkar-games-v" games/*/tests sw.js`
-Expected: only the `sw.js` line. If a test pins `v2`, update it to `v3`.
+- [ ] **Step 4: Precache the new module** — in `sw.js`, add `'./games/pushkar-ball/js/circuits.js',` directly after `'./games/pushkar-ball/js/enemies.js',`. **Do NOT change `CACHE`**: sw.js's own comment says it is bumped only when a listed file is renamed or removed, and a bump for an appended file was once made and reverted on exactly this misunderstanding.
 
 - [ ] **Step 5: Run the offline suites of BOTH games** (sw.js is shared)
 
