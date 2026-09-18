@@ -248,6 +248,10 @@ export const CONFIG = {
     CAP_R: 11,       // drawn radius of the cap, which is also the sender's lamp
     RING_W: 5,       // drawn width of a timer's ring
     LAMP_R: 8,       // drawn radius of one of a receiver's lamps
+    // A plate's lamp, let into the 14-thick slab (SWITCH.H) with a pale rim
+    // round it so it reads against the dark stone. It was 4 and all but
+    // vanished.
+    PLATE_LAMP_R: 5.5,
     LAMP_GAP: 22,    // between a receiver's lamps, centre to centre
     // How high a bridge's first lamp sits on its signal pole, above the deck.
     // Well above a floor button's cap (POST_H / 2 = 25 up), so a wire that
@@ -258,6 +262,12 @@ export const CONFIG = {
     // the bridge.
     POLE_H: 60,
     WIRE_W: 3,
+    // A wire's dark sheath, this much wider than the wire, drawn under it so
+    // a wire reads against the pale hills. How much of an unlit wire's own
+    // colour shows over its sheath: never 1, so an unlit wire is never the
+    // lit colour (tests/browser/wiring.mjs counts exact lit pixels).
+    WIRE_SHEATH: 2,
+    WIRE_UNLIT_ALPHA: 0.5,
     // A sender and every receiver it drives are at most this far apart
     // horizontally. VIEW_H is 540 on every screen, so a 568x320 phone sees
     // 540 * 568/320 = 958 units across; 900 is what fits both ends of a wire

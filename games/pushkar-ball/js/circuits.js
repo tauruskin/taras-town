@@ -234,22 +234,28 @@ function lamp(ctx, x, y, r, colour, lit, ring, cfg) {
 
 /**
  * Every wire, straight from a sender's lamp to the receiver lamp it lights,
- * full colour while the sender is on and faint while it is off. Call it
- * BEFORE the ground is drawn, so a wire reads as buried where it passes under
- * the ground.
+ * over a dark sheath: full colour while the sender is on, its colour washed
+ * over the sheath while it is off — dim, but it still reads on a pale hill,
+ * which a faint line alone did not. Call it BEFORE the ground is drawn, so a
+ * wire reads as buried where it passes under the ground.
  */
 export function drawWires(ctx, level, cfg) {
-  ctx.lineWidth = cfg.CIRCUIT.WIRE_W;
+  const P = cfg.CIRCUIT;
   for (const r of receiversOf(level)) {
     r.needs.forEach((need, i) => {
       const s = level.senders.find((x) => x.id === parseNeed(need).id);
       if (!s) return;
       const a = senderLampAt(s, cfg), b = receiverLampAt(r, i, cfg);
-      ctx.globalAlpha = s.pressed ? 1 : 0.3;
-      ctx.strokeStyle = s.colour;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
+      ctx.lineWidth = P.WIRE_W + P.WIRE_SHEATH;
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = cfg.COLOURS.LAMP_OFF;
+      ctx.stroke();
+      ctx.lineWidth = P.WIRE_W;
+      ctx.globalAlpha = s.pressed ? 1 : P.WIRE_UNLIT_ALPHA;
+      ctx.strokeStyle = s.colour;
       ctx.stroke();
     });
   }
@@ -271,7 +277,12 @@ export function drawSenders(ctx, level, cfg) {
       ctx.fillRect(s.x, s.y - S.H, s.w, S.H);
       ctx.fillStyle = C.SWITCH_PLATE;
       ctx.fillRect(s.x, s.y - S.H + dip, s.w, S.H - dip);
-      lamp(ctx, s.x + s.w / 2, s.y - S.H / 2 + dip / 2, 4, s.colour, s.pressed, false, cfg);
+      const ly = s.y - S.H / 2 + dip / 2;
+      ctx.fillStyle = C.RING_TRACK;
+      ctx.beginPath();
+      ctx.arc(s.x + s.w / 2, ly, P.PLATE_LAMP_R + 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      lamp(ctx, s.x + s.w / 2, ly, P.PLATE_LAMP_R, s.colour, s.pressed, false, cfg);
       continue;
     }
     const p = postBox(s, cfg);
