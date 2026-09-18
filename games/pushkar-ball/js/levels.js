@@ -20,6 +20,9 @@ import { CONFIG } from './config.js';
 // nothing that touches the segment world or the DOM.
 import { hitsSpikes, spikeHit, spikeHeight } from './hazards.js';
 import { makeWalker, makeRoller, makePopper, enemyHit, projectileHit } from './enemies.js';
+// The wiring: senders and the needs logic. circuits.js imports nothing, so
+// this adds no cycle and nothing that touches the DOM.
+import { makeSender, postBox, updateSenders, resetSenders as clearSenders, powered, warning, rampToward } from './circuits.js';
 
 // A note on how long a level is, and how sparse its checkpoints are.
 //
@@ -952,30 +955,17 @@ function makeMover(p) {
 }
 
 /**
- * Move `value` toward `target` at `rate` (a fraction of the value's full
- * range per second) over `dt`, clamping so it never overshoots and holding
- * exactly AT `target` once reached — a two-way ternary
- * (`target > value ? increase : decrease`) oscillates forever the instant
- * `value` hits `target` exactly, since `target > target` is false and falls
- * into the decrease branch. Shared by a gate's own `openT` and a switch's
- * cosmetic `animT`, which both hit exactly this bug once already before
- * being unified here.
- */
-function rampToward(value, target, dt, rate) {
-  const step = dt * rate;
-  if (target > value) return Math.min(target, value + step);
-  if (target < value) return Math.max(target, value - step);
-  return value;
-}
-
-/**
  * A gate: a solid box like a wall, except its position slides straight up
- * to clear a passage while its switch is pressed, and back down when it
- * isn't. `g.y`/`g.h` are the CLOSED position and height — the same
- * "y is the top, h reaches down to the ground" convention a plain stone
- * wall already uses — and `gate.y` is where it is RIGHT NOW, sliding from
- * `g.y` (closed) up to `g.y - g.h` (fully open, its old footprint entirely
- * clear).
+ * to clear a passage while it is powered, and back down when it isn't.
+ * `g.y`/`g.h` are the CLOSED position and height — the same "y is the top,
+ * h reaches down to the ground" convention a plain stone wall already uses —
+ * and `gate.y` is where it is RIGHT NOW, sliding from `g.y` (closed) up to
+ * `g.y - g.h` (fully open, its old footprint entirely clear).
+ *
+ * `g.needs` is what powers it — see circuits.js. A closing gate never comes
+ * down onto anything: while `blocked`, it holds where it is and finishes
+ * closing once the way is clear. A timer can run out with the ball halfway
+ * through, and a door that lands on him is not a door he trusts again.
  *
  * Owes the same four carrier fields a crate or a moving platform does: its
  * top is something the ball could be standing on while it swings, and a
@@ -985,15 +975,16 @@ function rampToward(value, target, dt, rate) {
 function makeGate(g) {
   const gate = {
     ...g,
+    kind: 'gate',
     x: g.x, y: g.y,
     openT: 0,          // 0 closed, 1 fully open
     dx: 0, dy: 0,
     vx: 0, vy: 0,
     segments: [],
 
-    update(dt, pressed) {
+    update(dt, isPowered, blocked) {
       const wasY = gate.y;
-      const target = pressed ? 1 : 0;
+      const target = isPowered ? 1 : (blocked ? gate.openT : 0);
       gate.openT = rampToward(gate.openT, target, dt, 1 / CONFIG.GATE.OPEN_TIME);
       const ny = g.y - g.h * gate.openT;
       gate.dy = ny - wasY;
@@ -1005,13 +996,23 @@ function makeGate(g) {
       for (const s of gate.segments) s.owner = gate;
     },
 
+    /**
+     * Is this presser box standing in the gate's CLOSED footprint? Inset by
+     * 2 units either side, so a ball or crate merely resting against the
+     * gate's face — flush, give or take floating-point dust — is not "under"
+     * it and cannot hold a half-open gate open by leaning.
+     */
+    isUnder(p) {
+      return p.x < g.x + g.w - 2 && p.x + p.w > g.x + 2 && p.y < g.y + g.h && p.y + p.h > g.y;
+    },
+
     overlaps(x, y, r) {
       return x + r > gate.x && x - r < gate.x + g.w && y + r > gate.y && y - r < gate.y + g.h;
     },
   };
-  gate.update(0, false);
-  // update(0, false) reports a delta from the gate's declared position to
-  // its position at t=0, which is not movement anybody rode.
+  gate.update(0, false, false);
+  // update(0, ...) reports a delta from the gate's declared position to its
+  // position at t=0, which is not movement anybody rode.
   gate.dy = 0; gate.vy = 0;
   return gate;
 }
@@ -1327,6 +1328,29 @@ class Level {
     this.walls = (data.boxes || []).filter((b) => !b.movable);
     this.crates = (data.boxes || []).filter((b) => b.movable).map(makeCrate);
     for (const b of this.walls) segs.push(...boxSegments(b.x, b.y, b.w, b.h));
+    // Senders. Level six's old `switches` are plates by another name and are
+    // read as exactly that, first, so its data never has to change. A
+    // button's or timer's post is stone and never moves, so it is baked into
+    // the static segments like any wall — which is also what stops a crate
+    // being pushed through one. Posts are deliberately NOT in `this.walls`:
+    // finish.mjs's generic runner hops every low wall it sees, and a button
+    // is something a route has to press, not hop.
+    const senderData = [
+      ...(data.switches || []).map((s) => ({ ...s, kind: 'plate' })),
+      ...(data.senders || []),
+    ];
+    this.senders = senderData.map((d, i) => makeSender(d, i, CONFIG));
+    for (const s of this.senders) {
+      if (s.kind === 'plate') continue;
+      const p = postBox(s, CONFIG);
+      segs.push(...boxSegments(p.x, p.y, p.w, p.h));
+    }
+    // Kept under its old name for the plates alone — the same objects, not
+    // copies — because level six's tests and route have always asked for it.
+    this.switches = this.senders.filter((s) => s.kind === 'plate');
+    // The ball tells the level where it is each step (see noteBall), so the
+    // wiring can count it as a presser. Null until the first step.
+    this.ball = null;
 
     // Checkpoints are not colliders and never touch the segment world; they
     // are places the ball remembers. `taken` is per-run state and belongs on
@@ -1345,15 +1369,10 @@ class Level {
       return p;
     });
 
-    // A switch is not a collider either, and never enters the segment world
-    // — the ball and any crate roll over its ground exactly as if it wasn't
-    // there. It only ever reports whether some crate is currently resting
-    // on it; `Level.update` is what turns that into a gate opening.
-    this.switches = (data.switches || []).map((s) => ({ id: s.id, x: s.x, y: s.y, w: s.w, pressed: false, animT: 0 }));
-
     // Gates ARE colliders, but dynamic ones — they move, so like crates and
-    // movers they must stay OUT of the static grid built below.
-    this.gates = (data.gates || []).map(makeGate);
+    // movers they must stay OUT of the static grid built below. An old
+    // `switchId` becomes `needs: [switchId]`.
+    this.gates = (data.gates || []).map((g) => makeGate({ ...g, needs: g.needs || (g.switchId ? [g.switchId] : []) }));
 
     // Breakables ARE colliders, and dynamic in the one way that matters —
     // they stop existing — so like gates they stay OUT of the static grid.
@@ -1413,21 +1432,15 @@ class Level {
     for (const e of this.enemies) e.update(dt, this.time, this, CONFIG);
     for (const p of this.pads) p.squashT = Math.max(0, p.squashT - dt);
     for (const b of this.breakables) b.wobbleT = Math.max(0, b.wobbleT - dt);
-    // A switch is pressed by any crate resting on it — never the ball
-    // itself. Crates are updated above this line, so `grounded` is already
-    // this step's answer, not last step's. `animT` is purely cosmetic — how
-    // far `drawSwitches`' own dip has eased towards pressed or not — and
-    // advanced here the same way a pad's `squashT` already is, so main.js
-    // only ever reads it.
-    for (const sw of this.switches) {
-      sw.pressed = this.crates.some((c) => c.grounded && c.x < sw.x + sw.w && c.x + c.w > sw.x);
-      const target = sw.pressed ? 1 : 0;
-      sw.animT = rampToward(sw.animT, target, dt, 1 / CONFIG.SWITCH.PRESS_TIME);
-    }
-    for (const g of this.gates) {
-      const sw = this.switches.find((s) => s.id === g.switchId);
-      g.update(dt, !!(sw && sw.pressed));
-    }
+    // Wiring. Every presser is a box. Crates are this step's — they were
+    // updated above — and the ball is last step's, the same one-step lag a
+    // rider on a platform already lives with. A deflating ball presses
+    // nothing: it is not really there.
+    const pressers = this.crates.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, heavy: true, resting: c.grounded }));
+    const b = this.ball;
+    if (b && !b.dying) pressers.push({ x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded });
+    updateSenders(this.senders, dt, pressers, CONFIG);
+    for (const g of this.gates) g.update(dt, powered(g.needs, this.senders), pressers.some((p) => g.isUnder(p)));
     if (this.particles.length) {
       for (const p of this.particles) {
         p.x += p.vx * dt;
@@ -1436,6 +1449,21 @@ class Level {
       }
       this.particles = this.particles.filter((p) => p.life > 0);
     }
+  }
+
+  /**
+   * The ball saying where it is. Called by player.js once per step, after it
+   * has moved, the same way it already asks `takeCheckpoint` — so the wiring
+   * can count the ball as a presser on the next `update`, with no caller
+   * anywhere having to pass the ball in.
+   */
+  noteBall(ball) {
+    this.ball = ball;
+  }
+
+  /** Every button and timer back as the level declared it. Called on every respawn. */
+  resetSenders() {
+    clearSenders(this.senders);
   }
 
   /**

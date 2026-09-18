@@ -92,6 +92,11 @@ export class Ball {
     this.dying = 0;
     this.reviving = 0;
     this.iframe = 0;
+    // A fall or a run-out puts every button and timer back as the level
+    // declared it, so a room is never left half-solved in a state nobody
+    // chose. levels.mjs makes sure no checkpoint sits between a button and
+    // the door it opens, which is what makes this safe.
+    if (level) level.resetSenders();
     if (this.zeroHearts) {
       this.hearts = CONFIG.HEALTH.HEARTS;
       this.zeroHearts = false;
@@ -442,6 +447,9 @@ export class Ball {
       // harder than the level intended.
       this.hearts = C.HEALTH.HEARTS;
     }
+
+    // --- tell the wiring where we are --------------------------------------
+    level.noteBall(this);
 
     // --- fell out of the world -------------------------------------------
     //

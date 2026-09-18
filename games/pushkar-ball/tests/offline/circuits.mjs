@@ -182,5 +182,96 @@ console.log('\n9. resting on top of a post does not press it, only hanging over 
   if (!ss[0].pressed) fail('a presser hanging 10 units over the capped side did not press it');
 }
 
+// --- Part 2: a real ball on a real level ----------------------------------
+const { Ball } = await import('../../js/player.js');
+const { loadLevel, LEVELS } = await import('../../js/levels.js');
+const GROUND = 760;
+const stage = (extra) => loadLevel({
+  id: 96, theme: 'hills',
+  bounds: { w: 3000, h: 1080 },
+  spawn: { x: 200, y: 600 },
+  ground: [[[40, GROUND], [2960, GROUND]]],
+  boxes: [{ x: 0, y: 0, w: 40, h: 1080 }, { x: 2960, y: 0, w: 40, h: 1080 }],
+  platforms: [],
+  ...extra,
+});
+const drive = (ball, level, want, seconds) => {
+  const input = { left: !!want.left, right: !!want.right, takeJump: () => false };
+  for (let i = 0; i < Math.round(seconds / STEP); i++) {
+    level.update(STEP);
+    ball.update(STEP, input, level);
+  }
+};
+
+console.log('\n10. the ball rolls into a button, and the gate it drives opens');
+{
+  const level = stage({
+    senders: [{ id: 'a', kind: 'button', x: 800, y: GROUND, face: 'left' }],
+    gates: [{ x: 1200, y: GROUND - 200, w: 40, h: 200, needs: ['a'] }],
+  });
+  const ball = new Ball(400, GROUND - 20);
+  drive(ball, level, { right: true }, 3);
+  const s = level.senders[0];
+  console.log(`   pressed=${s.pressed}, ball stopped at x=${ball.x.toFixed(1)}, gate openT=${level.gates[0].openT.toFixed(2)}`);
+  if (!s.pressed) fail('rolling into a left button did not press it');
+  if (ball.x > 800 - ball.r + 1) fail(`the ball went through the post — it is at ${ball.x.toFixed(1)}`);
+  if (level.gates[0].openT !== 1) fail('the gate did not open fully');
+}
+
+console.log('\n11. a crate pushed into a button presses it');
+{
+  const level = stage({
+    boxes: [{ x: 0, y: 0, w: 40, h: 1080 }, { x: 2960, y: 0, w: 40, h: 1080 },
+            { x: 500, y: GROUND - 100, w: 100, h: 100, movable: true }],
+    senders: [{ id: 'a', kind: 'button', x: 800, y: GROUND, face: 'left' }],
+  });
+  const ball = new Ball(420, GROUND - 20);
+  drive(ball, level, { right: true }, 4);
+  const crate = level.crates[0];
+  console.log(`   crate stopped at x=${crate.x.toFixed(1)} (post at 800), pressed=${level.senders[0].pressed}`);
+  if (crate.x + crate.w > 800 + 0.5) fail('the crate was pushed into the post');
+  if (!level.senders[0].pressed) fail('the crate against the button did not press it');
+}
+
+console.log('\n12. a respawn puts buttons back');
+{
+  const level = stage({ senders: [{ id: 'a', kind: 'button', x: 800, y: GROUND, face: 'left' }] });
+  const ball = new Ball(400, GROUND - 20);
+  drive(ball, level, { right: true }, 3);
+  if (!level.senders[0].pressed) fail('setup: the button was never pressed');
+  ball.respawn(level);
+  if (level.senders[0].pressed) fail('a respawn left a button pressed');
+}
+
+console.log('\n13. a closing gate does not come down on the ball');
+{
+  const level = stage({
+    senders: [{ id: 't', kind: 'timer', x: 800, y: GROUND, face: 'left', time: 1.5 }],
+    gates: [{ x: 1200, y: GROUND - 200, w: 40, h: 200, needs: ['t'] }],
+  });
+  const gate = level.gates[0];
+  const ball = new Ball(400, GROUND - 20);
+  // Pressed about 1s in, so at 2s the timer still has ~0.5s and the gate is
+  // fully open when the ball is put under it.
+  drive(ball, level, { right: true }, 2);
+  if (!level.senders[0].pressed || gate.openT !== 1) fail(`setup: timer pressed=${level.senders[0].pressed}, gate openT=${gate.openT}`);
+  ball.x = 1220; ball.y = GROUND - 20; ball.vx = 0; ball.vy = 0;   // stand under the gate
+  drive(ball, level, {}, 2);                        // the timer runs out meanwhile
+  console.log(`   ball under the gate after the timer ran out: openT=${gate.openT.toFixed(2)}, ball y=${ball.y.toFixed(1)}`);
+  if (gate.openT < 0.99) fail(`the gate came down on the ball (openT ${gate.openT.toFixed(2)})`);
+  ball.x = 1500;
+  drive(ball, level, {}, CONFIG.GATE.OPEN_TIME + 0.2);
+  if (gate.openT !== 0) fail(`once the ball moved away the gate did not finish closing (openT ${gate.openT})`);
+}
+
+console.log('\n14. level six still loads its old switch as a plate');
+{
+  const level = loadLevel(LEVELS.find((l) => l.id === 6));
+  const s = level.senders;
+  if (s.length !== 1 || s[0].kind !== 'plate' || s[0].id !== 'gate1') fail(`level 6's senders are ${JSON.stringify(s.map((x) => [x.id, x.kind]))}`);
+  if (level.switches[0] !== s[0]) fail('level.switches is not the plate sender itself');
+  if (JSON.stringify(level.gates[0].needs) !== '["gate1"]') fail(`level 6's gate needs ${JSON.stringify(level.gates[0].needs)}`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
 process.exit(failures ? 1 : 0);
