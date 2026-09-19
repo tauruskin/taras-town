@@ -1115,7 +1115,21 @@ console.log('\n3l. level ten: stomp the dazed charger, and still finish');
     console.log(`   lead ${lead}: stomped=${stomped}, came back=${back}, won=${ball.won} in ${t.toFixed(1)}s, hits=${ball.hits}`);
     if (!stomped) fail(`level ten, lead ${lead}: never stomped the dazed charger`);
     if (!ball.won || ball.deaths) fail(`level ten, lead ${lead}: after a stomp the level was not finished cleanly`);
+    // A heart lost here is the ball landing on the charger over the step, or
+    // still over it when its daze ends: both were seen before holdAtStep.
+    if (ball.hits) fail(`level ten, lead ${lead}: the stomp route lost ${ball.hits} heart(s)`);
   }
+  // Section 1 counts lives, not hearts. For level ten a heart lost on its
+  // own route means the same regression, so every lead and delay is re-run
+  // here and must lose none.
+  let hitRuns = 0;
+  for (const lead of LEADS) {
+    for (const delay of DELAYS) {
+      const { ball } = play(data, (lv) => ROUTES[10](lv, lead), { delay });
+      if (ball.hits) { hitRuns++; fail(`level ten's route, lead ${lead} delay ${delay}: lost ${ball.hits} heart(s)`); }
+    }
+  }
+  if (!hitRuns) console.log(`   level ten's own route: no heart lost in ${LEADS.length * DELAYS.length} runs`);
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------
