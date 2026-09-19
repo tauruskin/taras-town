@@ -160,11 +160,46 @@ export function ballAt(ev) {
   })()`);
 }
 
+/** Put a thumb down on a button and leave it there. */
+export function press({ send }, b) {
+  return send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x, y: b.y, id: 1 }] });
+}
+
+/** Lift every thumb. */
+export function release({ send }) {
+  return send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
 /** Hold a button down for a while. */
-export function makeHold({ send, sleep }) {
+export function makeHold(cdp) {
   return async (b, ms) => {
-    await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: b.x, y: b.y, id: 1 }] });
-    await sleep(ms);
-    await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await press(cdp, b);
+    await cdp.sleep(ms);
+    await release(cdp);
   };
+}
+
+/**
+ * Put the browser on a given screen with every level unlocked, and start the
+ * level at `index` in the level list from level select, the way a player
+ * would. `atSelect`, if given, runs while level select is showing — for a
+ * picture of it.
+ *
+ * The save is written from inside the page, so it goes through the page's own
+ * origin, then the page is loaded again to read it.
+ */
+export async function openLevel(cdp, url, w, h, index, levelCount, atSelect) {
+  const { send, sleep, ev } = cdp;
+  await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: true });
+  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  await send('Page.navigate', { url });
+  await sleep(1600);
+  await ev(`localStorage.setItem('pushkar-ball-save', JSON.stringify({ unlocked: ${levelCount}, finished: [] }))`);
+  await send('Page.navigate', { url });
+  await sleep(1600);
+  await ev("document.getElementById('start-button').click()");
+  await sleep(400);
+  if (atSelect) await atSelect();
+  await ev(`document.querySelectorAll('#level-grid .tile')[${index}].click()`);
+  await sleep(900);
 }

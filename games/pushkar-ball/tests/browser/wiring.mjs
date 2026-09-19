@@ -4,7 +4,7 @@
 // the same way the ball is found by its hue. The colour is the first sender's,
 // read from config.js; unlit lamps and faint wires are deliberately never
 // that exact colour (see circuits.js's drawing notes).
-import { connect, makeHold } from './_helpers.mjs';
+import { connect, makeHold, openLevel } from './_helpers.mjs';
 
 const URL = process.argv[2];
 const TAG = process.argv[3] || 'wiring';
@@ -32,24 +32,12 @@ const lit = () => ev(`(() => {
   return n;
 })()`);
 
-async function openLevel(W, H, id) {
-  const index = LEVELS.findIndex((l) => l.id === id);
-  await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 2, mobile: true });
-  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  await send('Page.navigate', { url: URL });
-  await sleep(1600);
-  await ev(`localStorage.setItem('pushkar-ball-save', JSON.stringify({ unlocked: ${LEVELS.length}, finished: [] }))`);
-  await send('Page.navigate', { url: URL });
-  await sleep(1600);
-  await ev("document.getElementById('start-button').click()");
-  await sleep(400);
-  await ev(`document.querySelectorAll('#level-grid .tile')[${index}].click()`);
-  await sleep(900);
-}
+const open = (W, H, id) =>
+  openLevel(cdp, URL, W, H, LEVELS.findIndex((l) => l.id === id), LEVELS.length);
 
 for (const [W, H] of [[568, 320], [740, 280]]) {
   console.log(`\n${W}x${H}, level 8: a button`);
-  await openLevel(W, H, 8);
+  await open(W, H, 8);
   const before = await lit();
   await shoot(`${W}x${H}-8-before`);
   await hold(Buttons.right(W, H), 4000);
@@ -61,7 +49,7 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   if (after < 300) fail(`only ${after} lit-colour pixels after rolling into the button — its lamp, wire and door lamp did not light`);
 
   console.log(`\n${W}x${H}, level 9: a timer`);
-  await openLevel(W, H, 9);
+  await open(W, H, 9);
   await hold(Buttons.right(W, H), 4000);
   await sleep(300);
   const running = await lit();

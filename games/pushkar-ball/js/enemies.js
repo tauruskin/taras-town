@@ -456,6 +456,10 @@ function drawCharger(ctx, e, time, cfg) {
   const r = e.r, d = e.dir;
   const feet = e.y + r;
   let squash = 1, lean = 0, paw = 0;
+  // The wind-up's 0.82 squash is also what tests/browser/chargers.mjs sees
+  // the crouch by: it takes the body-colour count to about 0.8 of a standing
+  // charger's, under that suite's 0.9 threshold. Squash less than about 0.88
+  // and the suite has to be told.
   if (e.state === 'windup') { squash = 0.82; paw = Math.sin(e.stateT * 28) * r * 0.25; }
   if (e.state === 'charge') lean = 0.22;
   if (e.state === 'dazed') lean = Math.sin(time * 9) * 0.12;
@@ -483,9 +487,12 @@ function drawCharger(ctx, e, time, cfg) {
 
   ctx.save();
   ctx.translate(e.x, feet);
-  // A charge leans on its front foot, not on its middle: turned about the
-  // middle, the nose-down lean pushed the front leg through the ground.
-  const pivot = e.state === 'charge' ? d * r * 0.75 : 0;
+  // Any lean turns about the foot on the side that goes down — the front
+  // foot for a charge's nose-down lean, either foot as the daze wobbles —
+  // never about the middle: turned about the middle, the charge's lean
+  // pushed the front leg through the ground. A positive turn lowers the +x
+  // side, so the sign of the turn picks the foot.
+  const pivot = Math.sign(lean * d) * r * 0.75;
   ctx.translate(pivot, 0);
   ctx.rotate(lean * d);
   ctx.translate(-pivot, 0);

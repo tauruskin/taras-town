@@ -9,7 +9,7 @@
 // enemy but the charger) and that the page threw nothing. The pictures are
 // the point: look at every one of them.
 // Then level eleven's opening, for the level-select tile and the roofs.
-import { connect, makeHold } from './_helpers.mjs';
+import { connect, makeHold, press, release, openLevel } from './_helpers.mjs';
 
 const URL = process.argv[2];
 const TAG = process.argv[3] || 'chargers';
@@ -37,63 +37,69 @@ const enemyPixels = () => ev(`(() => {
   return n;
 })()`);
 
-async function openLevel(W, H, id) {
-  const index = LEVELS.findIndex((l) => l.id === id);
-  await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 2, mobile: true });
-  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  await send('Page.navigate', { url: URL });
-  await sleep(1600);
-  await ev(`localStorage.setItem('pushkar-ball-save', JSON.stringify({ unlocked: ${LEVELS.length}, finished: [] }))`);
-  await send('Page.navigate', { url: URL });
-  await sleep(1600);
-  await ev("document.getElementById('start-button').click()");
-  await sleep(400);
-  await shoot(`${W}x${H}-levels`);
-  await ev(`document.querySelectorAll('#level-grid .tile')[${index}].click()`);
-  await sleep(900);
-}
+// Level select is photographed on the way in, every time: it is where the
+// eleventh tile has to fit.
+const open = (W, H, id) =>
+  openLevel(cdp, URL, W, H, LEVELS.findIndex((l) => l.id === id), LEVELS.length,
+            () => shoot(`${W}x${H}-levels`));
+
+const K = CONFIG.ENEMY.CHARGER;
 
 for (const [W, H] of [[568, 320], [740, 280]]) {
   console.log(`\n${W}x${H}, level 10: the charger's poses`);
-  await openLevel(W, H, 10);
+  await open(W, H, 10);
   // Spawn 200 to the pen's step at 1400; with no jump the ball stops there,
-  // in about three seconds. The charger starts at 2100 walking left and sees
-  // the ball from 240 away, a little after that — so the pictures start
-  // before the ball arrives, or the patrol towards it is never in one.
-  const right = Buttons.right(W, H);
-  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: right.x, y: right.y, id: 1 }] });
+  // at about 1375, some three seconds into the hold. The charger starts at
+  // 2100 walking left at PATROL_SPEED and sees the ball from SEE away, at
+  // about 1615: (2100 - 1615) / 120 is about 4s into the level, or 3.1s
+  // into the hold, since the level starts 0.9s before it. So the pictures
+  // start at 1.8s, well before that, or the patrol towards the ball is never
+  // in one.
+  await press(cdp, Buttons.right(W, H));
   const began = Date.now();
   let held = true;
   await sleep(1800);
   // The charge itself is short: from where it sees the ball to the step is
-  // about 130 at 480/s, under 0.3s, so a picture every quarter second can
-  // step right over it. The wind-up's crouch is the cue — it draws the body
-  // squashed, so its colour count drops below nine tenths of the most seen —
-  // and from there the pictures are taken back to back for a while, which
-  // catches the rest of the wind-up and the charge.
-  let seen = 0, burst = 0, bursted = false;
+  // about 130 at CHARGE_SPEED, under 0.3s, so a picture every quarter second
+  // can step right over it. The wind-up's crouch is the cue: drawCharger
+  // squashes the body to 0.82 of its height while winding up, which takes
+  // the colour count to about 0.8 of a standing charger's, so a count below
+  // 0.9 of the most seen so far is the crouch. From there the pictures are
+  // taken back to back, by the clock rather than by counting frames: for
+  // the whole of WINDUP (the crouch may be caught at its very start), the
+  // longest charge the level allows (SEE / CHARGE_SPEED, 0.5s), and 0.2s
+  // over. That is about a dozen pictures at the ~125ms one takes here.
+  //
+  // 32 pictures in all: a few of the patrol towards the ball, the burst,
+  // and then about 17 a quarter second apart (some 6s) — the whole of the
+  // 3s daze and its stars going, and the patrol away until it walks off.
+  const burstFor = (K.WINDUP + K.SEE / K.CHARGE_SPEED + 0.2) * 1000;
+  let seen = 0, burstUntil = 0;
   const counts = [];
   for (let i = 0; i < 32; i++) {
     if (held && Date.now() - began >= 3600) {
-      await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await release(cdp);
       held = false;
     }
     const n = await enemyPixels();
     counts.push(n);
-    if (!bursted && n > 0 && n < 0.9 * seen) { burst = 12; bursted = true; }
+    if (!burstUntil && n > 0 && n < 0.9 * seen) burstUntil = Date.now() + burstFor;
     seen = Math.max(seen, n);
     await shoot(`${W}x${H}-10-${String(i).padStart(2, '0')}`);
-    if (burst > 0) burst--;
-    else await sleep(250);
+    if (Date.now() >= burstUntil) await sleep(250);
   }
-  if (!bursted) fail(`the wind-up's crouch was never seen at ${W}x${H}, so the charge may not be in any picture`);
-  if (held) await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  if (!burstUntil) fail(`the wind-up's crouch was never seen at ${W}x${H}, so the charge may not be in any picture`);
+  if (held) await release(cdp);
   console.log(`   charger-colour pixels, frame by frame: ${counts.join(' ')}`);
   console.log(`   most charger-colour pixels in one frame: ${seen}`);
-  if (seen < 200) fail(`the charger was never drawn at ${W}x${H} (at most ${seen} pixels of its colour)`);
+  // A standing charger, whole on screen, measured about 1500 at 568x320 and
+  // 1100 at 740x280 (and a crouch about 1200 and 920). 500 is under half the
+  // smaller, so a charger partly off the edge still passes, while a few
+  // stray pixels of that violet somewhere never could.
+  if (seen < 500) fail(`the charger was never drawn at ${W}x${H} (at most ${seen} pixels of its colour)`);
 
   console.log(`\n${W}x${H}, level 11: opening`);
-  await openLevel(W, H, 11);
+  await open(W, H, 11);
   await hold(Buttons.right(W, H), 3000);
   await shoot(`${W}x${H}-11-roof`);
   // And on up the slope onto the roof itself, with the charger in its pen
