@@ -1214,27 +1214,29 @@ export const LEVELS = [
     // sight, so the child has to stand close to lure it, then run.
     // finish.mjs's 2c measures the time that takes.
     //
-    // Every position here is the paper layout, and finish.mjs let it stand:
-    // nothing was moved. What finish.mjs runs is its usual three leads at
-    // start delays 0-4.5s, and from both checkpoints: every run finished,
-    // none lost a heart (this level is in its COUNTS_HEARTS, so one would
-    // fail it), and the slowest got through room B's door in 56% of the
-    // daze, under 2c's 60% — the lead-1.3 thumb that hesitates 0.9s and
-    // hops once (1.69s); one that does not hesitate uses 21% (0.63s). The
-    // time does not depend on the delay at all, since every charge ends at
-    // 5734. 3m shows the ball alone, coming to every spot in the yard from
-    // either side and rolling or jumping each way, never presses b or breaks
-    // the planks; 3n that a ball which misses the door, and rests against
-    // it out of sight, can lure the charger again and get through on the
-    // second daze. A scratch sweep, not run there (five leads 0.7-1.3,
-    // delays 0-25s every 0.25s — longer than a whole patrol of either pen,
-    // 505 runs, plus both checkpoints), found the same: no heart lost,
-    // worst 56%. It cannot be otherwise for the hearts: each charger is shut
-    // in its pen and the ball never gets in, so the route needs no `dodge`.
-    // There are no crates here, so no dead-end check of one. The one thin
-    // number is 2c's margin, 4% of a 3s daze: moving room B's door left,
-    // keeping it more than SEE from 5734, is the first thing to try if it
-    // ever goes over.
+    // Every position the suites measure is the paper layout, and finish.mjs
+    // let it stand. The only numbers changed since are the two pen floors,
+    // extended 40 left under their walls (1840 to 1800, 4740 to 4700) to mend
+    // a crack drawn below each wall; finish.mjs and levels.mjs reported the
+    // same results before and after. What finish.mjs runs is its usual three
+    // leads at start delays 0-4.5s, and from both checkpoints: every run
+    // finished, none lost a heart (this level is in its COUNTS_HEARTS, so one
+    // would fail it), and the slowest got through room B's door in 56% of the
+    // daze, under 2c's 60% — the lead-1.3 thumb that hesitates 0.9s and hops
+    // once (1.69s); one that does not hesitate uses 21% (0.63s). The time
+    // does not depend on the delay at all, since every charge ends at 5734.
+    // 3m shows the ball alone, coming to every spot in the yard from either
+    // side and rolling or jumping each way, never presses b or breaks the
+    // planks; 3n that a ball which misses the door, and rests against it out
+    // of sight, can lure the charger again and get through on the second
+    // daze. A scratch sweep, not run there (five leads 0.7-1.3, delays 0-25s
+    // every 0.25s — longer than a whole patrol of either pen, 505 runs, plus
+    // both checkpoints), found the same: no heart lost, worst 56%. It cannot
+    // be otherwise for the hearts: each charger is shut in its pen and the
+    // ball never gets in, so the route needs no `dodge`. There are no crates
+    // here, so no dead-end check of one. The one thin number is 2c's margin,
+    // 4% of a 3s daze: moving room B's door left, keeping it more than SEE
+    // from 5734, is the first thing to try if it ever goes over.
     id: 11,
     theme: 'hills',
     bounds: { w: 7000, h: 1080 },

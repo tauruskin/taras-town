@@ -266,10 +266,12 @@ touching, or a ball parked against a timer would hold its door open for ever;
 resting on top of a post presses nothing. **A respawn resets buttons and
 timers**, which is only safe because no checkpoint sits between a sender and
 what it drives, and a sender is within `CIRCUIT.SEE` of its receivers —
-`levels.mjs` enforces both. **A gate never closes onto the ball or a crate**
-under its closed footprint; it holds and finishes closing once they have moved,
-and since it asks only about those, `levels.mjs` forbids spikes and patrolling
-enemies under any gate. **A bridge's top is its only solid part**, it slides
+`levels.mjs` enforces both. **A gate never closes onto the ball, a crate or a
+charger** under its closed footprint; it holds and finishes closing once they
+have moved, and since it asks only about those, `levels.mjs` forbids spikes,
+walker patrols, roller ranges and charger ranges under any gate — a charger
+because a gate hanging open over one looks just as broken as one closing
+through it. **A bridge's top is its only solid part**, it slides
 out from under what stands on it rather than carrying it, and it shakes for
 its last `CIRCUIT.WARN` second before a timer withdraws it; it still owes
 `dx`/`dy`/`vx`/`vy` like every carrier. And **every crate gets a dead-end
@@ -318,8 +320,9 @@ early.
 
 What it does to the world: a charge breaks plank walls, shoves a crate
 `CRATE_SHOVE` on through the crate's own push (so it can never wedge one
-inside anything), and presses a button whose capped side it runs into. It
-holds a plate down **only while dazed** — heavy all the time would let a
+inside anything), and presses a button whose capped side it touches — any
+touch of the cap presses it, as for the ball, and in practice that touch is
+a charge. It holds a plate down **only while dazed** — heavy all the time would let a
 patrol open a door by walking over its plate. It reaches the wiring through
 three fields every enemy may carry, `presses`, `heavy` and `grounded`, which
 `Level.update` reads to put it on the presser and blocker lists; a closing
@@ -329,8 +332,8 @@ gate therefore never comes down on it.
 `runStates`, and every new enemy is written in it.** An enemy has a `state`,
 a `stateT` (seconds in it) and a table of named states, each with an
 `update` that returns the next state's name or nothing, and an optional
-`enter`. A state changes only on a timer or a distance check, never at
-random, so the same situation plays out the same way every time — which is
+`enter`. A state changes only on a timer, a distance check or a contact,
+never at random, so the same situation plays out the same way every time — which is
 what lets a child learn it and Node test it. Walker, roller and popper
 predate the shape and are deliberately left as they are, because their
 levels were tuned against their exact maths.

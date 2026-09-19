@@ -171,9 +171,9 @@ export function makeRoller(e, cfg) {
  * and optionally an `enter(e)`. `e.stateT` is seconds in the current state;
  * a timed state reads it itself.
  *
- * A state changes only on a timer or a distance check, never at random —
- * the same situation plays out the same way every time, which is what lets a
- * child learn it and Node test it.
+ * A state changes only on a timer, a distance check or a contact, never at
+ * random — the same situation plays out the same way every time, which is
+ * what lets a child learn it and Node test it.
  */
 export function enterState(e, states, name) {
   e.state = name;

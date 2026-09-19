@@ -107,7 +107,7 @@ platforms already give.
 | | Walker (exists) | Popper (upgraded) | Charger | Shell | Swooper |
 |---|---|---|---|---|---|
 | **Role** | patrol | ranged / turret | charger | armoured | flier |
-| **States** | patrol | idle → aim → fire → reload | patrol → notice → wind-up → charge → dazed → patrol | patrol → flipped | hover → lock → swoop → climb |
+| **States** | patrol | idle → aim → fire → reload | patrol → wind-up → charge → dazed → patrol; popped → patrol (built: noticing is the wind-up) | patrol → flipped | hover → lock → swoop → climb |
 | **Movement** | sine of level time over a fixed range | stationary, facing one way | slow patrol over a set range | slow patrol, turns at edges | hovers at a fixed high spot |
 | **Detection** | none | ball in range on its facing side | ball on its own level, in front, within about five ball-widths | none | ball passing under its hover spot |
 | **Attack** | contact costs a heart | lobs a soft ball on a parabola | fast straight-line dash until it meets something | contact costs a heart | straight dive, then climbs back |

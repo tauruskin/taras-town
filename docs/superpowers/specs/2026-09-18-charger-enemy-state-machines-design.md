@@ -1,6 +1,7 @@
 # Pushkar Ball — sub-project 2: enemy state machines and the charger (levels 10–11)
 
-Agreed 2026-09-18, and **built** 2026-09-19 (levels 10 and 11). Part of the programme in
+Agreed 2026-09-18, and **built** 2026-09-19 as levels 10 and 11.
+Part of the programme in
 `docs/superpowers/specs/2026-09-18-mechanisms-and-enemies-roadmap.md`, whose
 rules every level here follows. Read sub-project 1's "What the build taught"
 (`2026-09-18-wiring-buttons-timers-bridges-design.md`) before building.
@@ -69,9 +70,9 @@ lists: a presser `{ heavy: dazed, resting: grounded }` and a blocker. So a
 charge into a button's capped side presses it, a gate never closes on it,
 and it holds a plate **only while dazed** — the roadmap's "holds a plate
 while dazed". Heavy all the time would let a patrol open a door by walking
-over its plate, which muddles the one thing level 11's room B teaches. A popped charger is in neither list. Enemies
-are added in `Level.update` itself, as the wiring spec says, because they are
-the level's own.
+over its plate, which muddles the one thing level 11's room B teaches. A
+popped charger is in neither list. Enemies are added in `Level.update`
+itself, as the wiring spec says, because they are the level's own.
 
 **Hit rules.** `stompEnemy` pops a charger only when dazed; otherwise a
 landing on it is a hit like a side contact. `hazardKnockDir` ignores a dazed
@@ -144,10 +145,13 @@ Every crate in either level gets a dead-end check.
 
 ## What the build taught
 
-- **No level position moved from the paper layout, in either level.** Every
-  number in levels 10 and 11 is what the plan drew. The fixes were in the
-  routes `finish.mjs` drives, and in two corrections found by rendering
-  (below) — neither of which changed what the suites measure.
+- **No position the suites measure moved from the paper layout, in either
+  level.** The only numbers changed are level 11's two pen floors, which now
+  start 40 further left, under their walls (1840 to 1800, 4740 to 4700), to
+  mend a crack drawn below each wall (see rendering, below); `finish.mjs`
+  and `levels.mjs` reported the same results before and after. The other
+  fixes were in the routes `finish.mjs` drives, and in how the charger is
+  drawn.
 - **Level 10's way in needed a guard, and no position could supply it.** The
   plan's route hopped the 60 stone step at 1400 and sometimes landed on a
   charger that had just arrived on the other side: a ball in the air cannot
@@ -171,10 +175,10 @@ Every crate in either level gets a dead-end check.
   `COUNTS_HEARTS` = {10, 11} makes them fail on a single lost heart there;
   3l fails on one too.
 - **A route that starts from a checkpoint must know where it is.** Level
-  10's route, respawned at its checkpoint past the planks, waited for ever for
-  a charge that would never come, and level 11's needed the same fix for
-  its second checkpoint, past room A. Both now choose their first stage from where the ball
-  starts.
+  10's route, respawned at its checkpoint past the planks, waited for ever
+  for a charge that would never come, and level 11's needed the same fix for
+  its second checkpoint, past room A. Both now choose their first stage from
+  where the ball starts.
 - **Level 11 passed first time, and its thin number is 2c: 56% of the daze,
   against a 60% limit** — about 0.12 s of a 3 s daze to spare. The worst run
   is the lead-1.3 thumb that hesitates 0.9 s and hops once for nothing (1.69
@@ -217,6 +221,15 @@ Every crate in either level gets a dead-end check.
   a "stone lip" over it. The effect the spec asked for holds — the ball can
   reach neither the cap nor the planks, which 3m proves — but the shape
   differs.
+- **A patrol turns at anything solid in front of it, planks included**, not
+  only at the ends of its range as the state table above says. It has to:
+  without it a patrol would push uselessly into a wall or a crate. Only a
+  charge breaks wood.
+- **There is no "notice" state**, which the roadmap's enemy table listed
+  between patrol and wind-up: seeing the ball goes straight to wind-up, and
+  the wind-up is the warning. And there is a **popped** state the roadmap
+  did not list, for the charger's return. The roadmap's table now says
+  patrol → wind-up → charge → dazed → patrol, and popped → patrol.
 
 ### Carried over from the reviews, for the next sub-project
 
@@ -230,9 +243,12 @@ Every crate in either level gets a dead-end check.
   return waits only for the ball. Levels 10 and 11 have no crates.
 - The charger sees through walls. That is intended, and level 11 relies on
   it: the ball in the yard is seen through the pen's end.
-- Decide pressers versus gate `blockers` per enemy kind. Walkers pass
-  through button posts. The gate-hazard check in `levels.mjs` still goes by
-  kind name, so each new enemy kind has to be taught to it.
+- Decide pressers versus gate `blockers` per enemy kind. Today one field,
+  `presses`, puts an enemy on both lists; a kind that should block a gate
+  without pressing anything, or press without blocking, would need a
+  separate field. Walkers pass through button posts. The gate-hazard check
+  in `levels.mjs` still goes by kind name, so each new enemy kind has to be
+  taught to it.
 - `COLOURS.ENEMY` is shared by every enemy; that is fine in level 10, which
   has only the charger.
 
