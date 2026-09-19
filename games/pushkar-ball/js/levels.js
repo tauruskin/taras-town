@@ -1131,20 +1131,25 @@ export const LEVELS = [
     // What it found was about the way IN: hopping the step while the charger
     // is just the other side lands the ball on it, and a ball in the air
     // cannot wait. finish.mjs's route therefore waits outside the step while
-    // the charger is patrolling towards it within 600 (PEN_GUARD, swept there
-    // from 0 to 900: 400 still took hits, 500 and up none, in 505 runs over
-    // a whole patrol of the pen). Outside the step nothing can reach the
-    // ball, which is the step's other job. Moving the charger's home was
-    // looked at and cannot do it: the pen is 840 wide and a 4.5s spread of
-    // arrivals is 540 of its patrol, so some arrival always meets it there.
+    // the charger is patrolling towards it within 600 (PEN_GUARD). That
+    // number came from a scratch sweep, not from anything finish.mjs runs:
+    // five leads, start delays 0-25s every 0.25s (a whole patrol of the pen,
+    // 505 runs per value), guard 0 to 900 — 400 still lost hearts, 500 and up
+    // none. What finish.mjs runs is its usual three leads at start delays
+    // 0-4.5s, and for this level it fails on any heart lost there, not only
+    // on a life. Outside the step nothing can reach the ball, which is the
+    // step's other job. Moving the charger's home was looked at and cannot
+    // do it: the pen is 840 wide and a 4.5s spread of arrivals is 540 of its
+    // patrol, so some arrival always meets it there.
     // The charger's range end, 1486, is exactly where its box meets the
     // stone, and its patrol turns there on the range check first, so the
     // 60-tall step's corner never decides whether a second charge comes; in
     // every run of the route it came, and broke the planks. A ball that
     // sits on the dazed charger until its daze runs out takes a heart as it
-    // wakes. No route here does that: the stomp in finish.mjs's 3l, tried
-    // at five leads and start delays across a whole patrol, always landed
-    // before the daze ran out, with no hit.
+    // wakes. No route here does that: finish.mjs's 3l stomps it at three
+    // leads from a standing start and fails on a lost heart, and the same
+    // scratch sweep of the stomp (five leads, delays 0-13s, 265 runs) always
+    // landed before the daze ran out, with no hit.
     id: 10,
     theme: 'hills',
     bounds: { w: 6000, h: 1080 },

@@ -187,19 +187,33 @@ function dodge(level, ball, lead) {
  *
  * `dodge` alone is not enough here, because it can only stop a ball on the
  * ground: the hop over the step is committed from outside, and it landed the
- * ball on a charger that had arrived just the other side — 31 hits in 505
- * runs (leads 0.7-1.3, start delays 0-25s, a whole ~13s patrol of the pen).
- * Outside the step nothing can reach him, so waiting there costs nothing.
- * Swept the same way: 300 still took 15 hits, 400 five, 500 to 900 none;
- * 600 is 500 with room. No home for the charger fixes it instead: the pen is
+ * ball on a charger that had arrived just the other side. Outside the step
+ * nothing can reach him, so waiting there costs nothing. A scratch sweep,
+ * not run here (five leads 0.7-1.3, start delays 0-25s every 0.25s: a whole
+ * ~13s patrol of the pen, 505 runs a value), found 31 hits with no guard,
+ * 15 at 300, five at 400, none from 500 to 900; 600 is 500 with room. What
+ * this suite runs is section 1's leads and delays, which fail on a lost
+ * heart for this level (COUNTS_HEARTS). No home for the charger fixes it instead: the pen is
  * 840 wide and a 4.5s spread of arrivals is 540 of its patrol.
  */
 const PEN_GUARD = 600;
+// How far short of the step the ball backs off to while it waits: far enough
+// that a ball arriving at full speed has stopped before it touches the stone.
+const PEN_BACKOFF = 150;
 function holdAtStep(level, ball, c) {
-  const step = level.walls.find((w) => w.x === 1400 && w.h === 60);
+  const step = penStep(level, c);
   if (ball.x >= step.x || !c.alive || c.state !== 'patrol' || c.dir !== -1) return null;
   if (c.x - step.x >= PEN_GUARD) return null;
-  return ball.x > step.x - 150 ? { left: true } : {};
+  return ball.x > step.x - PEN_BACKOFF ? { left: true } : {};
+}
+
+/** The pen's step: the 60-tall stone the charger's range ends against. */
+function penStep(level, c) {
+  const step = level.walls
+    .filter((w) => !w.movable && w.h === 60 && w.x + w.w <= c.from)
+    .sort((a, b) => (b.x + b.w) - (a.x + a.w))[0];
+  if (!step) throw new Error(`level ${level.data.id}: no 60-tall stone step ends at or before the charger's range end (${c.from})`);
+  return step;
 }
 
 /** A level's sender by id. */
@@ -492,7 +506,9 @@ const ROUTES = {
       }
       if (stage === 'wait2') {
         if (wood.broken || !c.alive) stage = 'out';
-        else return ball.x < 2150 ? { right: true } : {};
+        // Wait a little short of the planks: far enough that the second
+        // charge is seen coming and jumped, not met at the wood.
+        else return ball.x < wood.x - 150 ? { right: true } : {};
       }
       return run(ball);
     };
@@ -563,6 +579,13 @@ function crateRoute4(level, lead, late) {
 const LEADS = [0.7, 1, 1.3];
 const DELAYS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5];
 
+// Levels whose routes must not lose a single heart, in sections 1 and 2.
+// Those sections count lives, not hearts, which is right for most levels (a
+// graze is part of the heart budget), but on level ten a heart lost on the
+// route means the ball landed on the charger over the step, or was still on
+// it when its daze ended — the regressions holdAtStep exists to prevent.
+const COUNTS_HEARTS = new Set([10]);
+
 // --- 1. every level is finished by its route, every way it is tried --------
 console.log(`\n1. ${LEVELS.length} level(s), each tried ${LEADS.length * DELAYS.length} ways`);
 for (const data of LEVELS) {
@@ -581,6 +604,8 @@ for (const data of LEVELS) {
         bad.push(`lead ${lead} delay ${delay}: won=${ball.won} deaths=${ball.deaths} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
       } else if (riserHits > 0) {
         bad.push(`lead ${lead} delay ${delay}: took a hit at a rising patch at x=${riserHitX.toFixed(0)}`);
+      } else if (COUNTS_HEARTS.has(data.id) && ball.hits > 0) {
+        bad.push(`lead ${lead} delay ${delay}: lost ${ball.hits} heart(s)`);
       }
       worst = Math.max(worst, t - delay);
     }
@@ -609,6 +634,7 @@ for (const data of LEVELS) {
       const { ball, riserHits, riserHitX } = play(data, (lv) => route(lv, lead), { from });
       if (!ball.won || ball.deaths > 0) bad.push(`lead ${lead}: won=${ball.won} deaths=${ball.deaths} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
       else if (riserHits > 0) bad.push(`lead ${lead}: took a hit at a rising patch at x=${riserHitX.toFixed(0)}`);
+      else if (COUNTS_HEARTS.has(data.id) && ball.hits > 0) bad.push(`lead ${lead}: lost ${ball.hits} heart(s)`);
     }
     if (bad.length) fail(`level ${data.id}: a ball respawned at checkpoint ${i} (${c.x},${c.y}) did not finish cleanly — ${bad.join('; ')}`);
   }
@@ -1090,19 +1116,26 @@ console.log('\n3l. level ten: stomp the dazed charger, and still finish');
     let stomped = false, back = false;
     const route = (level) => {
       const run = runner(level, lead);
-      const c = level.enemies[0];
+      const c = level.enemies.find((e) => e.kind === 'charger');
       let stage = 'in';
       return (ball) => {
-        if (!c.alive) stomped = true;
         if (stomped && c.alive) back = true;
         const d = dodge(level, ball, lead);
         if (d) return d;
-        if (stage === 'in') { if (ball.grounded && ball.x > 1700) stage = 'wait'; else return holdAtStep(level, ball, c) || run(ball); }
-        if (stage === 'wait') { if (c.state === 'dazed') stage = 'stomp'; else return {}; }
+        if (stage === 'in') {
+          if (ball.grounded && ball.x > 1700) stage = 'wait';
+          else return holdAtStep(level, ball, c) || run(ball);
+        }
+        if (stage === 'wait') {
+          if (c.state === 'dazed') stage = 'stomp';
+          else return {};
+        }
         // Roll back into it (dazed, it is not solid and does not hurt),
         // settle over it, and jump straight up: the way down is the stomp.
+        // Only a pop seen here counts as stomped: one met any other way,
+        // such as landing on it over the step, is not the lesson.
         if (stage === 'stomp') {
-          if (!c.alive) { stage = 'out'; return {}; }
+          if (!c.alive) { stomped = true; stage = 'out'; return {}; }
           const gap = ball.x - c.x;
           if (gap > 30) return { left: true };
           if (gap < -30) return { right: true };
@@ -1119,17 +1152,6 @@ console.log('\n3l. level ten: stomp the dazed charger, and still finish');
     // still over it when its daze ends: both were seen before holdAtStep.
     if (ball.hits) fail(`level ten, lead ${lead}: the stomp route lost ${ball.hits} heart(s)`);
   }
-  // Section 1 counts lives, not hearts. For level ten a heart lost on its
-  // own route means the same regression, so every lead and delay is re-run
-  // here and must lose none.
-  let hitRuns = 0;
-  for (const lead of LEADS) {
-    for (const delay of DELAYS) {
-      const { ball } = play(data, (lv) => ROUTES[10](lv, lead), { delay });
-      if (ball.hits) { hitRuns++; fail(`level ten's route, lead ${lead} delay ${delay}: lost ${ball.hits} heart(s)`); }
-    }
-  }
-  if (!hitRuns) console.log(`   level ten's own route: no heart lost in ${LEADS.length * DELAYS.length} runs`);
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------
