@@ -219,6 +219,48 @@ function penStep(level, c) {
 /** A level's sender by id. */
 const sender = (level, id) => level.senders.find((s) => s.id === id);
 
+/**
+ * One of level eleven's rooms (0 = A, 1 = B), from the level's own geometry,
+ * so ROUTES[11], 3m and 3n all read the same numbers and none of them copies
+ * a position out of levels.js.
+ *
+ * The room's charger is the i-th by range; its roof is the stone above it
+ * spanning its whole range; its door is the first gate past the roof's end.
+ * The yard is between them: a ball's centre rests anywhere from `x0` (the
+ * roof's end plus a radius) to `x1` (the gate minus one). `down` is "grounded
+ * in the yard, on the charger's own level" — its LEVEL_TOL, so exactly when it
+ * can be seen.
+ */
+function room11(level, i) {
+  const R = CONFIG.BALL.R, K = CONFIG.ENEMY.CHARGER;
+  const c = level.enemies.filter((e) => e.kind === 'charger').sort((a, b) => a.from - b.from)[i];
+  if (!c) throw new Error(`level ${level.data.id}: no charger ${i}`);
+  const roof = level.walls.find((w) => w.x <= c.from && w.x + w.w >= c.to && w.y + w.h <= c.y - c.r);
+  if (!roof) throw new Error(`level ${level.data.id}: no stone roof over charger ${i}'s range ${c.from}..${c.to}`);
+  const gate = level.gates.filter((g) => g.x >= roof.x + roof.w).sort((a, b) => a.x - b.x)[0];
+  if (!gate) throw new Error(`level ${level.data.id}: no gate past the end of charger ${i}'s roof (${roof.x + roof.w})`);
+  const x0 = roof.x + roof.w + R, x1 = gate.x - R;
+  return {
+    c, roof, gate, x0, x1,
+    down: (ball) => ball.grounded && Math.abs(ball.y - c.y) < K.LEVEL_TOL && ball.x >= x0 - 1 && ball.x < gate.x,
+  };
+}
+
+/**
+ * Where a ball stands in a level-eleven yard to be seen: the yard's second
+ * ball-width past `x0`. Shared by ROUTES[11] and 3n so they cannot disagree.
+ * It must end a ball's radius inside the charger's sight of its range's end
+ * and short of the door, or luring from it would prove nothing. Room A's
+ * yard is too narrow for it and needs none: every spot there is in sight.
+ */
+function lure11(room) {
+  const R = CONFIG.BALL.R, K = CONFIG.ENEMY.CHARGER;
+  const near = room.x0 + 2 * R, far = room.x0 + 4 * R;
+  if (far > room.c.to + K.SEE - R) throw new Error(`level 11: the lure band ends at ${far}, not inside the charger's sight of ${room.c.to} (SEE ${K.SEE})`);
+  if (far > room.x1) throw new Error(`level 11: the lure band ends at ${far}, past the door (${room.x1})`);
+  return (ball) => (ball.x > far ? { left: true } : ball.x < near ? { right: true } : {});
+}
+
 // Every prepared run through level nine's timed room records how much of the
 // timer it used. Checked after section 2: every run, from every lead, delay
 // and checkpoint, must leave at least 40% of the time unused — the proof
@@ -527,40 +569,50 @@ const ROUTES = {
   // where the ball starts, so the same route serves both checkpoints.
   11: (level, lead) => {
     const run = runner(level, lead);
-    const [gateA, gateB] = level.gates;
+    const A = room11(level, 0), B = room11(level, 1), lure = lure11(B);
     const p = sender(level, 'p');
+    // Past the gap between the rooms, the runner has nothing left to jump:
+    // from the foot of room B's slope it is only holding right.
+    const slope = level.data.ground.find((l) => l.at(-1)[0] === B.roof.x && l.at(-1)[1] === B.roof.y);
+    if (!slope) throw new Error('level 11: no ground line climbs to room B\'s roof');
+    const foot = slope.at(-2)[0];
     let stage = null, dazedAt = 0, hopped = false;
     return (ball) => {
-      if (!stage) stage = ball.x < gateA.x ? 'toA' : 'toB';
+      if (!stage) stage = ball.x < A.gate.x ? 'toA' : 'toB';
       if (stage === 'toA') {
-        if (ball.grounded && ball.y > 700 && ball.x > 3110) stage = 'lureA';
+        if (A.down(ball)) stage = 'lureA';
         else return { right: true };
       }
       if (stage === 'lureA') {
-        if (gateA.openT > 0.9) stage = 'mid';
+        if (A.gate.openT > 0.9) stage = 'mid';
         else return {};
       }
       if (stage === 'mid') {
-        if (ball.x > 4300) stage = 'toB';
+        if (ball.x > foot) stage = 'toB';
         else return run(ball);
       }
       if (stage === 'toB') {
-        if (ball.grounded && ball.y > 700 && ball.x > 5820) stage = 'lureB';
+        if (B.down(ball)) stage = 'lureB';
         else return { right: true };
       }
       // Stand close enough to be seen. The drop off the roof carries the
-      // ball on towards the door, out of sight, so come back to 5860-5900.
+      // ball on towards the door, out of sight, so come back to the band.
       if (stage === 'lureB') {
         if (p.pressed) { stage = 'goB'; dazedAt = level.time; }
-        else if (ball.x > 5900) return { left: true };
-        else return ball.x < 5860 ? { right: true } : {};
+        else return lure(ball);
       }
-      // The same sloppy thumb as level nine's: it hesitates longer the
-      // sloppier the lead, and at the sloppiest hops once for nothing.
+      // A sloppy thumb like level nine's: it hesitates longer the sloppier
+      // the lead, and at the sloppiest hops once for nothing — here on the
+      // first grounded step after the hesitation.
       if (stage === 'goB') {
         if (level.time - dazedAt < (lead - 0.7) * 1.5) return {};
-        if (ball.x > gateB.x + gateB.w + 20) {
+        if (ball.x > B.gate.x + B.gate.w + 20) {
           SPARE11.push({ lead, used: level.time - dazedAt, time: CONFIG.ENEMY.CHARGER.DAZED });
+          stage = 'end';
+        } else if (!p.pressed && B.gate.openT === 0) {
+          // The door shut in front of him: say so in 2c, not only as
+          // section 1's timeout.
+          SPARE11.push({ lead, missed: true });
           stage = 'end';
         } else {
           const hop = lead > 1.2 && !hopped && ball.grounded;
@@ -713,12 +765,15 @@ else {
 
 // --- 2c. level eleven's door is never a pixel-perfect run --------------------
 console.log('\n2c. level eleven: time to spare while the charger is dazed');
-if (!SPARE11.length) fail('no run of level eleven ever got through its second door — nothing was measured');
+const missed11 = SPARE11.filter((s) => s.missed);
+const through11 = SPARE11.filter((s) => !s.missed);
+if (missed11.length) fail(`${missed11.length} of ${SPARE11.length} runs of level eleven missed room B's door: it shut before the ball got through`);
+if (!through11.length) fail('no run of level eleven ever got through its second door — nothing was measured');
 else {
-  const worst = SPARE11.reduce((w, s) => Math.max(w, s.used / s.time), 0);
-  const tight = SPARE11.filter((s) => s.used > 0.6 * s.time);
-  if (tight.length) fail(`${tight.length} of ${SPARE11.length} runs used more than 60% of the daze (worst ${(worst * 100).toFixed(0)}%)`);
-  else console.log(`   ${SPARE11.length} runs; the slowest used ${(worst * 100).toFixed(0)}% of the daze`);
+  const worst = through11.reduce((w, s) => Math.max(w, s.used / s.time), 0);
+  const tight = through11.filter((s) => s.used > 0.6 * s.time);
+  if (tight.length) fail(`${tight.length} of ${through11.length} runs used more than 60% of the daze (worst ${(worst * 100).toFixed(0)}%)`);
+  else console.log(`   ${through11.length} runs; the slowest used ${(worst * 100).toFixed(0)}% of the daze`);
 }
 
 // --- 3. level three cannot be finished without its crate --------------------
@@ -1226,54 +1281,83 @@ console.log('\n3l. level ten: stomp the dazed charger, and still finish');
 
 // --- 3m. level eleven, room A: the ball alone cannot open the door ---------
 //
-// Without the charger, a ball in the yard tries everything a thumb can —
-// rolling each way, jumping each way, at every spot across the yard — and
-// the button must stay unpressed and the planks whole.
+// Without the charger, a ball in the yard tries everything a thumb can: it
+// comes to each spot across the yard from either side, then rolls each way
+// or jumps each way. The button must stay unpressed and the planks whole —
+// and every run must really have been down in the yard, or it proves nothing.
 console.log('\n3m. level eleven: room A needs the charger');
 {
-  const data = { ...LEVELS.find((l) => l.id === 11), enemies: [] };
-  let pressed = false, broken = false;
-  for (const spot of [3110, 3130, 3150, 3170, 3180]) {
-    for (const move of [{ left: true }, { right: true }, { left: true, jump: true }, { right: true, jump: true }]) {
-      const route = (level) => (ball) => {
-        if (ball.x < spot - 5 && ball.y > 700) return { right: true };
-        return { ...move, jump: move.jump && ball.grounded };
-      };
-      const { level } = play(data, route, { from: { x: 3150, y: 700 }, seconds: 6 });
-      if (level.senders[0].pressed) pressed = true;
-      if (level.breakables[0].broken) broken = true;
+  const data = LEVELS.find((l) => l.id === 11);
+  const A = room11(loadLevel(data), 0);
+  const bare = { ...data, enemies: [] };
+  const spots = [];
+  for (let x = A.x0; x < A.x1; x += 20) spots.push(x);
+  spots.push(A.x1);
+  const startY = A.c.y + A.c.r - CONFIG.BALL.R - 20;
+  let pressed = false, broken = false, runs = 0, neverDown = 0;
+  for (const spot of spots) {
+    for (const fromX of [A.x0, A.x1]) {
+      for (const move of [{ left: true }, { right: true }, { left: true, jump: true }, { right: true, jump: true }]) {
+        runs++;
+        let reached = false, wasDown = false;
+        const route = () => (ball) => {
+          if (A.down(ball)) wasDown = true;
+          if (!reached && Math.abs(ball.x - spot) > 5) return ball.x < spot ? { right: true } : { left: true };
+          reached = true;
+          return { ...move, jump: move.jump && ball.grounded };
+        };
+        const { level } = play(bare, route, { from: { x: fromX, y: startY }, seconds: 6 });
+        const wood = level.breakables.find((w) => w.x > A.roof.x && w.x < A.roof.x + A.roof.w);
+        if (!wood) throw new Error('level 11: no planks under room A\'s roof');
+        if (sender(level, 'b').pressed) pressed = true;
+        if (wood.broken) broken = true;
+        if (!wasDown || !reached) neverDown++;
+      }
     }
   }
-  console.log(`   button ever pressed=${pressed}, planks ever broken=${broken}`);
+  console.log(`   ${runs} runs from ${spots.length} spots (${spots.join(', ')}), each from both sides: button ever pressed=${pressed}, planks ever broken=${broken}`);
+  if (neverDown) fail(`level eleven: ${neverDown} of 3m's ${runs} runs never got down in room A's yard to its spot — they prove nothing`);
   if (pressed) fail('level eleven: the ball pressed room A\'s button without the charger');
   if (broken) fail('level eleven: the ball broke room A\'s planks without the charger');
 }
 
 // --- 3n. level eleven, room B: a door missed is not a dead end -------------
 //
-// A ball that waits by the door while the charger is dazed, and so misses
-// it, must be able to lure it again: after the door shuts, step back into
-// sight, and get through on the second daze.
+// A ball that dawdles while the charger is dazed misses the door. It goes
+// and rests against the shut door, out of the charger's sight, for a few
+// seconds; then it must be able to step back into sight, lure the charger
+// again, and get through on the second daze.
 console.log('\n3n. level eleven: missing room B\'s door is not a dead end');
 {
   const data = LEVELS.find((l) => l.id === 11);
+  const B0 = room11(loadLevel(data), 1);
+  if (B0.x1 <= B0.c.to + CONFIG.ENEMY.CHARGER.SEE) fail(`level eleven: a ball resting at room B's door (x=${B0.x1}) is in the charger's sight of ${B0.c.to}`);
+  let dazes = 0, atDoor = 0;
   const route = (level) => {
-    const p = level.senders.find((s) => s.id === 'p');
-    const gate = level.gates[1];
-    let stage = 'lure', dazes = 0, was = false;
+    const B = room11(level, 1), lure = lure11(B);
+    const p = sender(level, 'p');
+    let stage = 'lure', was = false, atDoorT = 0;
     return (ball) => {
       if (p.pressed && !was) dazes++;
       was = p.pressed;
-      const close = () => (ball.x > 5900 ? { left: true } : ball.x < 5860 ? { right: true } : {});
-      if (stage === 'lure') { if (dazes === 1) stage = 'miss'; return close(); }
-      if (stage === 'miss') { if (!p.pressed && gate.openT === 0) stage = 'again'; return {}; }
-      if (stage === 'again') { if (dazes === 2) stage = 'go'; return close(); }
+      if (stage === 'lure') { if (dazes === 1) stage = 'miss'; return lure(ball); }
+      if (stage === 'miss') { if (!p.pressed && B.gate.openT === 0) stage = 'door'; return {}; }
+      if (stage === 'door') {
+        if (ball.x > B.gate.x - 30) atDoorT += CONFIG.STEP;
+        atDoor = Math.max(atDoor, ball.x);
+        if (atDoorT < 3) return { right: true };
+        stage = 'again';
+      }
+      if (stage === 'again') { if (dazes === 2) stage = 'go'; return lure(ball); }
       return { right: true };
     };
   };
-  const { ball, level } = play(data, route, { from: { x: 5860, y: 700 }, seconds: 40 });
-  const through = ball.x > level.gates[1].x + level.gates[1].w;
-  console.log(`   got through on the second daze: ${through} (ball at x=${ball.x.toFixed(0)})`);
+  const from = { x: B0.x0 + 2 * CONFIG.BALL.R, y: B0.c.y + B0.c.r - CONFIG.BALL.R - 20 };
+  const { ball } = play(data, route, { from, seconds: 40 });
+  const through = ball.x > B0.gate.x + B0.gate.w;
+  console.log(`   rested at the shut door (x=${atDoor.toFixed(0)}), ${dazes} dazes, got through on the second: ${through} (ball at x=${ball.x.toFixed(0)})`);
+  if (atDoor < B0.gate.x - 30) fail('level eleven: 3n never went to rest at the shut door — it proves nothing');
+  if (dazes < 2) fail(`level eleven: 3n saw only ${dazes} daze(s) — the second lure did not happen`);
   if (!through) fail('level eleven: after missing room B\'s door once, the ball could not get through');
 }
 
