@@ -225,6 +225,11 @@ const sender = (level, id) => level.senders.find((s) => s.id === id);
 // that room is not a pixel-perfect run.
 const SPARE9 = [];
 
+// The same for level eleven's room B: every run records how much of the
+// charger's daze it used between the plate going down and the ball being
+// through the door. Checked in 2c.
+const SPARE11 = [];
+
 // --- the routes ------------------------------------------------------------
 //
 // Keyed by level id. Each takes the loaded level and a lead, and returns the
@@ -513,6 +518,59 @@ const ROUTES = {
       return run(ball);
     };
   },
+
+  // Level eleven. Room A: over the pen's roof, down into the yard, and wait —
+  // the charger sees him, smashes the planks and hits the button. Room B: the
+  // same, except the charge ends dazed on a plate, and the door is open only
+  // while it sits there. No `dodge`: each charger is shut in its pen, and the
+  // ball is never on its side of the wall. The stage it starts in comes from
+  // where the ball starts, so the same route serves both checkpoints.
+  11: (level, lead) => {
+    const run = runner(level, lead);
+    const [gateA, gateB] = level.gates;
+    const p = sender(level, 'p');
+    let stage = null, dazedAt = 0, hopped = false;
+    return (ball) => {
+      if (!stage) stage = ball.x < gateA.x ? 'toA' : 'toB';
+      if (stage === 'toA') {
+        if (ball.grounded && ball.y > 700 && ball.x > 3110) stage = 'lureA';
+        else return { right: true };
+      }
+      if (stage === 'lureA') {
+        if (gateA.openT > 0.9) stage = 'mid';
+        else return {};
+      }
+      if (stage === 'mid') {
+        if (ball.x > 4300) stage = 'toB';
+        else return run(ball);
+      }
+      if (stage === 'toB') {
+        if (ball.grounded && ball.y > 700 && ball.x > 5820) stage = 'lureB';
+        else return { right: true };
+      }
+      // Stand close enough to be seen. The drop off the roof carries the
+      // ball on towards the door, out of sight, so come back to 5860-5900.
+      if (stage === 'lureB') {
+        if (p.pressed) { stage = 'goB'; dazedAt = level.time; }
+        else if (ball.x > 5900) return { left: true };
+        else return ball.x < 5860 ? { right: true } : {};
+      }
+      // The same sloppy thumb as level nine's: it hesitates longer the
+      // sloppier the lead, and at the sloppiest hops once for nothing.
+      if (stage === 'goB') {
+        if (level.time - dazedAt < (lead - 0.7) * 1.5) return {};
+        if (ball.x > gateB.x + gateB.w + 20) {
+          SPARE11.push({ lead, used: level.time - dazedAt, time: CONFIG.ENEMY.CHARGER.DAZED });
+          stage = 'end';
+        } else {
+          const hop = lead > 1.2 && !hopped && ball.grounded;
+          if (hop) hopped = true;
+          return { right: true, jump: hop };
+        }
+      }
+      return run(ball);
+    };
+  },
 };
 
 // Level four's other way: shove the crate against the planks, back off at
@@ -584,7 +642,9 @@ const DELAYS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5];
 // graze is part of the heart budget), but on level ten a heart lost on the
 // route means the ball landed on the charger over the step, or was still on
 // it when its daze ended — the regressions holdAtStep exists to prevent.
-const COUNTS_HEARTS = new Set([10]);
+// On level eleven both chargers are shut in their pens and nothing else
+// there can hurt, so any heart lost at all is a charger got out.
+const COUNTS_HEARTS = new Set([10, 11]);
 
 // --- 1. every level is finished by its route, every way it is tried --------
 console.log(`\n1. ${LEVELS.length} level(s), each tried ${LEADS.length * DELAYS.length} ways`);
@@ -649,6 +709,16 @@ else {
   const tight = SPARE9.filter((s) => s.used > 0.6 * s.time);
   if (tight.length) fail(`${tight.length} of ${SPARE9.length} runs used more than 60% of level nine's timer (worst ${(worst * 100).toFixed(0)}%)`);
   else console.log(`   ${SPARE9.length} runs; the slowest used ${(worst * 100).toFixed(0)}% of the timer`);
+}
+
+// --- 2c. level eleven's door is never a pixel-perfect run --------------------
+console.log('\n2c. level eleven: time to spare while the charger is dazed');
+if (!SPARE11.length) fail('no run of level eleven ever got through its second door — nothing was measured');
+else {
+  const worst = SPARE11.reduce((w, s) => Math.max(w, s.used / s.time), 0);
+  const tight = SPARE11.filter((s) => s.used > 0.6 * s.time);
+  if (tight.length) fail(`${tight.length} of ${SPARE11.length} runs used more than 60% of the daze (worst ${(worst * 100).toFixed(0)}%)`);
+  else console.log(`   ${SPARE11.length} runs; the slowest used ${(worst * 100).toFixed(0)}% of the daze`);
 }
 
 // --- 3. level three cannot be finished without its crate --------------------
@@ -1152,6 +1222,59 @@ console.log('\n3l. level ten: stomp the dazed charger, and still finish');
     // still over it when its daze ends: both were seen before holdAtStep.
     if (ball.hits) fail(`level ten, lead ${lead}: the stomp route lost ${ball.hits} heart(s)`);
   }
+}
+
+// --- 3m. level eleven, room A: the ball alone cannot open the door ---------
+//
+// Without the charger, a ball in the yard tries everything a thumb can —
+// rolling each way, jumping each way, at every spot across the yard — and
+// the button must stay unpressed and the planks whole.
+console.log('\n3m. level eleven: room A needs the charger');
+{
+  const data = { ...LEVELS.find((l) => l.id === 11), enemies: [] };
+  let pressed = false, broken = false;
+  for (const spot of [3110, 3130, 3150, 3170, 3180]) {
+    for (const move of [{ left: true }, { right: true }, { left: true, jump: true }, { right: true, jump: true }]) {
+      const route = (level) => (ball) => {
+        if (ball.x < spot - 5 && ball.y > 700) return { right: true };
+        return { ...move, jump: move.jump && ball.grounded };
+      };
+      const { level } = play(data, route, { from: { x: 3150, y: 700 }, seconds: 6 });
+      if (level.senders[0].pressed) pressed = true;
+      if (level.breakables[0].broken) broken = true;
+    }
+  }
+  console.log(`   button ever pressed=${pressed}, planks ever broken=${broken}`);
+  if (pressed) fail('level eleven: the ball pressed room A\'s button without the charger');
+  if (broken) fail('level eleven: the ball broke room A\'s planks without the charger');
+}
+
+// --- 3n. level eleven, room B: a door missed is not a dead end -------------
+//
+// A ball that waits by the door while the charger is dazed, and so misses
+// it, must be able to lure it again: after the door shuts, step back into
+// sight, and get through on the second daze.
+console.log('\n3n. level eleven: missing room B\'s door is not a dead end');
+{
+  const data = LEVELS.find((l) => l.id === 11);
+  const route = (level) => {
+    const p = level.senders.find((s) => s.id === 'p');
+    const gate = level.gates[1];
+    let stage = 'lure', dazes = 0, was = false;
+    return (ball) => {
+      if (p.pressed && !was) dazes++;
+      was = p.pressed;
+      const close = () => (ball.x > 5900 ? { left: true } : ball.x < 5860 ? { right: true } : {});
+      if (stage === 'lure') { if (dazes === 1) stage = 'miss'; return close(); }
+      if (stage === 'miss') { if (!p.pressed && gate.openT === 0) stage = 'again'; return {}; }
+      if (stage === 'again') { if (dazes === 2) stage = 'go'; return close(); }
+      return { right: true };
+    };
+  };
+  const { ball, level } = play(data, route, { from: { x: 5860, y: 700 }, seconds: 40 });
+  const through = ball.x > level.gates[1].x + level.gates[1].w;
+  console.log(`   got through on the second daze: ${through} (ball at x=${ball.x.toFixed(0)})`);
+  if (!through) fail('level eleven: after missing room B\'s door once, the ball could not get through');
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------

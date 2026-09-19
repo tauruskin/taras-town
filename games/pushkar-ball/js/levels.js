@@ -1186,6 +1186,114 @@ export const LEVELS = [
       { x: 3300, y: 760 },
     ],
   },
+  {
+    // Level eleven: lure the charger. Stage: COMBINATION — the charger and
+    // the wiring, both already taught. See the spec,
+    // docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md.
+    //
+    // Both rooms are one shape: the charger lives in a closed pen under a
+    // stone roof; the ball goes up a slope, across the roof, and drops into a
+    // yard; the yard's far side is a stone wall with the door in it. On the
+    // roof (ball at y 540, charger at 734) the ball is not on its level and
+    // is not seen; in the yard it is. The ball can never get into a pen, so
+    // the charger — the room's tool — can never be stomped out of the way;
+    // and a yard cannot be climbed out of (the roof is 200 up, a jump 131),
+    // which is safe only because the charger always comes round and sees him.
+    //
+    // Room A: planks, then button b's post, face left, towards the charger.
+    // Stone fills the post up to the roof, and the gap between planks and
+    // post is 30 — narrower than the ball — so the ball can reach neither the
+    // cap nor the planks: only a charge can. Every x the ball can rest at in
+    // the yard (3110-3180) is within SEE (240) of where the planks stop the
+    // charger (2974). Its range runs on to 3034, flush with the post, so a
+    // charge through the planks ends against it, pressing b, not short.
+    //
+    // Room B: the charge ends against the pen's end wall, on plate p, and the
+    // door is open for as long as it sits there dazed. A ball resting at the
+    // door (about 6020) is 286 from the charger's reach (5734), out of its
+    // sight, so the child has to stand close to lure it, then run.
+    // finish.mjs's 2c measures the time that takes.
+    //
+    // Every position here is the paper layout, and finish.mjs let it stand:
+    // nothing was moved. What finish.mjs runs is its usual three leads at
+    // start delays 0-4.5s and from both checkpoints: every run finished, none
+    // lost a heart (this level is in its COUNTS_HEARTS, so one would fail
+    // it), and the slowest got through room B's door in 56% of the daze,
+    // under 2c's 60% — the lead-1.3 thumb that hesitates 0.9s and hops once
+    // (1.69s); one that does not hesitate uses 21% (0.63s). The time does not
+    // depend on the delay at all, since every charge ends at 5734. 3m shows the ball alone never
+    // presses b or breaks the planks, and 3n that a missed door is lured
+    // again and got through on the second daze. A scratch sweep, not run
+    // there (five leads 0.7-1.3, delays 0-25s every 0.25s — longer than a
+    // whole patrol of either pen, 505 runs, plus both checkpoints), found
+    // the same: no heart lost, worst 56%. It cannot be otherwise for the
+    // hearts: each charger is shut in its pen and the ball never gets in,
+    // so the route needs no `dodge`. There are no crates here, so no
+    // dead-end check of one. The one thin number is 2c's margin, 4% of a
+    // 3s daze: moving room B's door left, keeping it more than SEE from
+    // 5734, is the first thing to try if it ever goes over.
+    id: 11,
+    theme: 'hills',
+    bounds: { w: 7000, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 6700, y: 760 },
+
+    ground: [
+      // Up the slope to room A's roof.
+      [[40, 760], [1500, 760], [1800, 560]],
+      // Room A's pen floor, its yard, and on to the proven 200 gap.
+      [[1840, 760], [3700, 760]],
+      // Past the gap, up to room B's roof.
+      [[3900, 760], [4400, 760], [4700, 560]],
+      // Room B's pen floor, its yard, and on to the flag.
+      [[4740, 760], [6960, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 6960, y: 0, w: 40, h: 1080 },
+      // Room A: the pen's left wall, its roof, and the stone over the
+      // button's post up to the roof.
+      { x: 1800, y: 600, w: 40, h: 160 },
+      { x: 1800, y: 560, w: 1290, h: 40 },
+      { x: 3060, y: 600, w: 30, h: 110 },
+      // Room A's door wall, above its gate.
+      { x: 3200, y: 0, w: 40, h: 560 },
+      // Room B: the pen's left wall, its roof, and its end wall.
+      { x: 4700, y: 600, w: 40, h: 160 },
+      { x: 4700, y: 560, w: 1100, h: 40 },
+      { x: 5760, y: 600, w: 40, h: 160 },
+      // Room B's door wall, above its gate.
+      { x: 6040, y: 0, w: 40, h: 560 },
+    ],
+
+    breakables: [
+      { x: 3000, y: 600, w: 30, h: 160 },
+    ],
+
+    senders: [
+      { id: 'b', kind: 'button', x: 3060, y: 760, face: 'left' },
+      { id: 'p', kind: 'plate', x: 5650, y: 760, w: 110 },
+    ],
+
+    gates: [
+      { x: 3200, y: 560, w: 40, h: 200, needs: ['b'] },
+      { x: 6040, y: 560, w: 40, h: 200, needs: ['p'] },
+    ],
+
+    bridges: [],
+    platforms: [],
+
+    enemies: [
+      { kind: 'charger', x: 2600, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 1866, to: 3034, dir: 1 },
+      { kind: 'charger', x: 5200, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 4766, to: 5734, dir: 1 },
+    ],
+
+    checkpoints: [
+      { x: 1200, y: 760 },
+      { x: 4000, y: 760 },
+    ],
+  },
 ];
 
 /**
