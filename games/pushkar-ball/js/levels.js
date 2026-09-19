@@ -1244,12 +1244,16 @@ export const LEVELS = [
     ground: [
       // Up the slope to room A's roof.
       [[40, 760], [1500, 760], [1800, 560]],
-      // Room A's pen floor, its yard, and on to the proven 200 gap.
-      [[1840, 760], [3700, 760]],
+      // Room A's pen floor, its yard, and on to the proven 200 gap. It
+      // starts under the pen's left wall, not beside it: starting at the
+      // wall's inner face left a 40-wide hole in the ground's fill below the
+      // wall, drawn as a crack running down to the bottom of the screen.
+      [[1800, 760], [3700, 760]],
       // Past the gap, up to room B's roof.
       [[3900, 760], [4400, 760], [4700, 560]],
-      // Room B's pen floor, its yard, and on to the flag.
-      [[4740, 760], [6960, 760]],
+      // Room B's pen floor, its yard, and on to the flag. Under its wall,
+      // like room A's.
+      [[4700, 760], [6960, 760]],
     ],
 
     boxes: [

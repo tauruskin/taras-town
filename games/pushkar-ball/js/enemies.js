@@ -483,7 +483,12 @@ function drawCharger(ctx, e, time, cfg) {
 
   ctx.save();
   ctx.translate(e.x, feet);
+  // A charge leans on its front foot, not on its middle: turned about the
+  // middle, the nose-down lean pushed the front leg through the ground.
+  const pivot = e.state === 'charge' ? d * r * 0.75 : 0;
+  ctx.translate(pivot, 0);
   ctx.rotate(lean * d);
+  ctx.translate(-pivot, 0);
   ctx.scale(d, squash);           // draw facing right; the scale mirrors it
 
   // Stubby legs, the front one pawing during the wind-up.
