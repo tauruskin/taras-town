@@ -272,17 +272,24 @@ is in its own README; these are the things to know before touching it.
   holds its door open for ever. A respawn resets buttons and timers, which is
   only safe because `levels.mjs` forbids a checkpoint between a sender and
   what it drives. Anything that can press something joins the *presser* list
-  in `Level.update`; the ball joins it through `level.noteBall`, and future
-  enemies are added in `Level.update` itself, like crates, because they are
-  the level's own. Beside the presser list sits the list a closing gate
-  refuses to come down on (`blockers`: every presser, plus a deflating ball,
-  which presses nothing), so decide per enemy kind whether it presses,
-  blocks, or both. A phone shows only ~480 units ahead of the
+  in `Level.update`; the ball joins it through `level.noteBall`, and
+  enemies are added in `Level.update` itself, because they are the level's
+  own. An enemy joins through three fields: `presses`, `heavy`, `grounded`.
+  The charger presses with its box, blocks a closing gate, and is heavy
+  (holds a plate) only while dazed. Decide those three per enemy kind. A
+  phone shows only ~480 units ahead of the
   ball, so a door opened off screen is shown by the camera's *reveal*
   (`camera.reveal`), not by keeping wires short. And **every crate needs a
   dead-end check** — can the ball get behind it and shove it flush against
   something? Levels 8 and 9 each had one, found only by trying to break the
   room on purpose (`finish.mjs` 3g, 3k).
+- **Every new enemy is a state machine** (`enterState`/`runStates` in
+  `js/enemies.js`): named states that change only on a timer or a distance
+  check, never at random. The charger is the first. Walker, roller and
+  popper predate it and are deliberately left as they are, because their
+  level placements were tuned against their exact maths. `stompable` and
+  `harmless` are how an enemy tells `stompEnemy` and `hazardKnockDir` when
+  the usual rules don't apply.
 - **Falling out of the level respawns the ball at the spawn immediately**, and
   the camera snaps rather than easing back across the whole level. Every piece
   of carried state has to be cleared, not just position: a surviving `buffer`

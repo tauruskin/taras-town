@@ -16,7 +16,7 @@ else from them — no artwork, no names, no level layouts.
 
 ## What is here, and what is not
 
-**Nine levels**, chosen from a level-select screen rather than played in a
+**Eleven levels**, chosen from a level-select screen rather than played in a
 fixed order: level one is always open, and finishing a level opens the next
 one. A tile shows its level's number, a star once it is finished, a highlight
 on the one open tile not yet finished, and an unresponsive padlock on anything
@@ -38,8 +38,10 @@ is work thrown away. The original plan is in
 [`docs/superpowers/specs/2026-09-08-pushkar-ball-design.md`](../../docs/superpowers/specs/2026-09-08-pushkar-ball-design.md);
 level select and the corner buttons were added later and are documented in
 [`docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md`](../../docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md),
-and the wiring of levels 8 and 9 in
-[`docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`](../../docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md).
+the wiring of levels 8 and 9 in
+[`docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`](../../docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md),
+and the charger of levels 10 and 11 in
+[`docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md`](../../docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md).
 
 ## How it's built
 
@@ -98,6 +100,7 @@ when one does.
 | `js/config.js` | every tunable number and colour | never |
 | `js/physics.js` | segments, the broad-phase grid, circle-vs-segment resolution, the step, and the two box questions a crate asks | never |
 | `js/levels.js` | the level data, the loader that expands it, moving platforms, crates | never |
+| `js/enemies.js` | walker, roller, popper and charger; the state-machine shape every new enemy is written in | update never; drawing on a canvas handed in |
 | `js/circuits.js` | wiring: plates, buttons, timers, the AND/NOT needs, and the drawing of lamps, wires and bridges | canvas only, handed in |
 | `js/player.js` | the ball: acceleration, friction, jump, coyote time, buffering, spin, pushing, respawning | never |
 | `js/camera.js` | follow with lookahead and a vertical deadzone, clamped to the level | never |
@@ -278,6 +281,68 @@ timer with no time, a plate with no width, a bridge with no width or a
 direction that is neither way — throws when the level loads rather than
 building a door that can never open. The rest, including what was tried and
 thrown away, is in the spec.
+
+## The charger
+
+Levels 10 and 11 add the first enemy that uses the world rather than just
+standing in it. It lives in `js/enemies.js` beside the walker, roller and
+popper, and like the roller it moves through the real physics, so stone,
+gates, crates and slopes stop it with no special case for any of them.
+
+It has five states, and each ends in exactly one way:
+
+- **patrol** — walks its range at `PATROL_SPEED`, turning at either end or
+  at anything solid in front, planks included: only a charge breaks wood.
+  Ends when the ball is in front of it, on its own level (`LEVEL_TOL`) and
+  within `SEE`.
+- **wind-up** — stands still, crouches and paws the ground for `WINDUP`
+  seconds. That is the warning, and it always comes.
+- **charge** — a straight dash at `CHARGE_SPEED`, faster than the ball, so the
+  answer is a jump, not a run. A plank wall does not end it: the charge
+  breaks the wall and goes on. It ends at the end of its range, or against
+  anything else solid — stone, a gate, a button's post, a crate.
+- **dazed** — sits still with stars circling it for `DAZED` seconds, one star
+  going each third, because a timer the player needs must show its time.
+  Then it patrols again.
+- **popped** — gone, for `RETURN` seconds at least, and until the ball is out
+  of `SEE` of its home. Then it is back at home with a puff, facing the way
+  the level first put it.
+
+**Only a dazed charger can be stomped, and only a dazed one is harmless.**
+Any other contact costs a heart, a landing from above included; dazed, the
+ball can roll straight through it or pop it. `stompable` and `harmless` are
+how it tells `stompEnemy` and `hazardKnockDir` so. The lesson is *let it
+charge, then stomp*. It always comes back after a pop, everywhere, so no
+level that needs a charger as a tool can be left unfinishable by popping it
+early.
+
+What it does to the world: a charge breaks plank walls, shoves a crate
+`CRATE_SHOVE` on through the crate's own push (so it can never wedge one
+inside anything), and presses a button whose capped side it runs into. It
+holds a plate down **only while dazed** — heavy all the time would let a
+patrol open a door by walking over its plate. It reaches the wiring through
+three fields every enemy may carry, `presses`, `heavy` and `grounded`, which
+`Level.update` reads to put it on the presser and blocker lists; a closing
+gate therefore never comes down on it.
+
+**The charger is written in a small state-machine shape, `enterState` and
+`runStates`, and every new enemy is written in it.** An enemy has a `state`,
+a `stateT` (seconds in it) and a table of named states, each with an
+`update` that returns the next state's name or nothing, and an optional
+`enter`. A state changes only on a timer or a distance check, never at
+random, so the same situation plays out the same way every time — which is
+what lets a child learn it and Node test it. Walker, roller and popper
+predate the shape and are deliberately left as they are, because their
+levels were tuned against their exact maths.
+
+Level 10 introduces it in a pen with nothing else in it that can hurt: its
+first charge ends dazed against the stone step the ball came in over, and a
+later one breaks the pen's plank wall. Level 11 uses it twice, each time in
+a closed pen under a stone roof the ball crosses without being seen: in room
+A a charge breaks planks and presses a button the ball cannot reach, and in
+room B the charge ends dazed on a plate, and the door is open for as long as
+it sits there. The ball can never get into either pen, so the room's tool can
+never be stomped out of the way.
 
 ## Levels are data
 

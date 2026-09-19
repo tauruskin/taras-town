@@ -6,9 +6,11 @@ sub-project below still gets its own design spec, plan and build, the same
 cycle every mechanic in this game has been through. Sub-project 1 is
 specified in
 `docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`,
-and **built** (levels 8 and 9, 2026-09-18); its "What the build taught"
-section is worth reading before designing sub-project 2.
-**Nothing below sub-project 1 is designed yet** beyond what this page says,
+and **built** (levels 8 and 9, 2026-09-18). Sub-project 2 is specified in
+`docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md`,
+and **built** (levels 10 and 11, 2026-09-19). Each spec's "What the build
+taught" section is worth reading before designing the next sub-project.
+**Nothing below sub-project 2 is designed yet** beyond what this page says,
 and nothing should be built from this page directly.
 
 ## Why
@@ -73,8 +75,8 @@ considered and left out — each could be a later programme's).
 | Piece | What it is | Sub-project |
 |---|---|---|
 | Wiring | senders (plate, button, timer) drive receivers (gate, bridge); AND and inverted inputs; lamps and wires show the links | 1 |
-| Enemy state machines | a small shared shape every new enemy is written in | 2 |
-| Charger | spots the ball, winds up, charges; breaks plank walls, hits buttons | 2 |
+| Enemy state machines | a small shared shape every new enemy is written in | 2 (built) |
+| Charger | spots the ball, winds up, charges; breaks plank walls, hits buttons | 2 (built) |
 | Shell | armoured; can't be stomped; heavy enough to hold a plate | 3 |
 | Popper upgrade | a visible aim arc; its lob hits buttons and cracks plank walls | 3 |
 | Swooper | hovers, then dives along a telegraphed line; cover beats it | 4 |
@@ -86,8 +88,8 @@ considered and left out — each could be a later programme's).
 |---|---|---|---|
 | 8 | Introduction | buttons, a gate and a bridge; a two-lamp gate solved with a crate | 1 (built) |
 | 9 | Reinforcement + Reversal | timers ("set up the room first", with a button detour, not a crate); an inverted plate that a crate holds *shut*, with a kerb so the crate cannot be pinned the wrong way | 1 (built) |
-| 10 | Introduction | the charger, somewhere safe | 2 |
-| 11 | Combination | lure the charger through a plank wall and into a button | 2 |
+| 10 | Introduction | the charger, somewhere safe | 2 (built) |
+| 11 | Combination | lure the charger through a plank wall and into a button; then onto a plate that holds a door open while it is dazed | 2 (built) |
 | 12 | Mastery | wiring, charger, shell, popper redirection | 3 |
 | 13+ | Introduction, then Combination | swooper, conveyor | 4 |
 

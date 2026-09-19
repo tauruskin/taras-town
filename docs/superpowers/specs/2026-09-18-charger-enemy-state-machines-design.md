@@ -1,6 +1,6 @@
 # Pushkar Ball — sub-project 2: enemy state machines and the charger (levels 10–11)
 
-Agreed 2026-09-18. Part of the programme in
+Agreed 2026-09-18, and **built** 2026-09-19 (levels 10 and 11). Part of the programme in
 `docs/superpowers/specs/2026-09-18-mechanisms-and-enemies-roadmap.md`, whose
 rules every level here follows. Read sub-project 1's "What the build taught"
 (`2026-09-18-wiring-buttons-timers-bridges-design.md`) before building.
@@ -141,6 +141,117 @@ Every crate in either level gets a dead-end check.
   something? can a stomped or dazed charger leave either room unfinishable?
 - **Rendering:** screenshots of every pose, and both levels, at 568×320 and
   740×280.
+
+## What the build taught
+
+- **No level position moved from the paper layout, in either level.** Every
+  number in levels 10 and 11 is what the plan drew. The fixes were in the
+  routes `finish.mjs` drives, and in two corrections found by rendering
+  (below) — neither of which changed what the suites measure.
+- **Level 10's way in needed a guard, and no position could supply it.** The
+  plan's route hopped the 60 stone step at 1400 and sometimes landed on a
+  charger that had just arrived on the other side: a ball in the air cannot
+  obey `dodge`. The daze end was not the cause. Moving the charger's home
+  cannot fix it — the pen is 840 wide and a 4.5 s spread of arrivals covers
+  540 of its patrol, so some arrival always meets it there. The fix is in the
+  route: `holdAtStep` waits outside the step while the charger is patrolling
+  towards it within `PEN_GUARD` (600). Outside the step nothing can reach the
+  ball, which is the step's other job.
+- **The `PEN_GUARD` sweep.** A scratch sweep, not something `finish.mjs`
+  runs: five leads 0.7-1.3, start delays 0-25 s every 0.25 s — a whole ~13 s
+  patrol of the pen, 505 runs per value. Hits: 31 with no guard, 15 at 300, 5
+  at 400, none from 500 to 900. 600 is 500 with room. What `finish.mjs`
+  runs is its usual three leads at delays 0-4.5 s.
+- **A child who hops in blind loses a heart about 6% of the time.** The spec
+  reviewer's independent sweep with no guard found 16 of 255 runs losing a
+  heart. `holdAtStep` makes the route safe; it does not make the level safe
+  for a child who does not wait. See the open questions.
+- **Hearts, not only lives, for levels 10 and 11.** `finish.mjs`'s sections 1
+  and 2 count deaths, which would let a route that lands on the charger pass.
+  `COUNTS_HEARTS` = {10, 11} makes them fail on a single lost heart there;
+  3l fails on one too.
+- **A route that starts from a checkpoint must know where it is.** Level
+  10's route, respawned at its checkpoint past the planks, waited for ever for
+  a charge that would never come, and level 11's needed the same fix for
+  its second checkpoint, past room A. Both now choose their first stage from where the ball
+  starts.
+- **Level 11 passed first time, and its thin number is 2c: 56% of the daze,
+  against a 60% limit** — about 0.12 s of a 3 s daze to spare. The worst run
+  is the lead-1.3 thumb that hesitates 0.9 s and hops once for nothing (1.69
+  s); one that does not hesitate uses 21% (0.63 s). It is the same at every
+  delay, because every charge in room B ends at 5734. If it ever goes over,
+  the first thing to try is moving room B's door wall and gate left of 6040,
+  keeping the door more than `SEE` (240) from 5734 so resting there stays out
+  of sight. No run of level 11 loses a heart anywhere: both chargers are shut
+  in their pens, so the route needs no `dodge`.
+- **Probes have to prove they tested something.** 3m and 3n were rewritten to
+  read the rooms from the level's own geometry (`room11`, `lure11`) and to
+  fail if a run never got down into the yard, or never rested at the shut
+  door out of sight before luring again.
+- **Slowest finishes:** level 10 in 33.6 s, level 11 in 40.0 s.
+- **Rendering found two things no assertion saw.** The charge's nose-down
+  lean turned about the middle of the feet and pushed the front leg about 5
+  CSS px into the ground; any lean now turns about the foot on the side going
+  down, which fixed the daze's wobble too. And level 11's pen floors started
+  at 1840 and 4740, the pen walls' inner faces, leaving a 40-wide hole in the
+  ground's fill under each wall, drawn as a crack to the bottom of the screen;
+  they now start at 1800 and 4700, under the walls.
+- **A charge is too quick for quarter-second pictures.** It lasts under 0.3 s,
+  so the browser suite stepped straight over it. It now takes pictures back
+  to back from the wind-up's crouch, timed by the clock.
+- **A ball still on a charger when its daze ends takes a heart**, on the
+  exact frame it wakes (patrol, `stateT` 0). It happens only if the ball sits
+  on the dazed charger on purpose; before the route fix, 3l at start delays
+  1-2 was still steering over it when it woke. It is not fixed in the
+  charger, and is documented in level 10's comment. 3l fails on a lost heart,
+  and a scratch sweep of the stomp (five leads, delays 0-13 s, 265 runs)
+  always landed before the daze ran out.
+
+### Where the build departs from this spec
+
+- **Level 10's checkpoint is after the pen, at 3300, not before it.** The plan
+  put it there, out of the charger's sight (its range ends at 2800 and it
+  sees 240); this spec's level-10 section says "checkpoint before the pen".
+  Flagged to the user and not yet decided.
+- **Level 11's button has stone filling from its post up to the roof**, not
+  a "stone lip" over it. The effect the spec asked for holds — the ball can
+  reach neither the cap nor the planks, which 3m proves — but the shape
+  differs.
+
+### Carried over from the reviews, for the next sub-project
+
+- `stompEnemy` asks only the first enemy the ball overlaps. Two enemies
+  overlapping each other under a landing ball would be judged by whichever
+  comes first in the list.
+- A sender's `touched` is per sender, not per presser, so a charger's hit on
+  a timer the ball is already touching is swallowed. Levels 10 and 11 have no
+  timers.
+- A popped charger can come back inside a crate sitting on its home: its
+  return waits only for the ball. Levels 10 and 11 have no crates.
+- The charger sees through walls. That is intended, and level 11 relies on
+  it: the ball in the yard is seen through the pen's end.
+- Decide pressers versus gate `blockers` per enemy kind. Walkers pass
+  through button posts. The gate-hazard check in `levels.mjs` still goes by
+  kind name, so each new enemy kind has to be taught to it.
+- `COLOURS.ENEMY` is shared by every enemy; that is fine in level 10, which
+  has only the charger.
+
+### Open questions for the user
+
+None of these is decided.
+
+- **Level 10's way in.** A child who hops the step without waiting loses a
+  heart about 6% of the time. Is that acceptable as part of learning the
+  charger, or should the level change so waiting is not needed?
+- **Level 10's checkpoint:** after the pen, as built, or before it, as this
+  spec says?
+- **Level 11's room B** needs the child to find a sight line he cannot see:
+  resting at the door is out of the charger's sight, so he has to step back
+  towards the pen to be noticed. Is that learnable without text?
+- **Looks, from the screenshots:** the charger is only ~30 CSS px wide at
+  740×280; on level 11's roof at 740×280 the ball sits ~13 CSS px from the
+  top edge just after the climb, while the camera eases; and a dazed
+  charger's horns overlap the step's face in level 10.
 
 ## Out of scope
 
