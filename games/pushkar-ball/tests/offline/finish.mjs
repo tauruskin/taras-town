@@ -149,6 +149,59 @@ function waitForLow(level, lead) {
   };
 }
 
+/**
+ * What a child does about a charger, or null if none needs anything.
+ *
+ * Stand still while one winds up or charges at him, and jump when a charge
+ * is `150 * lead` away. Worked on paper and swept in Node: jumping from rest,
+ * the ball clears the charger's 52-tall box if the charge is 84 to 248 away,
+ * centre to centre, so 105 (lead 0.7) to 195 (lead 1.3) all sit inside it.
+ * A dazed one is left to the caller: rolled through or stomped.
+ */
+function dodge(level, ball, lead) {
+  for (const c of level.enemies) {
+    if (c.kind !== 'charger' || !c.alive) continue;
+    if (Math.abs(c.y - ball.y) > 60) continue;
+    const toward = Math.sign(ball.x - c.x) === c.dir;
+    const gap = Math.abs(ball.x - c.x);
+    if (!toward || gap > 400) continue;
+    if (c.state === 'charge' && gap < 150 * lead) return { jump: ball.grounded };
+    if (c.state === 'charge' || c.state === 'windup') return {};
+    // Patrolling towards him and about to see him: wait for it.
+    if (c.state === 'patrol' && gap < 320) return {};
+  }
+  // Patrolling away from him, ahead: wait for it to turn round rather than
+  // catch it up and land on it, which costs a heart. Every level goes right,
+  // so "ahead" is to the right.
+  for (const c of level.enemies) {
+    if (c.kind !== 'charger' || !c.alive || c.state !== 'patrol') continue;
+    if (Math.abs(c.y - ball.y) > 60) continue;
+    if (c.x > ball.x && c.dir === 1 && c.x - ball.x < 400) return {};
+  }
+  return null;
+}
+
+/**
+ * Level ten, outside the pen: hold back from the step while the charger is
+ * patrolling towards it within PEN_GUARD, or null to carry on.
+ *
+ * `dodge` alone is not enough here, because it can only stop a ball on the
+ * ground: the hop over the step is committed from outside, and it landed the
+ * ball on a charger that had arrived just the other side — 31 hits in 505
+ * runs (leads 0.7-1.3, start delays 0-25s, a whole ~13s patrol of the pen).
+ * Outside the step nothing can reach him, so waiting there costs nothing.
+ * Swept the same way: 300 still took 15 hits, 400 five, 500 to 900 none;
+ * 600 is 500 with room. No home for the charger fixes it instead: the pen is
+ * 840 wide and a 4.5s spread of arrivals is 540 of its patrol.
+ */
+const PEN_GUARD = 600;
+function holdAtStep(level, ball, c) {
+  const step = level.walls.find((w) => w.x === 1400 && w.h === 60);
+  if (ball.x >= step.x || !c.alive || c.state !== 'patrol' || c.dir !== -1) return null;
+  if (c.x - step.x >= PEN_GUARD) return null;
+  return ball.x > step.x - 150 ? { left: true } : {};
+}
+
 /** A level's sender by id. */
 const sender = (level, id) => level.senders.find((s) => s.id === id);
 
@@ -412,6 +465,35 @@ const ROUTES = {
       // Room C: push the crate off the plate, into the trench.
       if (stage === 'run3') { if (ball.x > p.x - 300) stage = 'push'; else return run(ball); }
       if (stage === 'push') { if (crate.y > 700) stage = 'end'; else return { right: true }; }
+      return run(ball);
+    };
+  },
+  // Level ten: wait for the charger, jump its charge into the stone step,
+  // then wait by the planks for the second charge, which breaks them.
+  10: (level, lead) => {
+    const run = runner(level, lead);
+    const c = level.enemies.find((e) => e.kind === 'charger');
+    const wood = level.breakables[0];
+    let stage = null;
+    return (ball) => {
+      // From the checkpoint, past the planks, there is nothing left to wait for.
+      if (!stage) stage = ball.x > wood.x + wood.w ? 'out' : 'in';
+      const d = dodge(level, ball, lead);
+      if (d) return d;
+      if (stage === 'in') {
+        if (ball.grounded && ball.x > 1700) stage = 'wait1';
+        else return holdAtStep(level, ball, c) || run(ball);
+      }
+      // Popped (a hop over the step can land on it while dazed) is as good
+      // as dazed behind him; with it gone, the ball breaks the planks itself.
+      if (stage === 'wait1') {
+        if (!c.alive || (c.state === 'dazed' && c.x < ball.x)) stage = 'wait2';
+        else return {};
+      }
+      if (stage === 'wait2') {
+        if (wood.broken || !c.alive) stage = 'out';
+        else return ball.x < 2150 ? { right: true } : {};
+      }
       return run(ball);
     };
   },
@@ -994,6 +1076,46 @@ console.log('\n3k. level nine: room C has no dead end');
     else recovered++;
   }
   if (!bad) console.log(`   ${tries.length} tries at shoving the crate left: it got no further than x=${least.toFixed(0)} (kerb at ${floor}), and every time it was pushed back into the trench after (gate at ${gateC.x} open)`);
+}
+
+// --- 3l. level ten: a stomp after the first charge, and the level still goes -
+//
+// The optional lesson: stomp it while dazed. Then the charger is gone, comes
+// back at home once the ball is out of sight, and the level still finishes —
+// by the ball breaking the planks itself.
+console.log('\n3l. level ten: stomp the dazed charger, and still finish');
+{
+  const data = LEVELS.find((l) => l.id === 10);
+  for (const lead of LEADS) {
+    let stomped = false, back = false;
+    const route = (level) => {
+      const run = runner(level, lead);
+      const c = level.enemies[0];
+      let stage = 'in';
+      return (ball) => {
+        if (!c.alive) stomped = true;
+        if (stomped && c.alive) back = true;
+        const d = dodge(level, ball, lead);
+        if (d) return d;
+        if (stage === 'in') { if (ball.grounded && ball.x > 1700) stage = 'wait'; else return holdAtStep(level, ball, c) || run(ball); }
+        if (stage === 'wait') { if (c.state === 'dazed') stage = 'stomp'; else return {}; }
+        // Roll back into it (dazed, it is not solid and does not hurt),
+        // settle over it, and jump straight up: the way down is the stomp.
+        if (stage === 'stomp') {
+          if (!c.alive) { stage = 'out'; return {}; }
+          const gap = ball.x - c.x;
+          if (gap > 30) return { left: true };
+          if (gap < -30) return { right: true };
+          return { jump: ball.grounded && Math.abs(ball.vx) < 80 };
+        }
+        return run(ball);
+      };
+    };
+    const { ball, t } = play(data, route, { seconds: 90 });
+    console.log(`   lead ${lead}: stomped=${stomped}, came back=${back}, won=${ball.won} in ${t.toFixed(1)}s, hits=${ball.hits}`);
+    if (!stomped) fail(`level ten, lead ${lead}: never stomped the dazed charger`);
+    if (!ball.won || ball.deaths) fail(`level ten, lead ${lead}: after a stomp the level was not finished cleanly`);
+  }
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------

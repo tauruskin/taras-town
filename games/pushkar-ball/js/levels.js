@@ -1111,6 +1111,76 @@ export const LEVELS = [
       { x: 9600, y: 760 },
     ],
   },
+  {
+    // Level ten: the charger. Stage: INTRODUCTION — see the roadmap and
+    // docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md.
+    // The one new idea: this one warns you, then runs at you. Jump the run,
+    // and while it sits dazed, it is yours to stomp.
+    //
+    // A pen, entered over the recurring 60 stone step at 1400, with nothing
+    // else in it that can hurt. The charger starts at 2100 facing left and
+    // patrols towards a ball waiting inside the step; its first charge runs
+    // into the step's stone face and ends dazed at 1486, a stomp away. Its
+    // second, once it has turned and come back right, runs into the planks
+    // at 2300 — 200 tall, which no jump clears — breaks them, and carries on
+    // to the end of its range at 2800. The ball could break them too; nothing
+    // depends on who does. Then level six's warm-up shape: a proven 200 gap
+    // and the long stone step, to the flag.
+    //
+    // Every position here is the paper layout, and finish.mjs let it stand.
+    // What it found was about the way IN: hopping the step while the charger
+    // is just the other side lands the ball on it, and a ball in the air
+    // cannot wait. finish.mjs's route therefore waits outside the step while
+    // the charger is patrolling towards it within 600 (PEN_GUARD, swept there
+    // from 0 to 900: 400 still took hits, 500 and up none, in 505 runs over
+    // a whole patrol of the pen). Outside the step nothing can reach the
+    // ball, which is the step's other job. Moving the charger's home was
+    // looked at and cannot do it: the pen is 840 wide and a 4.5s spread of
+    // arrivals is 540 of its patrol, so some arrival always meets it there.
+    // The charger's range end, 1486, is exactly where its box meets the
+    // stone, and its patrol turns there on the range check first, so the
+    // 60-tall step's corner never decides whether a second charge comes; in
+    // every run of the route it came, and broke the planks. A ball that
+    // sits on the dazed charger until its daze runs out takes a heart as it
+    // wakes. No route here does that: the stomp in finish.mjs's 3l, tried
+    // at five leads and start delays across a whole patrol, always landed
+    // before the daze ran out, with no hit.
+    id: 10,
+    theme: 'hills',
+    bounds: { w: 6000, h: 1080 },
+    spawn: { x: 200, y: 560 },
+    goal: { x: 5700, y: 760 },
+
+    ground: [
+      [[40, 760], [3600, 760]],
+      [[3800, 760], [5960, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 5960, y: 0, w: 40, h: 1080 },
+      // The pen's left end: the recurring low step, and the stone the first
+      // charge stops against.
+      { x: 1400, y: 700, w: 60, h: 60 },
+      // The long stone step of the warm-up.
+      { x: 4500, y: 700, w: 200, h: 60 },
+    ],
+
+    breakables: [
+      { x: 2300, y: 560, w: 30, h: 200 },
+    ],
+
+    platforms: [],
+
+    enemies: [
+      { kind: 'charger', x: 2100, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 1486, to: 2800, dir: -1 },
+    ],
+
+    // Out of the charger's sight: its range ends at 2800 and it sees 240.
+    checkpoints: [
+      { x: 3300, y: 760 },
+    ],
+  },
 ];
 
 /**
