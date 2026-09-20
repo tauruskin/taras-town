@@ -1333,12 +1333,12 @@ console.log('\n3n. level eleven: missing room B\'s door is not a dead end');
 {
   const data = LEVELS.find((l) => l.id === 11);
   const B0 = room11(loadLevel(data), 1);
-  if (B0.x1 > B0.c.to + B0.c.see) fail(`level eleven: a ball resting at room B's door (x=${B0.x1}) is out of the charger's sight of ${B0.c.to} (sees ${B0.c.see})`);
+  if (B0.x1 >= B0.c.to + B0.c.see) fail(`level eleven: a ball resting at room B's door (x=${B0.x1}) is out of the charger's sight of ${B0.c.to} (sees ${B0.c.see})`);
   let dazes = 0, atDoor = 0, idleT = 0;
   const route = (level) => {
     const B = room11(level, 1), lure = lure11(B);
     const p = sender(level, 'p');
-    let stage = 'lure', was = false;
+    let stage = 'lure', was = false, waitFrom = null;
     return (ball) => {
       if (p.pressed && !was) dazes++;
       was = p.pressed;
@@ -1350,16 +1350,21 @@ console.log('\n3n. level eleven: missing room B\'s door is not a dead end');
         stage = 'wait';
       }
       // The whole point: sit still at the shut door and be found there.
-      if (stage === 'wait') { idleT += CONFIG.STEP; if (dazes < 2) return {}; stage = 'go'; }
+      if (stage === 'wait') {
+        if (waitFrom === null) waitFrom = level.time;
+        idleT = level.time - waitFrom;
+        if (dazes < 2) return {};
+        stage = 'go';
+      }
       return { right: true };
     };
   };
   const from = { x: B0.x0 + 2 * CONFIG.BALL.R, y: B0.c.y + B0.c.r - CONFIG.BALL.R - 20 };
   const { ball } = play(data, route, { from, seconds: 40 });
   const through = ball.x > B0.gate.x + B0.gate.w;
-  console.log(`   rested at the shut door (x=${atDoor.toFixed(0)}), waited ${idleT.toFixed(1)}s without steering, ${dazes} dazes, got through: ${through} (ball at x=${ball.x.toFixed(0)})`);
+  console.log(`   rested at the shut door (x=${atDoor.toFixed(0)}; a ball at rest sits at ${B0.x1}, the charger's sight reaches ${B0.c.to + B0.c.see}), waited ${idleT.toFixed(1)}s without steering, ${dazes} dazes, got through: ${through} (ball at x=${ball.x.toFixed(0)})`);
   if (atDoor < B0.gate.x - 30) fail('level eleven: 3n never went to rest at the shut door — it proves nothing');
-  if (idleT < 1) fail(`level eleven: 3n waited only ${idleT.toFixed(2)}s at the door — it proves nothing`);
+  if (idleT < 1) fail(`level eleven: 3n waited only ${idleT.toFixed(2)}s — the charger found it before it settled at the door, so standing still was never tested`);
   if (dazes < 2) fail(`level eleven: 3n saw only ${dazes} daze(s) — the charger never came back for a ball standing still`);
   if (!through) fail('level eleven: after missing room B\'s door once, the ball could not get through');
 }

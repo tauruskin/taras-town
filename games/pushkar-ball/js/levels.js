@@ -1234,14 +1234,14 @@ export const LEVELS = [
     // planks; 3n that a ball which misses the door, then rests against it and
     // steers nothing at all, is found where it stands and gets through on the
     // second daze — 15.6s of it, on the run the suite prints. A scratch
-    // sweep, not run there (five leads 0.7-1.3, delays 0-25s
-    // every 0.25s — longer than a whole patrol of either pen, 505 runs, plus
-    // both checkpoints), found the same: no heart lost, worst 56%. It cannot
-    // be otherwise for the hearts: each charger is shut in its pen and the
-    // ball never gets in, so the route needs no `dodge`. There are no crates
-    // here, so no dead-end check of one. The one thin number is 2c's margin,
-    // 4% of a 3s daze: moving room B's door left, keeping it within that
-    // charger's sight of 5734, is the first thing to try if it ever goes over.
+    // sweep, not run there (five leads 0.7-1.3, delays 0-25s every 0.25s —
+    // longer than a whole patrol of either pen, 505 runs, plus both
+    // checkpoints), found the same: no heart lost, worst 56%. It cannot be
+    // otherwise for the hearts: each charger is shut in its pen and the ball
+    // never gets in, so the route needs no `dodge`. There are no crates here,
+    // so no dead-end check of one. The one thin number is 2c's margin, 4% of
+    // a 3s daze: moving room B's door left, keeping it within that charger's
+    // sight of 5734, is the first thing to try if it ever goes over.
     id: 11,
     theme: 'hills',
     bounds: { w: 7000, h: 1080 },
@@ -1300,10 +1300,11 @@ export const LEVELS = [
 
     enemies: [
       { kind: 'charger', x: 2600, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 1866, to: 3034, dir: 1 },
-      // Sees 320 rather than the usual 240, which is the whole of its yard:
-      // the door is 286 from where its charge ends, so a ball that misses the
-      // door and rests against it is still noticed. Room A needs no such
-      // thing — its yard is 70 wide and every spot in it is already in sight.
+      // Sees 320 rather than the usual 240, which covers the whole yard: a ball
+      // resting at the door sits at 6020, 286 past where the charge ends (5734),
+      // and sight reaches 6054 — 34 of slack, so moving the door right undoes
+      // this. finish.mjs's 3n is the check. Room A needs none: its yard is 70
+      // wide and every spot in it is already in sight.
       { kind: 'charger', x: 5200, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 4766, to: 5734, dir: 1, see: 320 },
     ],
 
