@@ -1263,10 +1263,14 @@ export const LEVELS = [
     // never gets in, so the route needs no `dodge`. There are no crates here,
     // so no dead-end check of one. 2c's margin was the one thin number: 56%
     // of a 3s daze against a 60% limit. It was mended on 2026-09-20 by
-    // raising DAZED to 3.5 rather than by moving the door, which had only 46
-    // units of room before a ball resting at it would fall out of the
-    // charger's sight — and since that charger now sees 320, resting at the
-    // door being IN sight is the thing room B depends on.
+    // raising DAZED to 3.5, not by moving the door. Pulling the door left was
+    // the old note's first suggestion, from when a ball resting at it had to
+    // stay OUT of the charger's sight; since that charger was given 320, room
+    // B depends on exactly the opposite, and shortening the dash now shortens
+    // the only timed thing in the room. What is bounded is the other
+    // direction: a resting ball sits at 6020 and sight reaches 6054, so the
+    // door has 34 units of room to the RIGHT before the lure stops working —
+    // the same 34 the charger's own entry gives, and 3n's check.
     id: 11,
     theme: 'hills',
     bounds: { w: 7000, h: 1080 },
