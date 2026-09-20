@@ -595,8 +595,10 @@ const ROUTES = {
         if (B.down(ball)) stage = 'lureB';
         else return { right: true };
       }
-      // Stand close enough to be seen. The drop off the roof carries the
-      // ball on towards the door, out of sight, so come back to the band.
+      // Come back to the lure band. Not because anywhere else in the yard is
+      // out of sight — this charger's 320 covers all of it — but because the
+      // band is the one spot the drop off the roof does not leave the ball
+      // at, so luring from it proves the lure and not the arrival.
       if (stage === 'lureB') {
         if (p.pressed) { stage = 'goB'; dazedAt = level.time; }
         else return lure(ball);
