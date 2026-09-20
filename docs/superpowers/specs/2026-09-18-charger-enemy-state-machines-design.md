@@ -1,6 +1,8 @@
 # Pushkar Ball — sub-project 2: enemy state machines and the charger (levels 10–11)
 
-Agreed 2026-09-18, and **built** 2026-09-19 as levels 10 and 11.
+Agreed 2026-09-18, and **built** 2026-09-19 as levels 10 and 11; the open
+questions that build left were all decided on 2026-09-20, at the end of this
+page, so nothing here is still pending.
 Part of the programme in
 `docs/superpowers/specs/2026-09-18-mechanisms-and-enemies-roadmap.md`, whose
 rules every level here follows. Read sub-project 1's "What the build taught"
@@ -35,8 +37,9 @@ separate export, as now.
 
 ## The charger
 
-Level data: `{ kind: 'charger', x, y, from, to, dir?: 1|-1 }`. `x, y` is its
-home. Every number below lives in `CONFIG.ENEMY.CHARGER` and is a guess
+Level data: `{ kind: 'charger', x, y, from, to, dir?: 1|-1, see? }`. `x, y` is
+its home, and `see` is how far ahead it notices the ball — the level's to set,
+`SEE` when it does not. Every number below lives in `CONFIG.ENEMY.CHARGER` and is a guess
 awaiting a thumb.
 
 **Movement.** Through `physics.step`, like the roller, so gravity, slopes,
@@ -49,10 +52,10 @@ is what proves "never charges off a ledge" without a browser.
 
 | State | What it does | Ends when | Next |
 |---|---|---|---|
-| patrol | walks at `PATROL_SPEED` (~120), turns at the ends of its range | ball on its own level (`|ball.y − y| < LEVEL_TOL`), in front, within `SEE` (~240) | wind-up |
+| patrol | walks at `PATROL_SPEED` (~120), turns at the ends of its range | ball on its own level (`|ball.y − y| < LEVEL_TOL`), in front, within its sight (`SEE`, ~240, unless the level says otherwise) | wind-up |
 | wind-up | stands, crouches, paws, puffs; keeps its facing | `WINDUP` (0.8 s) | charge |
 | charge | straight dash at `CHARGE_SPEED` (~480, faster than the ball's 420; a jump clears it) | meets stone, a gate, a button's post, a crate, or the end of its range | dazed |
-| dazed | stays put; stars circle it and visibly count down | `DAZED` (~3 s) | patrol |
+| dazed | stays put; stars circle it and visibly count down | `DAZED` (3.5 s) | patrol |
 | popped | gone | `RETURN` (~4 s) **and** ball further than `SEE` from home | patrol, at home, facing `dir` |
 
 During a charge:
@@ -101,13 +104,14 @@ of known things (a proven gap, the stone step) to the flag.
 Appended. Two rooms, a checkpoint before each.
 
 - **Room A — lure it.** A gate wired to a button behind a plank wall. The
-  button's face cannot be reached by the ball (a stone lip over it); the
-  charger's dash can. The ball stands beyond the button, the charger sees it,
-  charges, breaks the planks, presses the button, and ends dazed against the
-  post. Wire and lamps show the link, as in level 8. The exact layout is the
-  plan's to find, under one constraint the `finish.mjs` probes enforce: the
-  ball can neither press that button nor break those planks itself — only
-  the charger can.
+  button's face cannot be reached by the ball — stone fills its post up to
+  the roof, and the gap between the planks and the post is 30, narrower than
+  the ball — but the charger's dash can reach it. The ball stands beyond the
+  button, the charger sees it, charges, breaks the planks, presses the
+  button, and ends dazed against the post. Wire and lamps show the link, as
+  in level 8. The exact layout is the plan's to find, under one constraint
+  the `finish.mjs` probes enforce: the ball can neither press that button nor
+  break those planks itself — only the charger can.
 - **Room B — use the daze.** A plate the ball is too light to hold drives a
   door. A charge that ends on the plate (stopped by stone just past it)
   leaves the charger dazed there, holding the door open for `DAZED`. The
@@ -211,16 +215,66 @@ Every crate in either level gets a dead-end check.
   and a scratch sweep of the stomp (five leads, delays 0-13 s, 265 runs)
   always landed before the daze ran out.
 
+The rest of this section is what the 2026-09-20 pass over the open questions
+taught, which was mostly about the suites rather than about the charger.
+
+- **A bug nobody had reported, on a shipped level.** Proving
+  `CAMERA.TOP_CLEAR` out found that before it an ordinary bounce off level 5's
+  pad took the ball's centre 30-40 world units *above* the top of the view at
+  740×280 — the whole ball, radius 20 and all, gone from the screen.
+  `offline/pads` passed throughout and always had, because it tests what the
+  pad does to the ball and nothing anywhere was asking where the camera was
+  pointing. The lift at pad height is now part of
+  `tests/offline/camera.mjs`, which prints the clearance for every screen on
+  every run, and `tests/browser/small.mjs` now photographs the top of a bounce
+  on both small screens — the half that would have found it.
+- **A check written against a constant that does not exist yet passes in
+  silence.** The camera check was specified as
+  `if (highest <= CONFIG.CAMERA.TOP_CLEAR) fail(...)`, and was written before
+  the constant was added. Every comparison in the section was therefore
+  NaN-false: the suite printed a contented line while, at 740×280, a 300-unit
+  climb was leaving the ball's centre some 65 units *past* the top of the
+  view. A `Number.isFinite` guard on the constant now stands in front of the
+  checks and says so instead.
+- **A browser suite photographed the wrong room and passed.** `chargers.mjs`
+  in `tests/browser` drives level 11 to room B. With the gap jump
+  mistimed the ball fell, respawned at the checkpoint *before* room A, rolled
+  to room A's door, stood there and was let through — and the suite wrote a
+  picture named `roomB` showing room A with one heart of three, over a
+  perfectly plausible timing for room B's door. Nothing in the route could
+  tell the two doors apart from outside. It was found by breaking the route
+  on purpose, not by running it. Each picture is now held to the one thing
+  that cannot happen on a clean run: the lit heart pixels are counted before
+  and after it.
+  The trap met while building that guard is worth carrying — `COLOURS.STAR_ON`
+  is byte-identical to `COLOURS.FLAG`, and level 11's flag stands in shot in
+  room B's yard, so a whole-canvas count would have been polluted exactly
+  where it was needed. The count reads the hearts' own corner, its geometry
+  asked of `Hearts` in `ui.js`.
+- **Two numbers written into comments were wrong, and both were back-computed
+  rather than measured.** Review caught both; no suite could have. One was a
+  "46 units" of room B door slack that was the answer to a superseded question
+  — the real bound is 34, and it runs the other way. The other was a set of
+  settled-camera figures (235, 271, 309) derived so that subtracting a jump
+  from them would land near the apex, and credited to `camera.mjs`, which
+  never computed them; the measured figures are 231, 267 and 304, and the
+  apex is printed. The habit worth keeping: for every number put in a comment,
+  say whether the suite prints it, it was derived from `config.js`, or it was
+  simulated — and do not write one that is none of the three.
+
 ### Where the build departs from this spec
 
 - **Level 10's checkpoint is after the pen, at 3300, not before it.** The plan
   put it there, out of the charger's sight (its range ends at 2800 and it
   sees 240); this spec's level-10 section says "checkpoint before the pen".
-  Flagged to the user and not yet decided.
+  **Settled 2026-09-20 by having both** — see the decisions below.
 - **Level 11's button has stone filling from its post up to the roof**, not
   a "stone lip" over it. The effect the spec asked for holds — the ball can
   reach neither the cap nor the planks, which 3m proves — but the shape
-  differs.
+  differs. **Accepted 2026-09-20**, and the room A paragraph above now says
+  what is built: a lip is the more fragile of the two shapes, a thin ledge
+  with a ball-sized world underneath it, and nothing is gained by asking the
+  level for one.
 - **A patrol turns at anything solid in front of it, planks included**, not
   only at the ends of its range as the state table above says. It has to:
   without it a patrol would push uselessly into a wall or a crate. Only a
@@ -249,25 +303,109 @@ Every crate in either level gets a dead-end check.
   separate field. Walkers pass through button posts. The gate-hazard check
   in `levels.mjs` still goes by kind name, so each new enemy kind has to be
   taught to it.
-- `COLOURS.ENEMY` is shared by every enemy; that is fine in level 10, which
-  has only the charger.
+- A charger's sight is now **per-instance**: `e.see` in the level data,
+  falling back to `CONFIG.ENEMY.CHARGER.SEE`, which is the roadmap's "every
+  mechanism is an instance with its own config" applied to an enemy. Anything
+  that used to reach for the config's number must ask the loaded enemy
+  instead; `levels.mjs`'s checkpoint-out-of-sight check and `finish.mjs`'s
+  lure band both do now. A new enemy with a range worth tuning per level
+  should be built that way from the start.
+- `COLOURS.ENEMY` is no longer shared by the charger: it has its own
+  `CHARGER_BODY` and `CHARGER_EDGE`. That is the shape the shell and the
+  swooper should follow — an enemy whose rules differ wants its own colour,
+  and a browser suite that counts pixels of it wants one too.
+- **A popped charger's debris still bursts in `COLOURS.ENEMY` violet**, not
+  in its own blue, which a child does see because level 10's optional lesson
+  is stomping a dazed one. Deliberately deferred, not forgotten:
+  `tests/browser/chargers.mjs` finds the charger by counting `CHARGER_BODY`
+  and leans on nothing else in the game being drawn in it, so debris in that
+  blue would be counted as charger while it flew. The fix is to give the pop
+  its own shade, not to reuse the body colour.
 
-### Open questions for the user
+### The open questions, decided (2026-09-20)
 
-None of these is decided.
+All of them, in a pass over the built levels. Five needed code; three needed
+only a decision.
 
-- **Level 10's way in.** A child who hops the step without waiting loses a
-  heart about 6% of the time. Is that acceptable as part of learning the
-  charger, or should the level change so waiting is not needed?
-- **Level 10's checkpoint:** after the pen, as built, or before it, as this
-  spec says?
-- **Level 11's room B** needs the child to find a sight line he cannot see:
-  resting at the door is out of the charger's sight, so he has to step back
-  towards the pen to be noticed. Is that learnable without text?
-- **Looks, from the screenshots:** the charger is only ~30 CSS px wide at
-  740×280; on level 11's roof at 740×280 the ball sits ~13 CSS px from the
-  top edge just after the climb, while the camera eases; and a dazed
-  charger's horns overlap the step's face in level 10.
+**Level 10's way in — accepted.** A child who hops the step blind still loses
+a heart about 6% of the time, and that stands. It is not a shrug: the reason
+is structural. The ball and the charger share one floor and a jump clears 131,
+so there is no safe strip in the pen that cannot be hopped out of. A kerb
+inside the step only moves the landing; a wider dead zone only lowers the odds,
+because a running jump carries about 290. Moving the charger's home was already
+known not to work. What defends the child is the 0.8 s crouch-and-paw — the
+charger's whole contract — and the step he can watch it from, which nothing can
+reach him on. The cost is one of three hearts, instantly undone. The full
+reasoning is in level 10's header comment in `js/levels.js`, beside the
+`PEN_GUARD` note it replaces, so the level says why rather than this page
+alone.
+
+**Level 10's checkpoint — both.** One added at 1150, before the pen and out of
+the charger's sight (its range starts at 1486 and it sees 240, so 1246 is the
+limit), and 3300 kept. The first stops three hearts spent in the pen costing
+the walk up to it; the second stops a death later in the level making him do
+the charger over again. There was never a reason to choose.
+
+**Room B's margin — the daze got longer, not the door closer.** `DAZED` is
+3.5 s, up from 3.0, and 2c now reports 48% of it against its 60% limit. The
+honest reading of the thin number was that the room always had its 1.31 s of
+real slack and it was the limit that was tight; `DAZED` is in `config.js`
+precisely because it is a guess awaiting a thumb, and a longer daze is the
+right direction for both levels that introduce the charger — level 10 only
+gets an easier stomp out of it. This spec's own suggested fix, pulling room B's
+door left, was examined and rejected, and the reason is worth recording: it was
+the answer to a question that no longer exists. See the next paragraph.
+
+**Room B's invisible sight line — the charger was given a wider one.** That
+charger now carries `see: 320` in the level data, against the default 240, and
+a charger's sight is per-instance from here on. The whole yard is inside it:
+the furthest a ball can rest from where the charge ends (5734) is the door
+itself, 286. So a child who misses the door and simply waits at it is noticed
+where he stands, instead of having to find a sight line nothing on screen ever
+showed. This **inverts the old requirement** — room B used to need the resting
+spot out of sight and now depends on its being in sight — which is why moving
+the door left is no longer the fix it was. The bound runs the other way now: a
+resting ball sits at 6020 and sight reaches 6054, so the door has 34 units of
+room to the *right* before the lure stops working. `finish.mjs`'s 3n is the
+check.
+
+**The charger's width at 740×280 — accepted, no code.** It is the whole world
+that is drawn smaller on that screen, not the charger; the horns, the brow and
+the narrowed eye all still separate at that size. The screenshots are the
+evidence, which is the only kind this question could have had.
+
+**The ball against the top edge on level 11's roof — fixed in the camera, not
+in the level.** A new `CONFIG.CAMERA.TOP_CLEAR` (75 world units) is a hard
+floor under the slow vertical follow: the ball's centre is never drawn nearer
+than that to the top of the view. It only ever moves the camera up, and only
+when the ball has climbed faster than `LERP_Y` can ease, so an ordinary jump
+never engages it — which `camera.mjs` proves on every screen by printing the
+apex, tightest at 104 against the 75. Proving it out turned up more than it was
+asked to; see "What the build taught".
+
+**The shared enemy colour — the charger has its own.** `COLOURS.CHARGER_BODY`
+and `CHARGER_EDGE`, a blue. The reason is level 12: it is the Mastery level and
+puts charger, shell and popper in one room, and the charger is the one whose
+stomp rule is conditional — safe only while dazed — so it is the one that must
+never read as another enemy. It also makes the browser suite's pixel count of
+it honest, instead of leaning on "level 10 has no other enemy".
+
+**The dazed charger's horns overlapping the step — accepted.** About 3 CSS px
+of the step's face in level 10. It charged into it, and that is what that looks
+like.
+
+### Open after this pass
+
+- **Level 11's room B makes a child wait.** `finish.mjs`'s 3n measures the wait
+  at the shut door, after a missed door, at **15.6 seconds** of standing
+  perfectly still. That is a full patrol: the charger notices the ball only
+  while walking towards it, so after a daze it walks the length of the pen and
+  comes back — and the pen's end wall is solid stone, so from the yard the
+  child cannot watch it coming. The room is no longer a dead end, which is what
+  the change was for, but the feedback is slow enough that a child might decide
+  nothing is going to happen. Shortening that charger's `from` (4766, the pen's
+  far end today) would halve the cycle, at the cost of a shorter patrol to
+  watch on the way in.
 
 ## Out of scope
 

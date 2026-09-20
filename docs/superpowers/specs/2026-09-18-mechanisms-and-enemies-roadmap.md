@@ -8,8 +8,10 @@ specified in
 `docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`,
 and **built** (levels 8 and 9, 2026-09-18). Sub-project 2 is specified in
 `docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md`,
-and **built** (levels 10 and 11, 2026-09-19). Each spec's "What the build
-taught" section is worth reading before designing the next sub-project.
+and **built** (levels 10 and 11, 2026-09-19); a pass on 2026-09-20 settled
+every open question that build left, so that spec is closed rather than
+pending. Each spec's "What the build taught" section is worth reading before
+designing the next sub-project.
 **Nothing below sub-project 2 is designed yet** beyond what this page says,
 and nothing should be built from this page directly.
 

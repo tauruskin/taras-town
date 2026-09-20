@@ -243,7 +243,10 @@ is in its own README; these are the things to know before touching it.
   rests `BIAS_Y - DEADZONE_Y` below the ball, that came to 20, the ball's
   radius is also 20, and they cancelled — putting the ground on the exact
   middle of every screen. Harmless on a phone, a hard half-and-half horizon on
-  a monitor.
+  a monitor. Under that slow vertical follow sits one hard floor,
+  `CAMERA.TOP_CLEAR`, which keeps the ball's centre off the top of the view on
+  a climb or a bounce pad, and which a jump must never engage — `camera.mjs`
+  holds both ends of that.
 - **Anything the ball can STAND on is a carrier, and owes `dx`, `dy`, `vx`,
   `vy`.** `player.js` adds `platform.dx` to the ball's position without asking
   whether it exists. Crates were added without those four, so the ball's
@@ -291,7 +294,9 @@ is in its own README; these are the things to know before touching it.
   popper predate it and are deliberately left as they are, because their level
   placements were tuned against their exact maths. `stompable` and `harmless`
   are how an enemy tells `stompEnemy` and `hazardKnockDir` when the usual
-  rules don't apply.
+  rules don't apply. How far a charger sees is its level's to set (`see` in
+  the level data, `CONFIG.ENEMY.CHARGER.SEE` otherwise), so ask the loaded
+  enemy for it and never the config.
 - **Falling out of the level respawns the ball at the spawn immediately**, and
   the camera snaps rather than easing back across the whole level. Every piece
   of carried state has to be cleared, not just position: a surviving `buffer`
