@@ -15,7 +15,7 @@ const TAG = process.argv[3] || 'chargers';
 const PORT = Number(process.argv[4] || 9335);
 
 const { CONFIG } = await import('../../js/config.js');
-const { Buttons } = await import('../../js/ui.js');
+const { Buttons, Hearts } = await import('../../js/ui.js');
 const { LEVELS } = await import('../../js/levels.js');
 
 const cdp = await connect(PORT, TAG);
@@ -61,6 +61,45 @@ const roughly = () => ev(`(() => {
   return n ? { x: sx / n, y: sy / n, r: Math.sqrt(16 * n / Math.PI) } : null;
 })()`);
 
+// How much of the hearts HUD is lit, in pixels.
+//
+// This is the suite's proof that the room in a picture is the room it is
+// labelled with. `waitAtDoor` below knows only that the ball stood still and
+// was then let go, and BOTH of this level's doors look like that from out
+// here. Miss the jump over the gap and the ball dies, respawns at the
+// checkpoint at 1200 — which is before room A — rolls back to room A's door,
+// stands there, is let through, and every check passes while the picture
+// filed as room B is room A. A lost heart is the one thing that cannot happen
+// on a clean run of this route, so it is what the labels are held to.
+//
+// Only the hearts' own corner is read, its geometry asked of `Hearts` in
+// ui.js the way every other position here is asked of `Buttons`: the lit
+// colour is STAR_ON, which is also the flag's and the results panel's stars',
+// and level eleven's flag is in shot in room B's yard.
+const heartBox = (W, H) => {
+  const first = Hearts.at(0, W, H);
+  const last = Hearts.at(CONFIG.HEALTH.HEARTS - 1, W, H);
+  const r = CONFIG.HEARTS_UI.R;
+  return { x0: first.x - r, y0: first.y - r, x1: last.x + r, y1: last.y + r };
+};
+const lit = CONFIG.COLOURS.STAR_ON;
+const [LR, LG, LB] = [1, 3, 5].map((i) => parseInt(lit.slice(i, i + 2), 16));
+const heartPixels = (W, H) => {
+  const b = heartBox(W, H);
+  return ev(`(() => {
+    const c = document.getElementById('game'), g = c.getContext('2d');
+    const dpr = c.width / parseFloat(c.style.width);
+    const x0 = Math.floor(${b.x0} * dpr), y0 = Math.floor(${b.y0} * dpr);
+    const w = Math.ceil((${b.x1} - ${b.x0}) * dpr), h = Math.ceil((${b.y1} - ${b.y0}) * dpr);
+    const d = g.getImageData(x0, y0, w, h).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (Math.abs(d[i] - ${LR}) < 6 && Math.abs(d[i + 1] - ${LG}) < 6 && Math.abs(d[i + 2] - ${LB}) < 6) n++;
+    }
+    return n;
+  })()`);
+};
+
 /**
  * Hold right and wait for the ball to come to a stand and then be let go —
  * which on this level means a shut door and the charger opening it.
@@ -89,7 +128,7 @@ async function waitAtDoor(onStanding, whileStanding, seconds = 40) {
       // level are slow enough to look still for a second at a time, which
       // is exactly what a shorter patience mistook them for.
       if (!home) {
-        if (moved < 2) {
+        if (moved < b.r / 10) {
           if (!stillSince) stillSince = Date.now();
           else if (Date.now() - stillSince > 5000) { home = b; if (onStanding) await onStanding(); }
         } else stillSince = 0;
@@ -174,6 +213,20 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
 
   console.log(`\n${W}x${H}, level 11: opening`);
   await open(W, H, 11);
+  // Three lit hearts, measured before anything has had a chance to take one.
+  // Every picture below is checked against this: see heartPixels.
+  const hearts0 = await heartPixels(W, H);
+  const alive = async (what) => {
+    const now = await heartPixels(W, H);
+    if (now >= hearts0 * 0.9) return true;
+    // Three deaths in a row restart the level and refill the hearts, so this
+    // is a floor on what it catches rather than a ceiling: every single death
+    // on the way to either picture is caught, and getting back to three lit
+    // hearts takes a minute of dying.
+    fail(`the ball died on the way to ${what} at ${W}x${H} (${now} lit heart pixels of ${hearts0}), `
+         + 'so it respawned at the checkpoint before room A and this picture is not the room it is named for');
+    return false;
+  };
   await hold(Buttons.right(W, H), 3000);
   await shoot(`${W}x${H}-11-roof`);
   // And on up the slope onto the roof itself, with the charger in its pen
@@ -184,8 +237,10 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   // were about. Its charger sees 320, not the usual 240, so a ball standing
   // anywhere in this yard (the door is 286 from where the charge ends) is
   // noticed where it stands. The picture is the point: the ball at the shut
-  // door with the plate and the charger in the same frame, and then the same
-  // door open with the charger dazed on the plate.
+  // door with the plate, and the charger too where the screen is wide enough
+  // to hold both — at 568x320 it is off the left edge in that one — and then
+  // the same door open with the charger dazed on the plate, which fits on
+  // either screen.
   //
   // Holding right alone never gets here, which is worth writing down because
   // it was tried: the ball waits out room A's door, rolls on and drops
@@ -223,9 +278,10 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   // The same wait again, at room B's door this time. The shut-door picture is
   // taken while the ball stands there; the open-door one the moment it is let
   // through, which is the moment the charger is dazed on the plate.
-  const openedB = await waitAtDoor(() => shoot(`${W}x${H}-11-roomB`),
+  const openedB = await waitAtDoor(async () => { await alive('room B'); await shoot(`${W}x${H}-11-roomB`); },
                                    () => shoot(`${W}x${H}-11-roomB-door`));
   await release(cdp);
+  await alive("room B's door");
   if (openedB === null) fail(`room B's door never opened at ${W}x${H}: the ball never reached the yard, or the charger never reached the plate`);
   else console.log(`   room B's door: ${(openedB / 1000).toFixed(1)}s of waiting on the charger`);
 }

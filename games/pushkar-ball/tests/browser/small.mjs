@@ -100,6 +100,13 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   // later, and "the ball is not on the screen" then means a deflate, not a
   // camera that lost it.
   await openLevel(cdp, URL, W, H, LEVELS.findIndex((l) => l.id === 5), LEVELS.length);
+  // Where the ball sits at rest, and how big it looks, before any of this:
+  // both are the ruler the bounce is measured against below. The apparent
+  // diameter comes from the ball's own pixel count, so it is right at
+  // whatever zoom the window gives, and needs no number written here.
+  const rest = await ballAt(ev);
+  const dpr = await ev("(() => { const c = document.getElementById('game'); return c.width / parseFloat(c.style.width); })()");
+  const across = rest ? 2 * Math.sqrt(rest.pixels / Math.PI) / dpr : 0;
   await press(cdp, Buttons.right(W, H));
   await sleep(2500);
   let top = Infinity, lost = 0;
@@ -110,8 +117,21 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
     await sleep(60);
   }
   await release(cdp);
-  if (lost) fail(`the ball left a ${W}x${H} screen entirely on ${lost} of 40 frames over level five's pad`);
-  else console.log(`   level five's pad: the ball rose to y=${top.toFixed(0)} of ${H}, on screen throughout`);
+  // The bounce has to be IN the picture, not merely not-missing from it. A
+  // window that covers only flat ground leaves a perfectly plausible picture
+  // of the ball rolling, `lost` at nought and nothing to say so — which is
+  // exactly what the first version of this did. A whole ball-diameter above
+  // where it was resting cannot happen by rolling: the pad lifts it many
+  // times that, so this is a floor and not a measurement.
+  if (!rest) fail(`the ball was not on a ${W}x${H} screen at level five's spawn`);
+  else if (lost) fail(`the ball left a ${W}x${H} screen entirely on ${lost} of 40 frames over level five's pad`);
+  else if (top > rest.y - across) {
+    fail(`the ball never left the ground over level five's pad at ${W}x${H}: it rose to y=${top.toFixed(0)} `
+         + `from a resting ${rest.y.toFixed(0)}, less than the ${across.toFixed(0)} it is wide, so this is not a bounce`);
+  } else {
+    console.log(`   level five's pad: the ball rose to y=${top.toFixed(0)} of ${H}, `
+                + `${(rest.y - top).toFixed(0)} above its resting ${rest.y.toFixed(0)}, on screen throughout`);
+  }
 }
 
 for (const p of problems) fail(p);
