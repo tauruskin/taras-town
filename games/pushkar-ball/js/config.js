@@ -846,6 +846,15 @@ export const CONFIG = {
     ENEMY: '#8B5FBF',
     ENEMY_EDGE: '#5E3D8A',
     ENEMY_EYE: '#2A1B40',
+    // The charger's own body, so it never reads as a walker. It is the one
+    // enemy whose stomp rule is conditional — safe only while dazed — and
+    // level twelve puts it beside a shell and a popper. Blue: red minus blue
+    // is deeply negative, so it can never be picked up as the ball by
+    // IS_BALL in tests/browser/_helpers.mjs, the same reasoning ENEMY, FLAG
+    // and the results panel already follow. Darker than the sky, and it is
+    // only ever seen against grass.
+    CHARGER_BODY: '#2E6BC6',
+    CHARGER_EDGE: '#1B4380',
     // The charger's dust and dazed stars. Neither can read as the ball to
     // IS_BALL in tests/browser/_helpers.mjs: the dust's red is only 41 above
     // its blue (the test needs 60), and the stars' green is far above their

@@ -2,13 +2,16 @@
 // in, and Taras Town found three separate bugs of exactly this shape — a room
 // whose only exit was below the bottom edge, a picker whose close button fell
 // off an iPhone SE, a house with no home button. Finding them here is free.
-import { connect, boot, ballAt } from './_helpers.mjs';
+// It also holds the look at level five's bounce pad, for the same reason: the
+// bug it watches for was a small-screen bug and nothing else.
+import { connect, boot, ballAt, press, release, openLevel } from './_helpers.mjs';
 
 const URL = process.argv[2];
 const TAG = process.argv[3] || 'small';
 const PORT = Number(process.argv[4] || 9335);
 
 const { Buttons } = await import('../../js/ui.js');
+const { LEVELS } = await import('../../js/levels.js');
 
 const cdp = await connect(PORT, TAG);
 const { send, ev, sleep, shoot, problems } = cdp;
@@ -71,6 +74,44 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   if (!ball) fail(`the ball is not visible on ${W}x${H}`);
   else console.log(`   ball at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}, all five buttons on screen`);
   await shoot(`${W}x${H}-3-playing`);
+
+  // Level five's bounce pad, at the top of a bounce, on both small screens.
+  // Before CAMERA.TOP_CLEAR an ordinary bounce off the rehearsal pad took the
+  // ball's centre 30-40 world units above the top of a 740x280 view — the
+  // whole ball, radius and all, gone from the screen on a shipped level, with
+  // nothing asserting anything about it. tests/offline/camera.mjs now checks
+  // the arithmetic at pad height; this is the looking at it, which is the
+  // half that actually found it.
+  //
+  // The rehearsal pad sits 1300 units along open flat ground, so holding
+  // right rolls onto it in about three seconds. From there the ball's screen
+  // y is sampled rather than timed, and the picture is retaken every time the
+  // ball is higher than it has been — so whatever else the timing does, the
+  // file left behind is the top of a bounce.
+  //
+  // Forty samples 60ms apart, so the window is the 2.5s to 4.9s of the
+  // level. A full scan for the ball comes back in under ten milliseconds, so
+  // the sleep is what makes this cover the bounce at all rather than a
+  // quarter of a second of the approach: without it the whole loop ran before
+  // the ball had even reached the pad, and left a picture of it rolling along
+  // the flat that looked perfectly plausible. The far end of the window
+  // matters as much: the flat ends in a 200 gap at 2500, which an unattended
+  // ball rolls into at about six seconds and comes back from three frames
+  // later, and "the ball is not on the screen" then means a deflate, not a
+  // camera that lost it.
+  await openLevel(cdp, URL, W, H, LEVELS.findIndex((l) => l.id === 5), LEVELS.length);
+  await press(cdp, Buttons.right(W, H));
+  await sleep(2500);
+  let top = Infinity, lost = 0;
+  for (let i = 0; i < 40; i++) {
+    const b = await ballAt(ev);
+    if (!b) { lost++; }
+    else if (b.y < top) { top = b.y; await shoot(`${W}x${H}-4-pad`); }
+    await sleep(60);
+  }
+  await release(cdp);
+  if (lost) fail(`the ball left a ${W}x${H} screen entirely on ${lost} of 40 frames over level five's pad`);
+  else console.log(`   level five's pad: the ball rose to y=${top.toFixed(0)} of ${H}, on screen throughout`);
 }
 
 for (const p of problems) fail(p);

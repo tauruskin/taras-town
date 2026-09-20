@@ -509,7 +509,7 @@ function drawCharger(ctx, e, time, cfg) {
   ctx.scale(d, squash);           // draw facing right; the scale mirrors it
 
   // Stubby legs, the front one pawing during the wind-up.
-  ctx.fillStyle = C.ENEMY_EDGE;
+  ctx.fillStyle = C.CHARGER_EDGE;
   ctx.fillRect(-r * 0.8, -r * 0.35, r * 0.4, r * 0.35);
   ctx.fillRect(r * 0.35 + paw, -r * 0.35, r * 0.4, r * 0.35);
 
@@ -517,14 +517,15 @@ function drawCharger(ctx, e, time, cfg) {
   ctx.beginPath();
   ctx.ellipse(0, -r * 0.35, r * 1.2, r * 1.2, 0, Math.PI, 0);
   ctx.closePath();
-  ctx.fillStyle = C.ENEMY;
+  ctx.fillStyle = C.CHARGER_BODY;
   ctx.fill();
-  ctx.strokeStyle = C.ENEMY_EDGE;
+  ctx.strokeStyle = C.CHARGER_EDGE;
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Two horns out of the front of the head, pointing forward.
-  ctx.fillStyle = C.ENEMY_EDGE;
+  // Two horns out of the front of the head, pointing forward. The brow's
+  // fillRect below shares this fill style.
+  ctx.fillStyle = C.CHARGER_EDGE;
   for (const up of [0.95, 0.6]) {
     ctx.beginPath();
     ctx.moveTo(r * 0.55, -r * up - r * 0.12);
