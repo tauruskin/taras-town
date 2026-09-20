@@ -254,9 +254,9 @@ function room11(level, i) {
  * yard is too narrow for it and needs none: every spot there is in sight.
  */
 function lure11(room) {
-  const R = CONFIG.BALL.R, K = CONFIG.ENEMY.CHARGER;
+  const R = CONFIG.BALL.R;
   const near = room.x0 + 2 * R, far = room.x0 + 4 * R;
-  if (far > room.c.to + K.SEE - R) throw new Error(`level 11: the lure band ends at ${far}, not inside the charger's sight of ${room.c.to} (SEE ${K.SEE})`);
+  if (far > room.c.to + room.c.see - R) throw new Error(`level 11: the lure band ends at ${far}, not inside the charger's sight of ${room.c.to} (sees ${room.c.see})`);
   if (far > room.x1) throw new Error(`level 11: the lure band ends at ${far}, past the door (${room.x1})`);
   return (ball) => (ball.x > far ? { left: true } : ball.x < near ? { right: true } : {});
 }
@@ -1323,41 +1323,44 @@ console.log('\n3m. level eleven: room A needs the charger');
 
 // --- 3n. level eleven, room B: a door missed is not a dead end -------------
 //
-// A ball that dawdles while the charger is dazed misses the door. It goes
-// and rests against the shut door, out of the charger's sight, for a few
-// seconds; then it must be able to step back into sight, lure the charger
-// again, and get through on the second daze.
+// A ball that dawdles while the charger is dazed misses the door. It goes and
+// rests against the shut door and STAYS there, steering nothing: the charger
+// has to come round, notice it where it stands, and charge again. That is
+// what room B's charger's longer sight (320, against a door 286 from where
+// its charge ends) buys — before it, resting at the door was out of sight,
+// and the child had to find a sight line nothing on screen showed.
 console.log('\n3n. level eleven: missing room B\'s door is not a dead end');
 {
   const data = LEVELS.find((l) => l.id === 11);
   const B0 = room11(loadLevel(data), 1);
-  if (B0.x1 <= B0.c.to + CONFIG.ENEMY.CHARGER.SEE) fail(`level eleven: a ball resting at room B's door (x=${B0.x1}) is in the charger's sight of ${B0.c.to}`);
-  let dazes = 0, atDoor = 0;
+  if (B0.x1 > B0.c.to + B0.c.see) fail(`level eleven: a ball resting at room B's door (x=${B0.x1}) is out of the charger's sight of ${B0.c.to} (sees ${B0.c.see})`);
+  let dazes = 0, atDoor = 0, idleT = 0;
   const route = (level) => {
     const B = room11(level, 1), lure = lure11(B);
     const p = sender(level, 'p');
-    let stage = 'lure', was = false, atDoorT = 0;
+    let stage = 'lure', was = false;
     return (ball) => {
       if (p.pressed && !was) dazes++;
       was = p.pressed;
       if (stage === 'lure') { if (dazes === 1) stage = 'miss'; return lure(ball); }
       if (stage === 'miss') { if (!p.pressed && B.gate.openT === 0) stage = 'door'; return {}; }
       if (stage === 'door') {
-        if (ball.x > B.gate.x - 30) atDoorT += CONFIG.STEP;
         atDoor = Math.max(atDoor, ball.x);
-        if (atDoorT < 3) return { right: true };
-        stage = 'again';
+        if (ball.x < B.gate.x - 30) return { right: true };
+        stage = 'wait';
       }
-      if (stage === 'again') { if (dazes === 2) stage = 'go'; return lure(ball); }
+      // The whole point: sit still at the shut door and be found there.
+      if (stage === 'wait') { idleT += CONFIG.STEP; if (dazes < 2) return {}; stage = 'go'; }
       return { right: true };
     };
   };
   const from = { x: B0.x0 + 2 * CONFIG.BALL.R, y: B0.c.y + B0.c.r - CONFIG.BALL.R - 20 };
   const { ball } = play(data, route, { from, seconds: 40 });
   const through = ball.x > B0.gate.x + B0.gate.w;
-  console.log(`   rested at the shut door (x=${atDoor.toFixed(0)}), ${dazes} dazes, got through on the second: ${through} (ball at x=${ball.x.toFixed(0)})`);
+  console.log(`   rested at the shut door (x=${atDoor.toFixed(0)}), waited ${idleT.toFixed(1)}s without steering, ${dazes} dazes, got through: ${through} (ball at x=${ball.x.toFixed(0)})`);
   if (atDoor < B0.gate.x - 30) fail('level eleven: 3n never went to rest at the shut door — it proves nothing');
-  if (dazes < 2) fail(`level eleven: 3n saw only ${dazes} daze(s) — the second lure did not happen`);
+  if (idleT < 1) fail(`level eleven: 3n waited only ${idleT.toFixed(2)}s at the door — it proves nothing`);
+  if (dazes < 2) fail(`level eleven: 3n saw only ${dazes} daze(s) — the charger never came back for a ball standing still`);
   if (!through) fail('level eleven: after missing room B\'s door once, the ball could not get through');
 }
 
