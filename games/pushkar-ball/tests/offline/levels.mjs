@@ -416,7 +416,7 @@ for (const data of LEVELS) {
 // range, so if every x in the range, plus the body's radius each side, has
 // ground under it at the charger's own feet, there is no ledge to go off.
 // And the roadmap's "never at a checkpoint": a ball respawning must not be
-// in sight of one — SEE past either end of its range.
+// in sight of one — its own sight past either end of its range.
 {
   const R = CONFIG.ENEMY.CHARGER.R;
   let n = 0;
@@ -425,8 +425,10 @@ for (const data of LEVELS) {
     for (const [i, e] of (data.enemies || []).entries()) {
       if (e.kind !== 'charger') continue;
       n++;
-      // Its own sight if the level gave it one — see makeCharger.
-      const SEE = e.see ?? CONFIG.ENEMY.CHARGER.SEE;
+      // Ask the charger itself rather than re-deriving the default here:
+      // `level.enemies` is a straight map of `data.enemies`, so this is the
+      // same enemy, and makeCharger keeps sole ownership of the rule.
+      const SEE = level.enemies[i].see;
       const feet = e.y + R;
       for (let x = e.from - R; x <= e.to + R; x += 5) {
         const held = level.statics.some((s) => s.ny < -0.9 &&

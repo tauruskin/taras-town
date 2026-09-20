@@ -276,6 +276,11 @@ const CHARGER = {
       // Never back on top of him: it waits for the ball to be out of sight
       // of home.
       const b = level && level.ball;
+      // A keep-away box round home, not a sight line: `sees` splits the axes
+      // (sight across, LEVEL_TOL up and down) because it asks what the charger
+      // can notice, and this asks whether it is about to appear on top of him,
+      // which has no front or back. Its own `see` on both axes, so a level
+      // that widens a charger's reach widens the room it gives him too.
       if (b && Math.abs(b.x - c.home.x) < c.see && Math.abs(b.y - c.home.y) < c.see) return;
       c.x = c.home.x; c.y = c.home.y;
       c.dir = c.home.dir;
@@ -311,10 +316,10 @@ export function makeCharger(e, cfg) {
     from: e.from,
     to: e.to,
     // How far ahead it notices the ball. CONFIG's SEE unless the level says
-    // otherwise: level eleven's room B gives its charger enough to see the
-    // whole of its yard, including the door, so a ball that misses the door
-    // is noticed where it stands instead of having to find a sight line
-    // nothing on screen shows.
+    // otherwise: a charger whose yard is wider than the default sight can be
+    // given enough to watch the whole of it, so a ball that misses the door is
+    // noticed where it stands instead of having to find a sight line nothing
+    // on screen shows.
     see: e.see ?? K.SEE,
     home: { x: e.x, y: e.y, dir: e.dir ?? 1 },
     grounded: false,

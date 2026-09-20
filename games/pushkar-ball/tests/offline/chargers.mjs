@@ -242,7 +242,7 @@ function chargeAt(level, c, ahead, seconds, each) {
   level.noteBall(fakeBall(1100));         // standing near home
   let backAt = null;
   run(level, c, K.RETURN + 3, (_, i) => {
-    if (i * DT > K.RETURN + 1) level.noteBall(fakeBall(1000 + K.SEE + 50));
+    if (i * DT > K.RETURN + 1) level.noteBall(fakeBall(1000 + c.see + 50));
     if (c.alive && backAt === null) { backAt = i * DT; return false; }
   });
   console.log(`\n10. popped: back after ${backAt?.toFixed(2)}s (RETURN ${K.RETURN}; the ball left at ${(K.RETURN + 1).toFixed(1)}s)`);
