@@ -199,12 +199,12 @@ function stepCharger(c, level, dt, cfg) {
   return contacts.find((k) => Math.abs(k.nx) > 0.5 && Math.sign(k.nx) === -c.dir) || null;
 }
 
-/** Is the ball on this charger's level, in front of it, and within SEE? */
+/** Is the ball on this charger's level, in front of it, and within its sight? */
 function sees(c, level, K) {
   const b = level && level.ball;
   if (!b || b.dying) return false;
   const dx = b.x - c.x;
-  return Math.sign(dx) === c.dir && Math.abs(dx) < K.SEE && Math.abs(b.y - c.y) < K.LEVEL_TOL;
+  return Math.sign(dx) === c.dir && Math.abs(dx) < c.see && Math.abs(b.y - c.y) < K.LEVEL_TOL;
 }
 
 const CHARGER = {
@@ -276,7 +276,7 @@ const CHARGER = {
       // Never back on top of him: it waits for the ball to be out of sight
       // of home.
       const b = level && level.ball;
-      if (b && Math.abs(b.x - c.home.x) < K.SEE && Math.abs(b.y - c.home.y) < K.SEE) return;
+      if (b && Math.abs(b.x - c.home.x) < c.see && Math.abs(b.y - c.home.y) < c.see) return;
       c.x = c.home.x; c.y = c.home.y;
       c.dir = c.home.dir;
       c.alive = true;
@@ -295,7 +295,7 @@ const CHARGER = {
  * and slopes stop it with no special case. Hurts on any contact except while
  * dazed; can be stomped only while dazed; a popped one comes back.
  *
- * @param e   level data: { x, y, from, to, dir?: 1|-1 } — x, y is home
+ * @param e   level data: { x, y, from, to, dir?: 1|-1, see? } — x, y is home
  */
 export function makeCharger(e, cfg) {
   const K = cfg.ENEMY.CHARGER;
@@ -310,6 +310,12 @@ export function makeCharger(e, cfg) {
     dir: e.dir ?? 1,
     from: e.from,
     to: e.to,
+    // How far ahead it notices the ball. CONFIG's SEE unless the level says
+    // otherwise: level eleven's room B gives its charger enough to see the
+    // whole of its yard, including the door, so a ball that misses the door
+    // is noticed where it stands instead of having to find a sight line
+    // nothing on screen shows.
+    see: e.see ?? K.SEE,
     home: { x: e.x, y: e.y, dir: e.dir ?? 1 },
     grounded: false,
     shoving: null,

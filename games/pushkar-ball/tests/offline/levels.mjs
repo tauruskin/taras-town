@@ -418,13 +418,15 @@ for (const data of LEVELS) {
 // And the roadmap's "never at a checkpoint": a ball respawning must not be
 // in sight of one — SEE past either end of its range.
 {
-  const R = CONFIG.ENEMY.CHARGER.R, SEE = CONFIG.ENEMY.CHARGER.SEE;
+  const R = CONFIG.ENEMY.CHARGER.R;
   let n = 0;
   for (const data of LEVELS) {
     const level = loadLevel(data);
     for (const [i, e] of (data.enemies || []).entries()) {
       if (e.kind !== 'charger') continue;
       n++;
+      // Its own sight if the level gave it one — see makeCharger.
+      const SEE = e.see ?? CONFIG.ENEMY.CHARGER.SEE;
       const feet = e.y + R;
       for (let x = e.from - R; x <= e.to + R; x += 5) {
         const held = level.statics.some((s) => s.ny < -0.9 &&
@@ -434,7 +436,7 @@ for (const data of LEVELS) {
       }
       for (const c of data.checkpoints || []) {
         if (c.x > e.from - SEE && c.x < e.to + SEE && Math.abs(c.y - feet) < 200) {
-          fail(`level ${data.id}: checkpoint at x=${c.x} is within sight of charger ${i} (${e.from}..${e.to}, SEE ${SEE})`);
+          fail(`level ${data.id}: checkpoint at x=${c.x} is within sight of charger ${i} (${e.from}..${e.to}, sees ${SEE})`);
         }
       }
     }

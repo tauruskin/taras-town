@@ -84,6 +84,31 @@ function run(level, c, seconds, each = () => {}) {
   }
 }
 
+// --- 2b. a charger's sight can be widened by its own level data -------------
+//
+// The default is CONFIG's SEE for every charger in the game; a level that
+// needs one to watch a wider yard says so in its own data.
+{
+  console.log('\n2b. a level can give one charger longer sight');
+  const far = K.SEE + 100;
+  for (const k of [
+    { what: 'the default', e: { kind: 'charger', x: 1000, y: CY, from: 600, to: 1800, dir: 1 }, sees: false },
+    { what: 'its own see', e: { kind: 'charger', x: 1000, y: CY, from: 600, to: 1800, dir: 1, see: far + 40 }, sees: true },
+  ]) {
+    const level = room();
+    const c = makeCharger(k.e, CONFIG);
+    let saw = false;
+    // The ball is held `far` in front of it as it walks, exactly as section 2
+    // does, so patrol's own motion decides nothing.
+    run(level, c, 0.5, () => {
+      level.noteBall(fakeBall(c.x + far));
+      if (c.state === 'windup') saw = true;
+    });
+    console.log(`   ${k.what}: a ball ${far} ahead ${saw ? 'wakes' : 'does not wake'} it`);
+    if (saw !== k.sees) fail(`${k.what}: a ball ${far} ahead ${saw ? 'woke' : 'did not wake'} it, expected the opposite`);
+  }
+}
+
 // --- 3. the wind-up lasts exactly WINDUP, standing still, then it charges ----
 {
   const level = room();
