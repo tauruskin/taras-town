@@ -86,21 +86,35 @@ export const CONFIG = {
     GROUND_CLEAR: 26,
     // The hard floor under the slow vertical follow: the ball's CENTRE is
     // never drawn closer than this to the top of the view, in world units.
-    // LERP_Y is 2.5 on purpose, so a 200-unit climb — level eleven's slope
-    // onto room B's roof — outruns the camera and left the ball about 24 CSS
-    // px from the top edge at 740x280, level with the hearts and with no
-    // ground under it.
+    //
+    // LERP_Y is 2.5 on purpose, so a fast climb outruns the camera. Driving
+    // level eleven's 200-unit slope onto room B's roof with this clamp
+    // disabled leaves the ball's centre about 15 CSS px from the top edge at
+    // 740x280, with no ground under it; the clamp lifts that to 39. (The
+    // screenshot that started this showed the ball level with the hearts row.
+    // 15 is what driving the same slope in the simulation gives, and a slower
+    // approach gives more, so the screenshot is the anecdote and this is the
+    // claim.)
+    //
+    // Worse, and unreported until it was measured: an ordinary bounce off
+    // level five's pad already threw the WHOLE ball above the top of the view
+    // at 740x280 — its centre 30 to 40 units past the edge depending on the
+    // approach, and its radius is 20. This constant is what fixes that too,
+    // which is why tests/offline/camera.mjs checks a pad-height lift as well
+    // as a climb.
     //
     // It must stay BELOW the tightest flat-ground jump apex, or the camera
     // would follow jumps, which is exactly what LERP_Y exists to prevent.
-    // VIEW_H is a constant 540, so the shape of the working is the same on
-    // every screen: a settled ball's centre sits
-    // `270 + (feet - cssH/2) / scale - BALL.R` below the view's top, which
-    // tests/offline/camera.mjs measures as 235 world units at 740x280, 271 at
-    // 568x320 and 309 on everything taller. A jump clears 131, so the
-    // tightest apex is 104, at 740x280. 75 leaves 29 of slack under it, and
-    // lifts the roof case from 24 CSS px to 39 (75 x 280/540). That suite
-    // holds both ends of it and prints the apex on every screen.
+    // That apex is not re-derived here, because it is printed: camera.mjs
+    // reports it for every screen on every run, and the tightest is 104, at
+    // 740x280 — so 75 leaves 29 of slack under it. For orientation only, a
+    // settled ball's centre sits `VIEW_H/2 + (feet - cssH/2)/scale - BALL.R`
+    // below the view's top, which for today's values comes to 231 at 740x280,
+    // 267 at 568x320 and 304 on everything taller. Do not subtract a jump
+    // from those to get the apex: the fixed 1/120s step clears about 128, not
+    // the closed form's 131, and a camera two seconds into settling is still
+    // a couple of units short of rest. The printed figure is the one to
+    // trust.
     TOP_CLEAR: 75,
     LOOKAHEAD: 0.35,    // seconds of vx to look ahead, so a fast ball can see
                         // what it is about to hit

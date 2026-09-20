@@ -370,20 +370,36 @@ for (const [w, h] of SCREENS) {
          `inside TOP_CLEAR (${CONFIG.CAMERA.TOP_CLEAR}) — the camera would follow jumps`);
   }
 
-  // Now lift the ball far above the camera, the way a fast climb does, and
-  // step once: it must be pulled back to the clear, not left against the edge.
-  run(2, still);
-  ball.y -= 300;
-  camera.update(CONFIG.STEP, ball, viewW, viewH);
-  const after = fromTop();
-  if (after < CONFIG.CAMERA.TOP_CLEAR - 0.5) {
-    fail(`${w}x${h}: a ball 300 above the camera was drawn ${after.toFixed(0)} from the view's top, ` +
-         `inside TOP_CLEAR (${CONFIG.CAMERA.TOP_CLEAR})`);
-  } else {
-    console.log(`   ${w}x${h}: jump apex ${highest.toFixed(0)} from the top ` +
-                `(${(highest * scale).toFixed(0)} CSS px), a 300 climb held at ${after.toFixed(0)} ` +
-                `(${(after * scale).toFixed(0)} CSS px; clear ${CONFIG.CAMERA.TOP_CLEAR})`);
+  // Now lift the ball far above the camera and step once: it must be pulled
+  // back to the clear, not left against the edge. Two heights — a fast climb
+  // like level eleven's slope onto room B's roof, and a bounce pad, which
+  // throws the ball far higher still and which put the whole ball above the
+  // top of the view at 740x280 before this clamp existed.
+  //
+  // The pad's rise is taken from the pad's OWN config rather than typed here,
+  // so a retune of the pads carries into this check by itself. What is
+  // asserted is the clamp's effect and not the rise: a fixed 1/120s step
+  // clears a little less than the closed form, so the exact height reached is
+  // not a number worth pinning.
+  const lift = (by) => {
+    run(2, still);
+    ball.y -= by;
+    camera.update(CONFIG.STEP, ball, viewW, viewH);
+    return fromTop();
+  };
+  const climb = lift(300);
+  const pad = lift(CONFIG.BOUNCE.V ** 2 / (2 * CONFIG.GRAVITY));
+
+  for (const [what, got] of [['a 300 climb', climb], ['a bounce pad', pad]]) {
+    if (got < CONFIG.CAMERA.TOP_CLEAR - 0.5) {
+      fail(`${w}x${h}: ${what} drew the ball ${got.toFixed(0)} from the view's top, ` +
+           `inside TOP_CLEAR (${CONFIG.CAMERA.TOP_CLEAR})`);
+    }
   }
+  console.log(`   ${w}x${h}: jump apex ${highest.toFixed(0)} from the top ` +
+              `(${(highest * scale).toFixed(0)} CSS px), a 300 climb held at ${climb.toFixed(0)}, ` +
+              `a bounce pad at ${pad.toFixed(0)} (${(pad * scale).toFixed(0)} CSS px; ` +
+              `clear ${CONFIG.CAMERA.TOP_CLEAR})`);
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CAMERA CHECKS PASSED');
