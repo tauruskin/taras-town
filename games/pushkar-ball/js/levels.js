@@ -1161,7 +1161,8 @@ export const LEVELS = [
     // wakes. No route here does that: finish.mjs's 3l stomps it at three
     // leads from a standing start and fails on a lost heart, and the same
     // scratch sweep of the stomp (five leads, delays 0-13s, 265 runs) always
-    // landed before the daze ran out, with no hit.
+    // landed before the daze ran out, and more so since DAZED became 3.5,
+    // with no hit.
     id: 10,
     theme: 'hills',
     bounds: { w: 6000, h: 1080 },
@@ -1243,9 +1244,9 @@ export const LEVELS = [
     // same results before and after. What finish.mjs runs is its usual three
     // leads at start delays 0-4.5s, and from both checkpoints: every run
     // finished, none lost a heart (this level is in its COUNTS_HEARTS, so one
-    // would fail it), and the slowest got through room B's door in 56% of the
+    // would fail it), and the slowest got through room B's door in 48% of the
     // daze, under 2c's 60% — the lead-1.3 thumb that hesitates 0.9s and hops
-    // once (1.69s); one that does not hesitate uses 21% (0.63s). The time
+    // once (1.69s); one that does not hesitate uses 18% (0.63s). The time
     // does not depend on the delay at all, since every charge ends at 5734.
     // 3m shows the ball alone, coming to every spot in the yard from either
     // side and rolling or jumping each way, never presses b or breaks the
@@ -1254,12 +1255,18 @@ export const LEVELS = [
     // second daze — 15.6s of it, on the run the suite prints. A scratch
     // sweep, not run there (five leads 0.7-1.3, delays 0-25s every 0.25s —
     // longer than a whole patrol of either pen, 505 runs, plus both
-    // checkpoints), found the same: no heart lost, worst 56%. It cannot be
+    // checkpoints), found the same: no heart lost, worst 56%. That sweep was
+    // run on 2026-09-19, under the 3s daze and this charger's old sight of
+    // 240, so its percentage is evidence about a slightly earlier level; its
+    // heart claim is not, and stands whatever those two are. It cannot be
     // otherwise for the hearts: each charger is shut in its pen and the ball
     // never gets in, so the route needs no `dodge`. There are no crates here,
-    // so no dead-end check of one. The one thin number is 2c's margin, 4% of
-    // a 3s daze: moving room B's door left, keeping it within that charger's
-    // sight of 5734, is the first thing to try if it ever goes over.
+    // so no dead-end check of one. 2c's margin was the one thin number: 56%
+    // of a 3s daze against a 60% limit. It was mended on 2026-09-20 by
+    // raising DAZED to 3.5 rather than by moving the door, which had only 46
+    // units of room before a ball resting at it would fall out of the
+    // charger's sight — and since that charger now sees 320, resting at the
+    // door being IN sight is the thing room B depends on.
     id: 11,
     theme: 'hills',
     bounds: { w: 7000, h: 1080 },

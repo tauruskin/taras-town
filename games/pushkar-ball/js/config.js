@@ -480,7 +480,14 @@ export const CONFIG = {
       LEVEL_TOL: 60,      // px of height difference still "on its own level"
       WINDUP: 0.8,        // s of crouch and puff before a charge — the warning
       CHARGE_SPEED: 480,  // px/s — faster than the ball's 420, so a jump, not a run
-      DAZED: 3.0,         // s it sits stunned after a charge: stompable, harmless
+      DAZED: 3.5,         // s it sits stunned after a charge: stompable, harmless.
+                          // Was 3.0, raised 2026-09-20: level eleven's room B
+                          // spent 56% of it on the dash to the door against
+                          // finish.mjs's 60% limit, and this is the knob rather
+                          // than that level's geometry — its door has only 46
+                          // units of room to move before a ball resting at it
+                          // falls out of the charger's sight, which room B
+                          // depends on. Level ten only gets an easier stomp.
       RETURN: 4.0,        // s a popped charger stays gone at the least
       CRATE_SHOVE: 60,    // px a charge slides a crate it runs into
       PUFF_TIME: 0.4,     // s its return puff is drawn for

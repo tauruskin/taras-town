@@ -72,7 +72,10 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   //
   // 32 pictures in all: a few of the patrol towards the ball, the burst,
   // and then about 17 a quarter second apart (some 6s) — the whole of the
-  // 3s daze and its stars going, and the patrol away until it walks off.
+  // 3.5s daze and its stars going, and the patrol away until it walks off.
+  // Nothing here is measured off DAZED, so a longer daze eats into the tail
+  // rather than the daze itself: at 3.5 there are still some 2.5s of patrol
+  // after it, which is why the count stayed at 32 when DAZED was raised.
   const burstFor = (K.WINDUP + K.SEE / K.CHARGE_SPEED + 0.2) * 1000;
   let seen = 0, burstUntil = 0;
   const counts = [];
