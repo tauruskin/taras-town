@@ -273,14 +273,13 @@ const CHARGER = {
     update(c, dt, level, cfg) {
       const K = cfg.ENEMY.CHARGER;
       if (c.stateT < K.RETURN) return;
-      // Never back on top of him: it waits for the ball to be out of sight
-      // of home.
       const b = level && level.ball;
-      // A keep-away box round home, not a sight line: `sees` splits the axes
-      // (sight across, LEVEL_TOL up and down) because it asks what the charger
-      // can notice, and this asks whether it is about to appear on top of him,
-      // which has no front or back. Its own `see` on both axes, so a level
-      // that widens a charger's reach widens the room it gives him too.
+      // Never back on top of him. A keep-away box round home, not a sight
+      // line: `sees` splits the axes (sight across, LEVEL_TOL up and down)
+      // because it asks what the charger can notice, and this asks whether it
+      // is about to appear on top of him, which has no front or back. Its own
+      // `see` on both axes, so a level that widens a charger's reach widens
+      // the room it gives him too.
       if (b && Math.abs(b.x - c.home.x) < c.see && Math.abs(b.y - c.home.y) < c.see) return;
       c.x = c.home.x; c.y = c.home.y;
       c.dir = c.home.dir;
