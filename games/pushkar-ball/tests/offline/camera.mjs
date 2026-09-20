@@ -317,5 +317,74 @@ for (const [w, h] of SCREENS) {
   }
 }
 
+// --- the top edge ----------------------------------------------------------
+//
+// The vertical follow is slow on purpose, so a ball that climbs faster than
+// the camera can ease — level eleven's 200-unit slope onto room B's roof —
+// ends up against the top of the screen with no ground under it. TOP_CLEAR is
+// the hard floor under that. It must never engage on an ordinary jump, or the
+// camera would be tracking jumps, which is the one thing LERP_Y exists to
+// avoid.
+console.log('\nthe top edge');
+// A missing number here would make every comparison below NaN-false and the
+// whole section would pass while measuring nothing. Say so instead.
+if (!Number.isFinite(CONFIG.CAMERA.TOP_CLEAR)) {
+  fail(`CONFIG.CAMERA.TOP_CLEAR is ${CONFIG.CAMERA.TOP_CLEAR}, not a number — the checks below would all go quietly false`);
+}
+for (const [w, h] of SCREENS) {
+  const scale = h / CONFIG.VIEW_H;
+  const viewH = CONFIG.VIEW_H;
+  const viewW = w / scale;
+
+  const level = flat();
+  const ball = new Ball(level.spawn.x, level.spawn.y);
+  const camera = new Camera(level);
+  camera.biasY = Camera.biasFor(h, scale, CONFIG.BALL.R, w);
+  camera.snap(ball);
+  const still = { left: false, right: false, takeJump: () => false };
+  const run = (seconds, input, each = () => {}) => {
+    for (let i = 0; i < Math.round(seconds / CONFIG.STEP); i++) {
+      level.update(CONFIG.STEP);
+      ball.update(CONFIG.STEP, input, level);
+      camera.update(CONFIG.STEP, ball, viewW, viewH);
+      each();
+    }
+  };
+  // How far the ball's centre is drawn from the top of the view, in world
+  // units. `camera.y` is the middle of the view, so this is the quantity
+  // TOP_CLEAR is itself expressed in and no scale factor belongs in it.
+  const fromTop = () => viewH / 2 + (ball.y - camera.y);
+
+  run(2, still);
+
+  // A jump from rest, driven by the ball's own jump speed rather than a number
+  // typed here, and watched at its highest point ON THE SCREEN — which is not
+  // the ball's highest point in the world if the camera moves at all.
+  let press = true;
+  const jumpIn = { left: false, right: false, takeJump() { const j = press; press = false; return j; } };
+  let highest = fromTop();
+  run(1.5, jumpIn, () => { highest = Math.min(highest, fromTop()); });
+
+  if (highest <= CONFIG.CAMERA.TOP_CLEAR) {
+    fail(`${w}x${h}: an ordinary jump reached ${highest.toFixed(0)} from the view's top, ` +
+         `inside TOP_CLEAR (${CONFIG.CAMERA.TOP_CLEAR}) — the camera would follow jumps`);
+  }
+
+  // Now lift the ball far above the camera, the way a fast climb does, and
+  // step once: it must be pulled back to the clear, not left against the edge.
+  run(2, still);
+  ball.y -= 300;
+  camera.update(CONFIG.STEP, ball, viewW, viewH);
+  const after = fromTop();
+  if (after < CONFIG.CAMERA.TOP_CLEAR - 0.5) {
+    fail(`${w}x${h}: a ball 300 above the camera was drawn ${after.toFixed(0)} from the view's top, ` +
+         `inside TOP_CLEAR (${CONFIG.CAMERA.TOP_CLEAR})`);
+  } else {
+    console.log(`   ${w}x${h}: jump apex ${highest.toFixed(0)} from the top ` +
+                `(${(highest * scale).toFixed(0)} CSS px), a 300 climb held at ${after.toFixed(0)} ` +
+                `(${(after * scale).toFixed(0)} CSS px; clear ${CONFIG.CAMERA.TOP_CLEAR})`);
+  }
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CAMERA CHECKS PASSED');
 process.exit(failures ? 1 : 0);

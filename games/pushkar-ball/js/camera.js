@@ -177,6 +177,14 @@ export class Camera {
       this.y += (target - this.y) * (1 - Math.exp(-C.LERP_Y * dt));
     }
 
+    // A hard floor under the slow follow above. `this.y` is the middle of the
+    // view, so the ball's centre is `viewH / 2 + (ball.y - this.y)` from the
+    // view's top; holding that at or above TOP_CLEAR means capping this.y.
+    // Only ever moves the camera UP, and only when the ball has climbed
+    // faster than LERP_Y can ease — an ordinary jump stays well clear of it,
+    // which camera.mjs proves at every screen size.
+    this.y = Math.min(this.y, ball.y + viewH / 2 - C.TOP_CLEAR);
+
     // Never show outside the level. When the level is smaller than the view in
     // an axis — which a short window can manage — centre on it instead, or the
     // clamp below would have its limits the wrong way round and would pin the

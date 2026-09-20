@@ -84,6 +84,24 @@ export const CONFIG = {
     // top of the nearest on-screen button. This is the hard constraint that
     // outranks GROUND_AT, and tests/offline/camera.mjs is what holds it.
     GROUND_CLEAR: 26,
+    // The hard floor under the slow vertical follow: the ball's CENTRE is
+    // never drawn closer than this to the top of the view, in world units.
+    // LERP_Y is 2.5 on purpose, so a 200-unit climb — level eleven's slope
+    // onto room B's roof — outruns the camera and left the ball about 24 CSS
+    // px from the top edge at 740x280, level with the hearts and with no
+    // ground under it.
+    //
+    // It must stay BELOW the tightest flat-ground jump apex, or the camera
+    // would follow jumps, which is exactly what LERP_Y exists to prevent.
+    // VIEW_H is a constant 540, so the shape of the working is the same on
+    // every screen: a settled ball's centre sits
+    // `270 + (feet - cssH/2) / scale - BALL.R` below the view's top, which
+    // tests/offline/camera.mjs measures as 235 world units at 740x280, 271 at
+    // 568x320 and 309 on everything taller. A jump clears 131, so the
+    // tightest apex is 104, at 740x280. 75 leaves 29 of slack under it, and
+    // lifts the roof case from 24 CSS px to 39 (75 x 280/540). That suite
+    // holds both ends of it and prints the apex on every screen.
+    TOP_CLEAR: 75,
     LOOKAHEAD: 0.35,    // seconds of vx to look ahead, so a fast ball can see
                         // what it is about to hit
 
