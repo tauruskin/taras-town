@@ -1130,17 +1130,29 @@ export const LEVELS = [
     // Every position here is the paper layout, and finish.mjs let it stand.
     // What it found was about the way IN: hopping the step while the charger
     // is just the other side lands the ball on it, and a ball in the air
-    // cannot wait. finish.mjs's route therefore waits outside the step while
-    // the charger is patrolling towards it within 600 (PEN_GUARD). That
-    // number came from a scratch sweep, not from anything finish.mjs runs:
-    // five leads, start delays 0-25s every 0.25s (a whole patrol of the pen,
-    // 505 runs per value), guard 0 to 900 — 400 still lost hearts, 500 and up
-    // none. What finish.mjs runs is its usual three leads at start delays
-    // 0-4.5s, and for this level it fails on any heart lost there, not only
-    // on a life. Outside the step nothing can reach the ball, which is the
-    // step's other job. Moving the charger's home was looked at and cannot
-    // do it: the pen is 840 wide and a 4.5s spread of arrivals is 540 of its
-    // patrol, so some arrival always meets it there.
+    // cannot wait. A child who hops in blind loses a heart about 6% of the
+    // time (a spec reviewer's sweep with no guard: 16 of 255 runs). That is
+    // ACCEPTED, decided 2026-09-20, and the reason is structural rather than
+    // a shrug: the ball and the charger share a floor and a jump clears 131,
+    // so every safe strip can be hopped out of. A kerb inside the step only
+    // moves the landing; a wider dead zone only lowers the odds, since a
+    // running jump carries about 290. Moving the charger's home cannot do it
+    // either — the pen is 840 wide and a 4.5s spread of arrivals is 540 of
+    // its patrol, so some arrival always meets it there. What defends the
+    // child is the 0.8s crouch-and-paw, which is the charger's whole
+    // contract, and the step he can watch it from — outside it nothing can
+    // reach him, which is the step's other job. The cost is one of three
+    // hearts, instantly undone.
+    //
+    // finish.mjs's route therefore waits outside the step while the charger
+    // is patrolling towards it within 600 (PEN_GUARD) — a device of the
+    // ROUTE, not a claim about the level. That number came from a scratch
+    // sweep, not from anything finish.mjs runs: five leads, start delays
+    // 0-25s every 0.25s (a whole patrol of the pen, 505 runs a value), guard
+    // 0 to 900 — 400 still lost hearts, 500 and up none. What finish.mjs
+    // runs is its usual three leads at start delays 0-4.5s, and for this
+    // level it fails on any heart lost there, not only on a life.
+    //
     // The charger's range end, 1486, is exactly where its box meets the
     // stone, and its patrol turns there on the range check first, so the
     // 60-tall step's corner never decides whether a second charge comes; in
@@ -1181,8 +1193,14 @@ export const LEVELS = [
       { kind: 'charger', x: 2100, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 1486, to: 2800, dir: -1 },
     ],
 
-    // Out of the charger's sight: its range ends at 2800 and it sees 240.
+    // Two. 1150 is before the pen, out of the charger's sight (its range
+    // starts at 1486 and it sees 240, so 1246 is the limit); 3300 is after
+    // it, past the planks and past its sight too (the range ends at 2800).
+    // The first keeps three hearts spent in the pen from costing the walk up
+    // to it; the second keeps a death later in the level from making him do
+    // the charger again.
     checkpoints: [
+      { x: 1150, y: 760 },
       { x: 3300, y: 760 },
     ],
   },
