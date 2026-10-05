@@ -304,7 +304,7 @@ function room12(level) {
 
 /** Where a patrolling shell will be in `t` seconds, if nothing but its range turns it. */
 function shellAhead(s, t) {
-  const v = CONFIG.ENEMY.SHELL.PATROL_SPEED, h = 1 / 240;
+  const v = CONFIG.ENEMY.SHELL.PATROL_SPEED, h = CONFIG.STEP;
   let x = s.x, dir = s.dir;
   for (let left = t; left > 0; left -= h) {
     if (x <= s.from) dir = 1;
@@ -350,10 +350,16 @@ function route12(level, lead, opts = {}) {
   const timed = () => {
     if (opts.pushAfter != null && !recovered) return level.time - aimAt >= opts.pushAfter;
     if (!sB.alive || sB.state !== 'patrol') return false;
-    const t = (L - crate.x) / CONFIG.CRATE.PUSH_SPEED + 0.03 + fall;
+    // CONTACT: the ball, let go against the crate, has bounced off it a
+    // little and takes about this long to roll back into it (simulated: the
+    // route's own runs, ball and crate positions printed step by step).
+    const CONTACT = 0.03;
+    const t = (L - crate.x) / CONFIG.CRATE.PUSH_SPEED + CONTACT + fall;
     const want = sB.from + Math.abs(phase) * S.PATROL_SPEED, dir = phase < 0 ? -1 : 1;
     const x0 = shellAhead(sB, t), x1 = shellAhead(sB, t + CONFIG.STEP);
-    return Math.sign(x1 - x0) === dir && Math.abs(x0 - want) <= 0.7;
+    // Within one step's walk of the wanted spot, so exactly one step or two
+    // ever match it, and never none.
+    return Math.sign(x1 - x0) === dir && Math.abs(x0 - want) <= S.PATROL_SPEED * CONFIG.STEP;
   };
   return (ball) => {
     if (rec && rec.window == null && !p.pressed) rec.window = level.time - rec.pressedAt;
@@ -401,9 +407,15 @@ function route12(level, lead, opts = {}) {
     }
     // Watch it land: on the shell, go; on the floor, get it back.
     if (stage === 'falling') {
-      if (sB.state === 'flipped') stage = 'jumpB';
+      if (sB.state === 'flipped') stage = opts.waitOut && !recovered ? 'waitOut' : 'jumpB';
       else if (crate.grounded && inCorridor()) stage = 'rWait';
       else return {};
+    }
+    // 3o only: stand back on the roof until the flipped shell is up again,
+    // then carry on as if the crate had missed.
+    if (stage === 'waitOut') {
+      if (sB.state === 'patrol') stage = 'toB';
+      else return steer(ball, L - 4 * R);
     }
     if (stage === 'jumpB') {
       if (ball.y > lip) stage = 'stompB';
@@ -422,7 +434,9 @@ function route12(level, lead, opts = {}) {
       // Far enough back for a run-up into hole 2.
       const spot = L - 4 * R;
       if (ball.y < lip && ball.grounded && Math.abs(ball.x - spot) < 8 && Math.abs(ball.vx) < 30 &&
-          sB.alive && sB.state === 'patrol' && sB.dir === 1 && sB.x > hole2[1] + 80) stage = 'rJump';
+          // Walking away, and clear of hole 2 by its own half-width and a
+          // ball's width, so the ball lands behind it, not on it.
+          sB.alive && sB.state === 'patrol' && sB.dir === 1 && sB.x > hole2[1] + sB.r + 2 * R) stage = 'rJump';
       else if (ball.y > floor - 2 * R) stage = 'rIn';
       else return steer(ball, spot);
     }
@@ -435,9 +449,12 @@ function route12(level, lead, opts = {}) {
         // How long until the shell, walking as it is now, would touch a ball
         // standing under hole 1 — the time this get-back has.
         const under = (hole1[0] + hole1[1]) / 2;
+        // REACH_CAP is far past a whole patrol; reaching it means the shell
+        // never came, and the ratio would be meaningless: recorded as null.
+        const REACH_CAP = 60;
         let reach = 0;
-        while (reach < 60 && Math.abs(shellAhead(sB, reach) - under) >= R + sB.r) reach += 0.05;
-        shove = { inAt: level.time, reach };
+        while (reach < REACH_CAP && Math.abs(shellAhead(sB, reach) - under) >= R + sB.r) reach += 0.05;
+        shove = { inAt: level.time, reach: reach < REACH_CAP ? reach : null };
       }
       // Stop shoving the moment it tips into the pit, or follow it in.
       if (!inCorridor() || crate.x + crate.w < hole1[0]) { stage = 'rOut'; recovered++; }
@@ -455,6 +472,8 @@ function route12(level, lead, opts = {}) {
     }
     if (stage === 'rBack') {
       if (ball.grounded && ball.x < crate.x - R - 2) stage = 'toB';
+      // Hop it the way the runner hops a crate: from within 40 * lead of its
+      // face (runner's own number), measured from the ball's edge, not centre.
       else return { left: true, jump: ball.grounded && ball.x - (crate.x + crate.w) < 40 * lead + R };
     }
     return { right: true };
@@ -1000,7 +1019,7 @@ console.log('\n2d. level twelve: time to spare while the shell holds the plate')
   else if (!unmeasured.length) {
     const worst = through.reduce((w, s) => Math.max(w, s.used / s.window), 0);
     const shortest = through.reduce((w, s) => Math.min(w, s.window), Infinity);
-    const tight = through.filter((s) => s.used > 0.6 * s.window);
+    const tight = through.filter((s) => !(s.used <= 0.6 * s.window));
     if (tight.length) fail(`${tight.length} of ${through.length} runs used more than 60% of the time the shell held the plate (worst ${(worst * 100).toFixed(0)}%)`);
     else console.log(`   ${through.length} runs; the slowest used ${(worst * 100).toFixed(0)}% of the plate's time, the shortest window ${shortest.toFixed(2)}s`);
   }
@@ -1635,9 +1654,9 @@ console.log('\n3o. level twelve: room B has no dead end, and room A needs its sh
   // route12, made afresh after every relocation so it starts from wherever
   // the ball now is. `outOfPlace` collects every step the crate stood
   // anywhere it should not.
-  const try12 = (d, { prefix = null, pushAfter = null, lead = 1, seconds = 150, start = from } = {}) => {
+  const try12 = (d, { prefix = null, pushAfter = null, lead = 1, seconds = 150, start = from, waitOut = false } = {}) => {
     const shoves = [], outOfPlace = [];
-    let prefixDone = !prefix, leftmost = Infinity;
+    let prefixDone = !prefix, leftmost = Infinity, flippedFirst = false, flippedEver = false;
     const res = play(d, (lv) => {
       const room = room12(lv);
       const { crate, lip, L, hole1, floor } = room;
@@ -1647,6 +1666,8 @@ console.log('\n3o. level twelve: room B has no dead end, and room A needs its sh
       let drive = null, deaths = -1;
       return (b, t) => {
         leftmost = Math.min(leftmost, crate.x);
+        // A flip seen before any get-back is the first shove landing.
+        if (room.sB.state === 'flipped') { flippedEver = true; if (!shoves.length) flippedFirst = true; }
         if (crate.grounded) {
           // `grounded` is from this step's fall, before the ball's push, so a
           // crate shoved off an edge reads grounded one push past it.
@@ -1660,12 +1681,11 @@ console.log('\n3o. level twelve: room B has no dead end, and room A needs its sh
           if (w) return w;
           prefixDone = true;
         }
-        if (b.deaths !== deaths) { deaths = b.deaths; drive = route12(lv, lead, { pushAfter, shoves }); }
+        if (b.deaths !== deaths) { deaths = b.deaths; drive = route12(lv, lead, { pushAfter, shoves, waitOut }); }
         return drive(b, t);
       };
     }, { from: start, seconds });
-    // A shove that flipped the shell needed no get-back; one that missed did.
-    return { ...res, shoves, outOfPlace, missed: shoves.length > 0, leftmost };
+    return { ...res, shoves, outOfPlace, flippedFirst, flippedEver, leftmost };
   };
 
   const sB = loadLevel(data).enemies.filter((e) => e.kind === 'shell').sort((a, b) => a.from - b.from)[1];
@@ -1677,15 +1697,21 @@ console.log('\n3o. level twelve: room B has no dead end, and room A needs its sh
   const allShoves = [], missedAt = [];
   for (let k = 0; k <= patrol; k += 0.25) {
     const r = try12(data, { pushAfter: k });
-    if (r.missed) { miss++; missedAt.push(k); } else hit++;
+    // Hit: the shell was seen flipped before any get-back. Miss: a get-back
+    // happened first. Never both, never neither.
+    const missed = r.shoves.length > 0 && !r.flippedFirst;
+    if (r.flippedFirst === missed) fail(`level 12, crate shoved ${k}s after reaching the edge: flipped first=${r.flippedFirst}, get-backs=${r.shoves.length} — neither a clean hit nor a clean miss`);
+    if (missed) { miss++; missedAt.push(k); } else if (r.flippedFirst) hit++;
     allShoves.push(...r.shoves);
     slowest = Math.max(slowest, r.t);
     if (!r.ball.won || r.ball.deaths > 0 || r.ball.hits > 0) fail(`level 12, crate shoved ${k}s after reaching the edge: won=${r.ball.won} deaths=${r.ball.deaths} hits=${r.ball.hits} at ${r.ball.x.toFixed(0)},${r.ball.y.toFixed(0)}`);
     if (r.outOfPlace.length) fail(`level 12, crate shoved ${k}s after reaching the edge: the crate stood at ${r.outOfPlace[0]}, neither on the roof nor under hole 1`);
   }
-  for (const sh of allShoves) worst = Math.max(worst, sh.used / sh.reach);
+  const unmeasured = allShoves.filter((sh) => !(sh.reach > 0));
+  if (unmeasured.length) fail(`level 12: ${unmeasured.length} get-back(s) never saw the shell come back within the cap — the time to spare was not measured`);
+  for (const sh of allShoves) if (sh.reach > 0) worst = Math.max(worst, sh.used / sh.reach);
   if (!miss || !hit) fail(`level 12: of ${hit + miss} shoves, ${hit} hit and ${miss} missed — both must happen, or this proves nothing`);
-  if (worst > 0.6) fail(`level 12: a get-back used ${(worst * 100).toFixed(0)}% of the time before the shell reached it, over 60%`);
+  if (!(worst <= 0.6)) fail(`level 12: a get-back used ${(worst * 100).toFixed(0)}% of the time before the shell reached it, over 60%`);
   console.log(`   ${hit + miss} shoves over a ${patrol.toFixed(1)}s patrol: ${hit} flipped the shell, ${miss} missed and were got back (${allShoves.length} get-backs, the slowest using ${(worst * 100).toFixed(0)}% of the time before the shell came; slowest finish ${slowest.toFixed(1)}s)`);
 
   // The other things a ball can do to it. `missFirst` shoves it straight in
@@ -1738,6 +1764,16 @@ console.log('\n3o. level twelve: room B has no dead end, and room A needs its sh
     if (r.ball.won && !r.outOfPlace.length) console.log(`   ${tr.name}: finished in ${r.t.toFixed(1)}s (crate leftmost x=${r.leftmost.toFixed(0)}, back home ${r.level.crates[0].falls} time(s), ${r.ball.deaths} relocation(s))`);
   }
 
+  // A flip that is not stomped: the shell rights itself in the corridor with
+  // the crate under hole 1, and the room must still be finishable — by the
+  // get-back, from there.
+  {
+    const r = try12(data, { waitOut: true });
+    const ok = r.ball.won && r.flippedFirst && r.shoves.length > 0 && !r.ball.hits && !r.outOfPlace.length;
+    if (!ok) fail(`level 12, flip left unstomped: won=${r.ball.won} flipped=${r.flippedFirst} get-backs=${r.shoves.length} hits=${r.ball.hits} crate out of place=${r.outOfPlace.length}`);
+    else console.log(`   flip left unstomped until the shell was up again: got the crate back and finished in ${r.t.toFixed(1)}s, no heart lost`);
+  }
+
   // It bites: fill the pit, and a missed crate can never be got back. The
   // first, middle and last of the shoves above that missed.
   {
@@ -1760,9 +1796,9 @@ console.log('\n3o. level twelve: room B has no dead end, and room A needs its sh
     const frozen = { ...data, enemies: data.enemies.map((e) => (e === shells[0] ? frozenA : e)) };
     const seconds = 45;
     let opened = 0;
-    const stalled = play(frozen, (lv) => { const d = route12(lv, 1); return (b, t) => { opened = Math.max(opened, lv.gates[0].openT); return d(b, t); }; }, { from: fromA, seconds });
+    const stalled = play(frozen, (lv) => { const d = route12(lv, 1), g = room12(lv).gate; return (b, t) => { opened = Math.max(opened, g.openT); return d(b, t); }; }, { from: fromA, seconds });
     const control = play(data, (lv) => route12(lv, 1), { from: fromA, seconds });
-    const gate = data.gates[0];
+    const gate = room12(loadLevel(data)).gate;
     const stalledOk = stalled.ball.x <= gate.x && opened === 0;
     const controlOk = control.ball.x >= gate.x + gate.w;
     if (!stalledOk) fail(`level 12 room A opened (openT ${opened.toFixed(2)}) or was passed (x=${stalled.ball.x.toFixed(0)}) with its shell kept off the plate`);

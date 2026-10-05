@@ -1381,12 +1381,12 @@ export const LEVELS = [
     // middle at most 4050; the shell's `from`, 4052, is past that, so a flip
     // always kicks the shell right, towards hole 2 (simulated: every flip in
     // a sweep of the arrival time kicked it right). The window to land on it
-    // is 1.2s a patrol, the crate arriving from 0.65s before the shell's turn
-    // at `from` to 0.55s after (simulated, a scratch sweep every 0.05s; the
-    // hand estimate was 1.15s), out of a 12.7s patrol (from config.js:
-    // 2 x 508 / 80). finish.mjs's route aims at the turn and is up to 0.3s
-    // off either way; 3o's shoves every 0.25s of a patrol flipped it 5 times
-    // in 51, as that window says they should.
+    // is about 1.15s a patrol (from config.js and this geometry, by hand),
+    // out of a 12.7s patrol (from config.js: 2 x 508 / 80): finish.mjs 3o
+    // shoves the crate in at every 0.25s of a patrol, and 5 of the 51 flip
+    // it (printed by finish.mjs 3o), which is a window of 1.25s at that
+    // spacing. finish.mjs's route aims at the shell's turn at `from` and is
+    // up to 0.3s off either way.
     //
     // A crate that misses lands in the corridor under hole 1, where it stays
     // until the ball moves it: wait on the roof for the shell to walk away
