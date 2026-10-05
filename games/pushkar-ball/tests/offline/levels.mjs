@@ -377,12 +377,13 @@ for (const data of LEVELS) {
     }
   }
 
-  // A closing gate only refuses to close on the ball and on a crate — it
-  // asks `isUnder` about those two (Level.update's `blockers`), and enemies
-  // and spikes are never among them. A gate whose span overlaps a spike
-  // patch, a walker's patrol or a roller's range can therefore close right
-  // through one, which either looks broken or, for a spike, means the gate
-  // is guarding nothing since the hazard already sits in the gap.
+  // A closing gate refuses to close on its blockers (Level.update's
+  // `blockers`): the ball, crates, and any enemy with `blocks`. Spikes are
+  // never among them. A gate whose span overlaps a spike patch, a walker's
+  // patrol, a roller's range or a blocking enemy's range can therefore close
+  // right through one, or hang open over it, which either looks broken or,
+  // for a spike, means the gate is guarding nothing since the hazard already
+  // sits in the gap.
   for (const g of level.gates) {
     const glo = g.x, ghi = g.x + g.w;
     for (const s of level.spikes) {
@@ -390,21 +391,23 @@ for (const data of LEVELS) {
         fail(`level ${data.id}: a spike patch at x=${s.x} sits under the gate at x=${g.x}`);
       }
     }
-    for (const e of data.enemies || []) {
+    for (const [i, e] of (data.enemies || []).entries()) {
+      const live = level.enemies[i];
       if (e.kind === 'walker') {
         const r = CONFIG.ENEMY.WALKER.R;
         const lo = e.x - e.amplitude - r, hi = e.x + e.amplitude + r;
         if (lo < ghi && hi > glo) fail(`level ${data.id}: a walker patrols under the gate at x=${g.x}`);
       } else if (e.kind === 'roller') {
-        // from/to bound the roller's centre, so its body reaches R past
-        // either end — the same allowance the walker gets above.
         const r = CONFIG.ENEMY.ROLLER.R;
         if (e.from - r < ghi && e.to + r > glo) fail(`level ${data.id}: a roller patrols under the gate at x=${g.x}`);
-      } else if (e.kind === 'charger') {
-        // A charger is a blocker, so a gate would hang open over it rather
-        // than close through it — which looks just as broken.
-        const r = CONFIG.ENEMY.CHARGER.R;
-        if (e.from - r < ghi && e.to + r > glo) fail(`level ${data.id}: a charger ranges under the gate at x=${g.x}`);
+      } else if (live.blocks) {
+        // Anything that holds a closing gate up would hang it open over its
+        // range — asked of the enemy itself, so a new kind cannot be missed.
+        if (!(Number.isFinite(e.from) && Number.isFinite(e.to))) {
+          fail(`level ${data.id}: enemy ${i} (${e.kind}) blocks gates but has no from/to range`);
+        } else if (e.from - live.r < ghi && e.to + live.r > glo) {
+          fail(`level ${data.id}: a ${e.kind} ranges under the gate at x=${g.x}`);
+        }
       }
     }
   }

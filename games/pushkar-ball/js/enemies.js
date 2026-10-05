@@ -330,7 +330,10 @@ export function makeCharger(e, cfg) {
 
     // What Level.update and the hit rules ask of any enemy that uses the
     // world. The roadmap's "holds a plate while dazed" is `heavy`.
+    // Two separate questions: does it press buttons (and weigh plates), and
+    // does a closing gate refuse to come down on it. A charger does both.
     presses: true,
+    blocks: true,
     get heavy() { return c.state === 'dazed'; },
     get stompable() { return c.state === 'dazed'; },
     get harmless() { return c.state === 'dazed'; },

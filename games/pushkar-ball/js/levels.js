@@ -1963,14 +1963,17 @@ class Level {
       if (!b.dying) pressers.push(box);
     }
     // Enemies that use the world — so far the charger. Each one answers the
-    // two questions above for itself: it presses with its own box, it is
-    // heavy only when it says so (a charger, only while dazed), and a gate
-    // never closes on it. A popped one is not there at all.
+    // two questions above for itself, with two fields: `presses` puts its box
+    // among the pressers (heavy only when it says so, a charger only while
+    // dazed), and `blocks` puts it among the things a gate never closes on.
+    // They are separate so an enemy can do either alone. A popped one is not
+    // there at all. `key` names the enemy a box came from.
     for (const e of this.enemies) {
-      if (!e.alive || !e.presses) continue;
-      const box = { ...e.box(), heavy: e.heavy, resting: e.grounded };
-      pressers.push(box);
-      blockers.push(box);
+      if (!e.alive) continue;
+      if (!e.presses && !e.blocks) continue;
+      const box = { ...e.box(), key: e, heavy: e.heavy, resting: e.grounded };
+      if (e.presses) pressers.push(box);
+      if (e.blocks) blockers.push(box);
     }
     updateSenders(this.senders, dt, pressers, CONFIG);
     this.opened = [];
