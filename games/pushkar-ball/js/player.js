@@ -97,6 +97,9 @@ export class Ball {
     // chose. levels.mjs makes sure no checkpoint sits between a button and
     // the door it opens, which is what makes this safe.
     if (level) level.resetSenders();
+    // And an aimed popper goes back to sleep, or a lob it threw before the
+    // fall would land on a button or a plank wall after it.
+    if (level) level.resetEnemies();
     if (this.zeroHearts) {
       this.hearts = CONFIG.HEALTH.HEARTS;
       this.zeroHearts = false;

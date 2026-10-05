@@ -123,8 +123,11 @@ const POPPER_AIMED = {
   reload: {
     enter(p) { p.target = null; },
     update(p, dt, level, cfg) {
-      // The lob's last position stays a presser for this one step, so a lob
-      // ending against a button's post still counts as having touched its cap.
+      // The lob's last position (the one that touched something) stays a
+      // presser on the step fire ends AND on this state's first step, under
+      // the same `shot` key — still one hit — so a lob ending against a
+      // button's post counts as having touched its cap. (Fire's first sample
+      // is at s = dt, since runStates ages a state before asking it.)
       if (p.stateT > dt * 1.5) p.lobNow = null;
       if (p.stateT >= cfg.ENEMY.POPPER.RELOAD) return 'idle';
     },
@@ -164,6 +167,11 @@ export function makePopper(e, cfg) {
       presses: false, blocks: false,
       state: 'idle', stateT: 0,
       update(dt, t, level, cfg) { runStates(p, POPPER_AIMED, dt, level, cfg); },
+      /** Back to sleep, with nothing aimed and nothing in flight. Called on every respawn. */
+      reset() {
+        p.state = 'idle'; p.stateT = 0;
+        p.target = null; p.lob = null; p.lobNow = null;
+      },
       box() { return { x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 }; },
       /** The lob in flight, or null. Ignores `t`: an aimed lob is the machine's, not the clock's. */
       activeProjectile() { return p.state === 'fire' ? p.lobNow : null; },
@@ -743,13 +751,17 @@ function drawAimArc(ctx, p, cfg) {
   const F = cfg.ENEMY.POPPER.FLIGHT;
   const L = lobVelocity(p, cfg);
   ctx.save();
+  const P = cfg.ENEMY.POPPER, N = P.ARC_DOTS;
   ctx.fillStyle = cfg.COLOURS.POPPER_ARC;
-  ctx.globalAlpha = 0.85;
-  for (let i = 1; i <= 12; i++) {
-    const s = (i / 12) * F;
+  ctx.strokeStyle = cfg.COLOURS.POPPER_ARC_EDGE;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = P.ARC_ALPHA;
+  for (let i = 1; i <= N; i++) {
+    const s = (i / N) * F;
     ctx.beginPath();
-    ctx.arc(L.x0 + L.vx * s, L.y0 + L.vy * s + 0.5 * cfg.GRAVITY * s * s, 4, 0, Math.PI * 2);
+    ctx.arc(L.x0 + L.vx * s, L.y0 + L.vy * s + 0.5 * cfg.GRAVITY * s * s, P.ARC_DOT_R, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
   }
   ctx.restore();
 }

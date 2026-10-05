@@ -5,6 +5,7 @@
 const { CONFIG } = await import('../../js/config.js');
 const { loadLevel } = await import('../../js/levels.js');
 const { resetSenders } = await import('../../js/circuits.js');
+const { Ball } = await import('../../js/player.js');
 
 let failures = 0;
 const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
@@ -106,9 +107,50 @@ function steps(level, seconds, each = () => {}) {
     breakables: [{ x: 1240, y: 600, w: 30, h: 160 }],
   });
   level.ball = ballAt(1300);
-  steps(level, P.AIM + P.FLIGHT + 1);
-  console.log(`4b. a lob aimed past planks broke them: ${level.breakables[0].broken}`);
+  let endX = null;
+  steps(level, P.AIM + P.FLIGHT + 1, () => { const q = level.enemies[0].lobNow; if (q) endX = q.x; });
+  console.log(`4b. a lob aimed past planks broke them: ${level.breakables[0].broken}, and ended at x=${endX?.toFixed(1)}`);
   if (!level.breakables[0].broken) fail('a lob aimed past planks did not break them');
+  if (!(endX !== null && endX <= 1240 + 30 + P.PROJ_R)) fail(`the lob went on through the planks (ended at x=${endX})`);
+}
+{
+  // The same shot at a stone wall: it ends there and breaks nothing.
+  const level = room({
+    enemies: [{ kind: 'popper', x: 1000, y: FLOOR - P.R, dir: 1 }],
+    boxes: [{ x: 1240, y: 600, w: 30, h: 160 }],
+  });
+  level.ball = ballAt(1300);
+  let endX = null;
+  steps(level, P.AIM + P.FLIGHT + 1, () => { const q = level.enemies[0].lobNow; if (q) endX = q.x; });
+  console.log(`4c. a lob aimed past a stone wall ended at x=${endX?.toFixed(1)}; pieces thrown: ${level.particles.length}`);
+  if (!(endX !== null && endX <= 1240 + 30 + P.PROJ_R)) fail(`the lob went on through a stone wall (ended at x=${endX})`);
+  if (level.particles.length) fail('a lob at a stone wall broke something');
+}
+
+// --- 6. a respawn puts an aimed popper back to sleep -------------------------
+// Through the real respawn path: the popper has locked a target and is
+// aiming (or already throwing), the ball is put back home behind it, and
+// nothing that lob would have done happens.
+for (const [what, extra, ballX, wait] of [
+  ['button, mid-flight', { senders: [{ id: 'b', kind: 'button', x: 1260, y: FLOOR, face: 'left' }] }, 1250, P.AIM + P.FLIGHT / 2],
+  ['planks, mid-aim', { breakables: [{ x: 1240, y: 600, w: 30, h: 160 }] }, 1300, P.AIM / 2],
+]) {
+  const level = room({ enemies: [{ kind: 'popper', x: 1000, y: FLOOR - P.R, dir: 1 }], ...extra });
+  const p = level.enemies[0];
+  const ball = new Ball(ballX, FLOOR - CONFIG.BALL.R);
+  ball.home = { x: 200, y: FLOOR - CONFIG.BALL.R };   // behind the popper
+  level.ball = ball;
+  steps(level, wait);
+  const before = p.state;
+  ball.respawn(level);
+  let pressed = false, broken = false;
+  steps(level, P.AIM + P.FLIGHT + 1, () => {
+    if (level.senders.some((s) => s.pressed)) pressed = true;
+    if (level.breakables.some((b) => b.broken)) broken = true;
+  });
+  console.log(`6. ${what}: state ${before} at respawn, then ${p.state}; pressed=${pressed} broken=${broken}`);
+  if (pressed || broken) fail(`${what}: a lob thrown before a respawn acted after it`);
+  if (p.state !== 'idle') fail(`${what}: popper not asleep after a respawn (state ${p.state})`);
 }
 
 // --- 5. the same situation, the same lob --------------------------------------

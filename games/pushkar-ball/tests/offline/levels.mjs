@@ -463,10 +463,11 @@ for (const data of LEVELS) {
       n++;
       const range = level.enemies[i].range;
       if (!Number.isFinite(range)) { fail(`level ${data.id}: popper ${i} has no numeric range`); continue; }
-      for (const c of data.checkpoints || []) {
+      // The spawn too: a zero-heart fail respawns there.
+      for (const c of [...(data.checkpoints || []), { ...data.spawn, spawn: true }]) {
         const dx = c.x - e.x;
         if (Math.sign(dx) === (e.dir ?? 1) && Math.abs(dx) <= range + CONFIG.BALL.R) {
-          fail(`level ${data.id}: checkpoint at x=${c.x} is within reach of popper ${i} (range ${range})`);
+          fail(`level ${data.id}: ${c.spawn ? 'spawn' : 'checkpoint'} at x=${c.x} is within reach of popper ${i} (range ${range})`);
         }
       }
     }

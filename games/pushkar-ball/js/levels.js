@@ -2047,6 +2047,16 @@ class Level {
   }
 
   /**
+   * Every enemy that can act on a respawned room puts itself back: so far
+   * the aimed popper, which goes back to sleep with nothing aimed and no lob
+   * in flight. Without this, a lob thrown before a fall lands after it, on a
+   * button just reset or a plank wall, and the room is changed by nobody.
+   */
+  resetEnemies() {
+    for (const e of this.enemies) if (e.reset) e.reset();
+  }
+
+  /**
    * Everything a crate may rest on or be stopped by: the level's fixed
    * geometry, the moving platforms, and every crate EXCEPT itself.
    *

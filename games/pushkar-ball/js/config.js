@@ -503,6 +503,9 @@ export const CONFIG = {
       AIM: 1.0,       // s the dotted arc is drawn before it fires — the warning
       FLIGHT: 1.1,    // s a lob takes from the popper to the spot it locked
       RELOAD: 1.2,    // s after a lob ends before it looks again
+      ARC_DOTS: 12,   // dots drawn along the aim arc — a guess
+      ARC_DOT_R: 4,   // px, each dot's radius — a guess
+      ARC_ALPHA: 0.85, // the arc's opacity — a guess
     },
     ROLLER: {
       R: 20,
@@ -853,6 +856,7 @@ export const CONFIG = {
     ENEMY_EDGE: '#5E3D8A',
     ENEMY_EYE: '#2A1B40',
     POPPER_ARC: '#FFFFFF',   // the aimed popper's dotted aim arc; drawn at reduced alpha
+    POPPER_ARC_EDGE: '#2A1B40', // each dot's dark rim, so white dots still show on the pale SKY_LOW
     // The charger's own body, so it never reads as a walker. It is the one
     // enemy whose stomp rule is conditional — safe only while dazed — and
     // level twelve puts it beside a shell and a popper. Blue: red minus blue
