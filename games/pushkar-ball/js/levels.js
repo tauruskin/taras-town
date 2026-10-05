@@ -2167,7 +2167,7 @@ class Level {
       // walker or roller already wears, just fewer pieces and now flying
       // apart instead of standing still. (A popper has no ring of its own,
       // but gets the same burst: one pop animation for every enemy kind,
-      // coloured by the kind's own `popShade`, walker violet by default.)
+      // coloured by the kind's own `popShade`, the usual enemy violet by default.)
       const shade = e.popShade || { fill: 'ENEMY', edge: 'ENEMY_EDGE' };
       const P = CONFIG.ENEMY.POP;
       for (let i = 0; i < P.COUNT; i++) {

@@ -367,6 +367,7 @@ function dropOn(state) {
   const ball = new Ball(1000, 500);
   const input = { left: false, right: false, takeJump: () => false };
   for (let i = 0; i < Math.round(2 / DT) && c.alive; i++) {
+    // Forced dazed on purpose: this checks colour, not how a charger gets dazed.
     if (c.state !== 'dazed') { c.state = 'dazed'; c.stateT = 0; }
     level.update(DT);
     ball.update(DT, input, level);

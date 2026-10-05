@@ -212,6 +212,10 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
   if (Math.abs(ball.vy - (-CONFIG.ENEMY.STOMP_BOUNCE)) > 1) {
     fail(`vy after the stomp is ${ball.vy.toFixed(1)}, expected exactly ${-CONFIG.ENEMY.STOMP_BOUNCE}`);
   }
+  // A walker names no popShade, so its debris takes the default enemy violet.
+  if (!level.particles.length || !level.particles.every((p) => p.shade.fill === 'ENEMY')) {
+    fail("a stomped walker's debris is not in the ENEMY shade");
+  }
   if (level.particles.length !== CONFIG.ENEMY.POP.COUNT) {
     fail(`expected ${CONFIG.ENEMY.POP.COUNT} particles right after the stomp, got ${level.particles.length}`);
   } else {

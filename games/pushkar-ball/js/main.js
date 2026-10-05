@@ -776,9 +776,10 @@ function drawPads() {
  * this function only ever reads it, the same read-only relationship
  * `drawPads` has with `level.pads`.
  *
- * Each piece carries its own `shade` (COLOURS key names): a kind names its pop
- * shade as `popShade`, defaulting to the walker violet, and broken planks use
- * the crate's. The charger's is deliberately not `CHARGER_BODY`, which
+ * Debris is coloured so it visibly belongs to what it came from, which is why
+ * a kind whose body has its own colour names its own `popShade`. Each piece
+ * carries its `shade` (COLOURS key names); the default is the usual enemy
+ * violet, and broken planks use the crate's. The charger's is deliberately not `CHARGER_BODY`, which
  * `tests/browser/chargers.mjs` counts to find the charger.
  */
 function drawParticles() {
