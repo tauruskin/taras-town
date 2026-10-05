@@ -305,6 +305,7 @@ export function makeCharger(e, cfg) {
   const K = cfg.ENEMY.CHARGER;
   const c = {
     kind: 'charger',
+    popShade: { fill: 'CHARGER_POP', edge: 'CHARGER_POP_EDGE' },
     alive: true,
     r: K.R,
     x: e.x,

@@ -855,6 +855,11 @@ export const CONFIG = {
     // only ever seen against grass.
     CHARGER_BODY: '#2E6BC6',
     CHARGER_EDGE: '#1B4380',
+    // A popped charger's debris: its own shade, NOT CHARGER_BODY. The browser
+    // suite finds a charger by counting CHARGER_BODY pixels, and debris drawn
+    // in it would be counted as charger while it flew.
+    CHARGER_POP: '#7FA8E0',
+    CHARGER_POP_EDGE: '#4F78B0',
     // The charger's dust and dazed stars. Neither can read as the ball to
     // IS_BALL in tests/browser/_helpers.mjs: the dust's red is only 41 above
     // its blue (the test needs 60), and the stars' green is far above their

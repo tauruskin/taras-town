@@ -776,19 +776,10 @@ function drawPads() {
  * this function only ever reads it, the same read-only relationship
  * `drawPads` has with `level.pads`.
  *
- * Drawn in the same colours a live enemy is drawn in (`drawSpikyBody` in
- * enemies.js), so the debris visibly belongs to what it came from. Pieces of
- * broken planks carry `wood` and are drawn in the crate's colours instead.
- *
- * The charger is a known exception, and it is deliberate rather than
- * forgotten: since Sep 2026 it has its own blue body (`CHARGER_BODY`), and a
- * popped one still bursts in `ENEMY`'s violet — which a child does see, since
- * level ten's optional lesson is stomping a dazed charger. It is left that
- * way for now because `tests/browser/chargers.mjs` finds the charger by
- * counting `CHARGER_BODY` and leans on nothing else in the game being drawn
- * in it; debris in that blue would be counted as charger while it flew.
- * Giving the pop its own shade of blue would settle both, and that is the fix
- * to make when something needs it, not a one-word swap here.
+ * Each piece carries its own `shade` (COLOURS key names): a kind names its pop
+ * shade as `popShade`, defaulting to the walker violet, and broken planks use
+ * the crate's. The charger's is deliberately not `CHARGER_BODY`, which
+ * `tests/browser/chargers.mjs` counts to find the charger.
  */
 function drawParticles() {
   const C = CONFIG.COLOURS;
@@ -805,9 +796,9 @@ function drawParticles() {
     ctx.lineTo(-s * 0.6, s * 0.6);
     ctx.lineTo(-s * 0.6, -s * 0.6);
     ctx.closePath();
-    ctx.fillStyle = p.wood ? C.CRATE : C.ENEMY;
+    ctx.fillStyle = C[p.shade.fill];
     ctx.fill();
-    ctx.strokeStyle = p.wood ? C.CRATE_LINE : C.ENEMY_EDGE;
+    ctx.strokeStyle = C[p.shade.edge];
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();

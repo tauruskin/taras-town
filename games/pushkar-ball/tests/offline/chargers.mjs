@@ -360,5 +360,23 @@ function dropOn(state) {
   if (ball.x < 1100) fail('a dazed charger stopped the ball — it is not a collider');
 }
 
+// --- 15. a popped charger bursts in its own shade, never CHARGER_BODY ---------
+{
+  const level = room({ enemies: [{ kind: 'charger', x: 1000, y: CY, from: 990, to: 1010, dir: 1 }] });
+  const c = level.enemies[0];
+  const ball = new Ball(1000, 500);
+  const input = { left: false, right: false, takeJump: () => false };
+  for (let i = 0; i < Math.round(2 / DT) && c.alive; i++) {
+    if (c.state !== 'dazed') { c.state = 'dazed'; c.stateT = 0; }
+    level.update(DT);
+    ball.update(DT, input, level);
+  }
+  const fills = [...new Set(level.particles.map((p) => p.shade?.fill))];
+  console.log(`
+15. popped charger: ${level.particles.length} pieces, fills ${fills.join(',')}`);
+  if (c.alive || !level.particles.length) fail('the dazed charger was not popped');
+  else if (fills.length !== 1 || fills[0] !== 'CHARGER_POP') fail(`its debris was drawn in ${fills.join(',')}, not CHARGER_POP`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CHARGER CHECKS PASSED');
 process.exit(failures ? 1 : 0);

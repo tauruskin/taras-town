@@ -2166,9 +2166,9 @@ class Level {
       // integrated physics. Six pieces, 60° apart — the same ring shape a
       // walker or roller already wears, just fewer pieces and now flying
       // apart instead of standing still. (A popper has no ring of its own,
-      // but gets the same generic burst — one pop animation for every
-      // enemy kind, matching the original design's blanket "enemies... pop
-      // into a few triangles" phrasing.)
+      // but gets the same burst: one pop animation for every enemy kind,
+      // coloured by the kind's own `popShade`, walker violet by default.)
+      const shade = e.popShade || { fill: 'ENEMY', edge: 'ENEMY_EDGE' };
       const P = CONFIG.ENEMY.POP;
       for (let i = 0; i < P.COUNT; i++) {
         const a = (i / P.COUNT) * Math.PI * 2;
@@ -2178,6 +2178,7 @@ class Level {
           vy: Math.sin(a) * P.SPEED,
           angle: a,
           life: P.LIFE,
+          shade,
         });
       }
       return true;
@@ -2203,7 +2204,7 @@ class Level {
         vy: Math.sin(a) * P.SPEED,
         angle: a,
         life: P.LIFE,
-        wood: true,
+        shade: { fill: 'CRATE', edge: 'CRATE_LINE' },
       });
     }
   }

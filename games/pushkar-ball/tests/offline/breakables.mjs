@@ -71,11 +71,17 @@ const run = (ball, level, input, seconds, each) => {
   const b = level.breakables[0];
   const ball = new Ball(400, 740);
   run(ball, level, hold(false), 0.3);
-  let pieces = 0;
-  run(ball, level, hold(true), 2, () => { if (b.broken && !pieces) pieces = level.particles.length; });
+  let pieces = 0, crateShade = false;
+  run(ball, level, hold(true), 2, () => {
+    if (b.broken && !pieces) {
+      pieces = level.particles.length;
+      crateShade = level.particles.every((p) => p.shade.fill === 'CRATE');
+    }
+  });
   console.log(`\n3. a fast roll: broken=${b.broken}, ${pieces} pieces, ball at x=${ball.x.toFixed(0)}, hits=${ball.hits}`);
   if (!b.broken) fail('rolling into it at full speed did not break it');
   if (!pieces) fail('breaking it threw no pieces');
+  if (!crateShade) fail('broken planks were not thrown in the crate shade');
   if (b.segments.length) fail('a broken one still has segments');
   if (ball.x < PLANKS.x + PLANKS.w + 100) fail(`the ball stopped at x=${ball.x.toFixed(0)} instead of going through`);
   if (ball.hits) fail('breaking it cost a heart');
