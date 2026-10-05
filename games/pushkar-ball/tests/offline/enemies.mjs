@@ -6,7 +6,7 @@
 // concrete proof instead, in a later task.
 const { CONFIG } = await import('../../js/config.js');
 const { makeWalker, makePopper, makeRoller, enemyHit, projectileHit } = await import('../../js/enemies.js');
-const { loadLevel } = await import('../../js/levels.js');
+const { loadLevel, LEVELS } = await import('../../js/levels.js');
 const { Ball } = await import('../../js/player.js');
 
 let failures = 0;
@@ -271,13 +271,17 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
   const P = CONFIG.ENEMY.POPPER;
   const flight = (2 * P.VY0) / CONFIG.GRAVITY;
   let worst = 0, n = 0;
-  for (const phase of [0, 0.7, 2.2]) {
-    const e = { kind: 'popper', x: 2350, y: 736, dir: -1, period: 3.0, phase, fixed: true };
+  const real = LEVELS.find((l) => l.id === 2).enemies.find((x) => x.kind === 'popper');
+  if (!real) fail("level two has no popper to pin");
+  const period = real.period ?? P.PERIOD;
+  // Level two's own phase, then two others as copies of its entry.
+  for (const phase of [real.phase || 0, 0.7, 2.2]) {
+    const e = { ...real, phase };
     const p = makePopper(e, CONFIG);
     for (let t = 0; t < 12; t += CONFIG.STEP) {
       p.update(CONFIG.STEP, t, null, CONFIG);
       const got = p.activeProjectile(t);
-      const since = t - phase, cycle = ((since % 3) + 3) % 3;
+      const since = t - phase, cycle = ((since % period) + period) % period;
       const want = cycle > flight ? null : { x: e.x + e.dir * P.VX * cycle, y: e.y - P.VY0 * cycle + 0.5 * CONFIG.GRAVITY * cycle * cycle };
       if (!!got !== !!want) { fail(`fixed popper, phase ${phase}, t=${t.toFixed(3)}: projectile ${got ? 'present' : 'absent'}, expected ${want ? 'present' : 'absent'}`); break; }
       if (got) { worst = Math.max(worst, Math.hypot(got.x - want.x, got.y - want.y)); n++; }
