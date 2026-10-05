@@ -558,5 +558,22 @@ console.log('\n22. a deflating ball still holds a closing gate up');
   if (lowest < 0.99) fail(`the gate came down on a deflating ball (openT ${lowest.toFixed(2)})`);
 }
 
+// --- per-presser touch: a second presser's hit is never swallowed -----------
+{
+  const s = C.makeSender({ id: 't', kind: 'timer', x: 1000, y: 760, face: 'left', time: 2 }, 0, CONFIG);
+  const zone = C.hitZone(s, CONFIG);
+  const box = (key) => ({ key, x: zone.x, y: zone.y, w: zone.w, h: zone.h, heavy: false, resting: true });
+  const A = {}, B = {};
+  C.updateSenders([s], CONFIG.STEP, [box(A)], CONFIG);          // A hits: full time
+  for (let i = 0; i < 120; i++) C.updateSenders([s], CONFIG.STEP, [box(A)], CONFIG); // A rests 1 s
+  const before = s.left;
+  C.updateSenders([s], CONFIG.STEP, [box(A), box(B)], CONFIG);  // B arrives while A rests
+  console.log(`
+per-presser touch: timer at ${before.toFixed(2)}s, then ${s.left.toFixed(2)}s after a second presser's hit`);
+  if (!(s.left > before + 0.5)) fail(`a second presser's hit on a timer already touched was swallowed (left ${s.left})`);
+  C.resetSenders([s]);
+  if (s.touched.size !== 0) fail('resetSenders left presser keys behind');
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');
 process.exit(failures ? 1 : 0);

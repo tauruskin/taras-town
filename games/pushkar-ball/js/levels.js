@@ -1954,11 +1954,11 @@ class Level {
     // here needs the same two questions asked of it separately. Crates and
     // the ball are not the only things in these lists any more — an enemy
     // that uses the world, so far the charger, joins them below.
-    const pressers = this.crates.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h, heavy: true, resting: c.grounded }));
+    const pressers = this.crates.map((c) => ({ key: c, x: c.x, y: c.y, w: c.w, h: c.h, heavy: true, resting: c.grounded }));
     const blockers = pressers.slice();
     const b = this.ball;
     if (b) {
-      const box = { x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded };
+      const box = { key: b, x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded };
       blockers.push(box);
       if (!b.dying) pressers.push(box);
     }

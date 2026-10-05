@@ -9,7 +9,8 @@
  * `needs`: every id listed must be on, and an id written `!id` must be off.
  * That is the whole language, AND and NOT; see the spec for why nothing more.
  *
- * Something that presses is a PRESSER: a box `{ x, y, w, h, heavy, resting }`.
+ * Something that presses is a PRESSER: a box `{ key, x, y, w, h, heavy, resting }`, `key` being
+ * anything stable that names who is pressing (the crate, the ball, the enemy).
  * Every presser can hit a button; a plate wants one that is heavy and resting.
  * The level builds the list each step — its crates, and the ball, which
  * reports itself through `level.noteBall` — and later enemies join the same
@@ -62,7 +63,7 @@ export function makeSender(d, index, cfg) {
     colour: W[index % W.length],
     pressed: false,
     left: 0,                        // timer only: seconds of power left
-    touched: false,                 // was anything touching it last step
+    touched: new Set(),             // which pressers (by key) were touching it last step
     animT: 0,                       // cosmetic: how far the drawn press has eased
   };
 }
@@ -115,9 +116,13 @@ export function updateSenders(senders, dt, pressers, cfg) {
       s.pressed = pressers.some((p) => p.heavy && p.resting && p.x < s.x + s.w && p.x + p.w > s.x);
     } else {
       const zone = hitZone(s, cfg);
-      const touching = pressers.some((p) => overlaps(p, zone));
-      const hit = touching && !s.touched;
-      s.touched = touching;
+      const now = new Set();
+      for (const p of pressers) if (overlaps(p, zone)) now.add(p.key);
+      // A HIT is any presser that starts touching, even while another rests
+      // there: one presser's touch must not swallow another's hit.
+      let hit = false;
+      for (const k of now) if (!s.touched.has(k)) hit = true;
+      s.touched = now;
       if (hit) {
         s.pressed = true;
         if (s.kind === 'timer') s.left = s.time;
@@ -136,7 +141,7 @@ export function resetSenders(senders) {
     if (s.kind === 'plate') continue;
     s.pressed = false;
     s.left = 0;
-    s.touched = false;
+    s.touched = new Set();
   }
 }
 
