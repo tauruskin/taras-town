@@ -2160,9 +2160,14 @@ class Level {
    * wasn't reads as the game cheating. Each enemy is judged against its own box.
    */
   stompEnemy(body) {
-    const under = this.enemies.filter((e) => e.alive && circleHitsBox(body.x, body.y, body.r, e.box()));
-    const targets = under.filter((e) => e.stompable !== false &&
-      body.vy > 0 && body.y < e.box().y + CONFIG.ENEMY.STOMP_MARGIN);
+    if (!(body.vy > 0)) return false;
+    const targets = [];
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const box = e.box();
+      if (!circleHitsBox(body.x, body.y, body.r, box)) continue;
+      if (e.stompable !== false && body.y < box.y + CONFIG.ENEMY.STOMP_MARGIN) targets.push(e);
+    }
     if (!targets.length) return false;
     for (const e of targets) this.pop(e);
     return true;

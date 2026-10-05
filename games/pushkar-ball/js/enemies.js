@@ -362,8 +362,9 @@ export function makeCharger(e, cfg) {
  * Which alive enemy this body is touching, or null.
  *
  * One question for a whole level's enemies, the same shape `spikeHit` in
- * hazards.js already gives for spikes — `levels.js`'s `stompEnemy` and
- * `hazardKnockDir` both build on this rather than looping enemies twice.
+ * hazards.js already gives for spikes — `levels.js`'s `hazardKnockDir` builds on
+ * this. (`stompEnemy` asks for every enemy touched, not the first, so it
+ * tests each box itself.)
  */
 export function enemyHit(body, enemies) {
   for (const e of enemies) {

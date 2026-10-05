@@ -3,7 +3,7 @@
 // function of level time — it reacts to the ball — so what is proved here is
 // that the same situation always plays out the same way, step by step.
 const { CONFIG } = await import('../../js/config.js');
-const { makeCharger } = await import('../../js/enemies.js');
+const { makeCharger, makeWalker } = await import('../../js/enemies.js');
 const { circleHitsBox } = await import('../../js/hazards.js');
 const { loadLevel } = await import('../../js/levels.js');
 const { Ball } = await import('../../js/player.js');
@@ -400,6 +400,56 @@ function dropOn(state) {
     if (dazed.alive) fail(`${order}: the dazed charger was not popped`);
     if (!awake.alive) fail(`${order}: an awake charger was popped by a stomp`);
   }
+}
+
+// --- 17. two stompable enemies under one landing: both pop ------------------
+{
+  const a = makeCharger({ kind: 'charger', x: 1000, y: CY, from: 900, to: 1100 }, CONFIG);
+  const b = makeWalker({ kind: 'walker', x: 1010, y: FLOOR - CONFIG.ENEMY.WALKER.R, from: 900, to: 1100 }, CONFIG);
+  a.state = 'dazed';
+  const level = room({ enemies: [] });
+  level.enemies = [a, b];
+  const body = { x: 1005, y: CY - K.R - 5, r: CONFIG.BALL.R, vy: 300 };
+  const both = [a, b].every((e) => circleHitsBox(body.x, body.y, body.r, e.box()));
+  const stomped = level.stompEnemy(body);
+  const want = 2 * CONFIG.ENEMY.POP.COUNT;
+  console.log(`
+17. stomp over dazed charger + walker: overlaps both=${both}, stomped=${stomped}, alive=${a.alive}/${b.alive}, particles=${level.particles.length} of ${want}`);
+  if (!both) fail('the body does not overlap both, so this checks nothing');
+  if (!stomped) fail('two stompable enemies under a landing was not a stomp');
+  if (a.alive || b.alive) fail('not both stompable enemies popped');
+  if (level.particles.length !== want) fail(`${level.particles.length} particles, not ${want}`);
+}
+
+// --- 18. the real ball: a stomp beside a hurt postpones the hurt, not cancels it
+{
+  // "Stomp wins" means a hurt in the STOMP step is postponed, not cancelled:
+  // stompEnemy runs first and returns true, so hazardKnockDir is not asked that
+  // step. If the ball is still touching the awake charger on a later step, that
+  // step hurts as it always did. The awake one is held in patrol so it does not
+  // wind up and wander off; the dazed one is held dazed until stomped.
+  const level = room({ enemies: [
+    { kind: 'charger', x: 1000, y: CY, from: 990, to: 1010, dir: 1 },
+    { kind: 'charger', x: 1010, y: CY, from: 1000, to: 1020, dir: 1 },
+  ] });
+  const [dz, aw] = level.enemies;
+  const ball = new Ball(1005, 500);
+  const input = { left: false, right: false, takeJump: () => false };
+  let stompStep = -1, hitsAtStomp = null, laterHitStep = -1, stepsRun = 0;
+  for (let i = 0; i < Math.round(3 / DT); i++) {
+    if (dz.alive) { dz.state = 'dazed'; dz.stateT = 0; }
+    if (aw.alive && aw.state !== 'patrol') { aw.state = 'patrol'; aw.stateT = 0; }
+    level.update(DT);
+    ball.update(DT, input, level);
+    stepsRun++;
+    if (stompStep < 0 && !dz.alive) { stompStep = i; hitsAtStomp = ball.hits; }
+    if (stompStep >= 0 && ball.hits > hitsAtStomp) { laterHitStep = i; break; }
+  }
+  console.log(`
+18. real ball over dazed + awake charger: stomped at step ${stompStep}, hits then=${hitsAtStomp}, awake alive=${aw.alive}, later hit at step ${laterHitStep}, final hits=${ball.hits}`);
+  if (stompStep < 0) fail('the dazed charger was never stomped');
+  else if (hitsAtStomp !== 0) fail('the stomp step itself cost a heart');
+  else if (laterHitStep >= 0 && ball.hits !== 1) fail(`the later overlap cost ${ball.hits} hearts, not 1`);
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CHARGER CHECKS PASSED');
