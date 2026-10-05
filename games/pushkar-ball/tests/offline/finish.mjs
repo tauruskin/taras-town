@@ -496,6 +496,26 @@ const SPARE11 = [];
 // through the door. Checked in 2d.
 const SPARE12 = [];
 
+// Level thirteen's room A: every run that starts before popper A records each
+// lock popper A takes on the ball (where it aimed, where the ball was) and
+// where each of its lobs came down. Checked in 2e.
+const LOCKS13 = [];
+
+/**
+ * Watch popper A for one run: a new lock is a new `target` object; a lob
+ * comes down on the step its `fire` ends, when `lobNow` is its last spot.
+ * Returns a function to call once a step.
+ */
+function watchLocks13(pA, rec) {
+  let lastTarget = null, lastState = pA.state;
+  return (ball) => {
+    if (pA.target && pA.target !== lastTarget) rec.locks.push({ aimX: pA.target.x, ballX: ball.x, landX: null });
+    lastTarget = pA.target;
+    if (lastState === 'fire' && pA.state === 'reload' && pA.lobNow && rec.locks.length) rec.locks.at(-1).landX = pA.lobNow.x;
+    lastState = pA.state;
+  };
+}
+
 /**
  * Level thirteen's rooms, from the level's own geometry, so ROUTES[13] and
  * 3p read the same numbers and neither copies a position out of levels.js.
@@ -530,15 +550,19 @@ function room13(level) {
  * lead before going on through an opened door or up the step.
  */
 function route13(level, lead) {
-  const { gate, wood, step, spotB, spotC } = room13(level);
-  let stage = null, at = null;
+  const { pA, gate, wood, step, spotB, spotC } = room13(level);
+  let stage = null, at = null, watch = null;
   const steer = (ball, x) => (ball.x < x - 1 ? { right: true } : ball.x > x + 1 ? { left: true } : {});
   const hesitate = () => {
     if (at == null) at = level.time;
     return level.time - at < (lead - 0.7) * 1.5;
   };
   return (ball) => {
-    if (!stage) stage = ball.x < gate.x ? 'toB' : 'toC';
+    if (!stage) {
+      stage = ball.x < gate.x ? 'toB' : 'toC';
+      if (ball.x < pA.x) { const rec = { lead, locks: [] }; LOCKS13.push(rec); watch = watchLocks13(pA, rec); }
+    }
+    if (watch) watch(ball);
     if (stage === 'toB') {
       if (gate.openT > 0.9) { if (hesitate()) return {}; stage = 'throughB'; at = null; }
       else return steer(ball, spotB);
@@ -1062,6 +1086,31 @@ else {
   const tight = SPARE9.filter((s) => s.used > 0.6 * s.time);
   if (tight.length) fail(`${tight.length} of ${SPARE9.length} runs used more than 60% of level nine's timer (worst ${(worst * 100).toFixed(0)}%)`);
   else console.log(`   ${SPARE9.length} runs; the slowest used ${(worst * 100).toFixed(0)}% of the timer`);
+}
+
+// --- 2e. level thirteen, room A: the popper really aimed at the ball ------
+//
+// The no-heart claim for room A means nothing unless popper A aimed at the
+// running ball at all. Every run from the spawn must see it lock at least
+// once, and every lob must come down within a ball's width (2 x BALL.R, from
+// config.js) of where it aimed: where he was, not where he is.
+console.log('\n2e. level thirteen, room A: the popper aims where he was');
+{
+  const R = CONFIG.BALL.R;
+  const pAx = room13(loadLevel(LEVELS.find((l) => l.id === 13))).pA.x;
+  const none = LOCKS13.filter((r) => !(r.locks.length >= 1));
+  const all = LOCKS13.flatMap((r) => r.locks);
+  const landed = all.filter((l) => l.landX != null);
+  const off = landed.filter((l) => !(Math.abs(l.landX - l.aimX) <= 2 * R));
+  const first = LOCKS13.filter((r) => r.locks.length).map((r) => r.locks[0].aimX - pAx);
+  if (!LOCKS13.length) fail('no run of level thirteen started before popper A — nothing was measured');
+  else if (!Number.isFinite(R)) fail('BALL.R is not a number');
+  else {
+    console.log(`   ${LOCKS13.length} runs, ${all.length} locks, ${landed.length} lobs came down; first lock ${Math.min(...first).toFixed(0)}-${Math.max(...first).toFixed(0)} in front of the popper; furthest a lob came down from its aim: ${Math.max(...landed.map((l) => Math.abs(l.landX - l.aimX))).toFixed(1)}`);
+    if (none.length) fail(`${none.length} of ${LOCKS13.length} level thirteen runs were never aimed at by popper A — room A proved nothing`);
+    if (!landed.length) fail('no lob of popper A was seen to come down');
+    if (off.length) fail(`${off.length} of popper A's lobs came down more than a ball's width from where they aimed`);
+  }
 }
 
 // --- 2c. level eleven's door is never a pixel-perfect run --------------------
@@ -1990,6 +2039,25 @@ console.log('\n3p. level thirteen: rooms B and C need their poppers');
     if (!Number.isFinite(CONFIG.BALL.R)) fail('BALL.R is not a number');
     else if (!(width >= 2 * CONFIG.BALL.R)) fail(`level thirteen: room ${which}'s waiting spot is only ${width} wide, under a ball's width`);
   }
+}
+
+// --- 3q. level thirteen, room A: standing still is where the lob lands -----
+//
+// The other half of room A's lesson: a ball that stops in front of popper A,
+// halfway between where the popper first sees it and the end of its range,
+// is hit there. It loses a heart (harmlessly: it has three) and nothing else.
+console.log('\n3q. level thirteen: stop in room A and the lob lands on you');
+{
+  const data = LEVELS.find((l) => l.id === 13);
+  const { pA } = room13(loadLevel(data));
+  const dip = data.ground[0].find(([x, y]) => x > pA.x && y === data.ground[0][0][1]);
+  if (!dip) throw new Error('level 13: no floor in front of popper A');
+  const spot = (dip[0] + pA.x + pA.range) / 2;
+  const route = () => (ball) => (ball.x < spot - 2 ? { right: true } : ball.x > spot + 2 ? { left: true } : {});
+  const { ball } = play(data, route, { seconds: 8 });
+  console.log(`   stopped at ${spot.toFixed(0)} (popper at ${pA.x}, range ${pA.range}): ${ball.hits} heart(s) lost, deaths ${ball.deaths}`);
+  if (!(ball.hits >= 1)) fail('level thirteen: a ball standing still in room A was never hit — the room teaches nothing');
+  if (ball.deaths > 0) fail('level thirteen: standing in room A for 8s cost a whole life');
 }
 
 // --- 4. exhausting hearts mid-level sends the ball back to its start ------

@@ -1496,13 +1496,26 @@ export const LEVELS = [
     // The floor dips 40 under each perch. A popper's centre is 164 over the
     // floor and a ball's is 20, so 144 apart, under LEVEL_TOL's 160
     // (config.js). In the dip they are 184 apart and the popper cannot see
-    // him. It first sees him partway up the dip's far side, about 95 in front
-    // of it (by hand, from this geometry), so its first lock is out in the
-    // room and not under its own perch.
+    // him. It first sees him partway up the dip's far side, 92 in front of
+    // it (printed by finish.mjs 2e), so its first lock is out in the room
+    // and not under its own perch.
     //
     // Room A, "it aims where you were": open floor and nothing to press. The
     // route never stops, and the lob lands where he was long after he has
-    // gone.
+    // gone. In every run from the spawn, popper A locked on the running ball
+    // and its lob came down within 0.7 of where it aimed (printed by
+    // finish.mjs 2e), and none cost a heart. A ball that stops halfway into
+    // its range loses one heart there (finish.mjs 3q).
+    //
+    // A deliberate deviation from the spec, which has him walk in over open
+    // floor and see the arc before he steps on. Here he comes in from behind
+    // each popper, under its perch, because a popper only aims forward and
+    // each one's checkpoint has to sit behind it, out of reach. Coming in
+    // from the front would mean a room he enters already in range, or a
+    // popper he has to get past some other way, and a perch reachable from
+    // that side is one he can stomp the popper from. What he does see first
+    // is the arc: the first lock is 92 out in the room, and the dotted arc
+    // is drawn there for AIM's whole second before anything flies.
     //
     // Room B, "make it hit the button": button b's post is held out 70 from
     // the door by a stone bracket, its cap facing the popper, 185-231 over
