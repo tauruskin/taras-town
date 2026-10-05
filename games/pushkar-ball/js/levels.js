@@ -2054,8 +2054,9 @@ class Level {
    * Every enemy that can act on a respawned room puts itself back: so far
    * the aimed popper, which goes back to sleep with nothing aimed and no lob
    * in flight, and the shell, which goes home upright, patrolling and alive.
-   * (Not yet the charger: a known gap, deliberately deferred.) Without this, a lob thrown before a fall lands after it, on a
-   * button just reset or a plank wall, and the room is changed by nobody.
+   * Without this, a lob thrown before a fall lands after it, on a button
+   * just reset or a plank wall, and the room is changed by nobody. (Not yet
+   * the charger: a known gap, deliberately deferred.)
    */
   resetEnemies() {
     for (const e of this.enemies) if (e.reset) e.reset();

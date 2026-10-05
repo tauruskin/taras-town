@@ -472,6 +472,28 @@ for (const data of LEVELS) {
   console.log(`\ncolours: ${n} SHELL_/CHARGER_ colours checked unique`);
 }
 
+// --- crates in a shell's level stand taller than the shell ------------------
+//
+// A shell is not a collider and can end up under a crate (kicked against
+// something as the crate lands, or walking beneath one). A ball standing on
+// that crate's lid must never reach the shell's box below, or it is hurt by
+// something it cannot see. So every crate in a level with a shell is at least
+// the shell's full height, 2 × its r — read from the loaded enemy.
+{
+  let n = 0;
+  for (const data of LEVELS) {
+    const level = loadLevel(data);
+    const shells = level.enemies.filter((e) => e.kind === 'shell');
+    if (!shells.length) continue;
+    const tallest = Math.max(...shells.map((s) => 2 * s.r));
+    for (const c of level.crates) {
+      n++;
+      if (c.h < tallest) fail(`level ${data.id}: a crate at x=${c.x} is ${c.h} tall, under a shell's ${tallest}`);
+    }
+  }
+  console.log(`\ncrates over shells: ${n} checked at least a shell's height tall`);
+}
+
 // --- aimed poppers: no checkpoint within reach -------------------------------
 // The roadmap's "range never covers a checkpoint": a ball respawning must
 // never be inside what a popper can see and reach.

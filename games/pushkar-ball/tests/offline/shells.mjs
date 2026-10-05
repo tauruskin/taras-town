@@ -63,6 +63,12 @@ function steps(level, seconds, each = () => {}) {
   if (flippedAt !== null && landedAt !== null && flippedAt > landedAt) fail('the shell flipped only after the crate had landed');
   const overlap = s.x + s.r > c.x && s.x - s.r < c.x + c.w;
   if (overlap) console.log('     (the shell is still under the crate: its kick was blocked — allowed, harmless)');
+  // However it ended up, it is left on the floor inside its range — never
+  // shoved up onto the crate's lid or out sideways by the physics.
+  steps(level, S.FLIPPED + 1);
+  console.log(`     after FLIPPED+1 s more: shell at ${s.x.toFixed(1)},${s.y.toFixed(1)} (floor y ${SY}), state ${s.state}`);
+  if (Math.abs(s.y - SY) > 1) fail(`a shell under a landed crate ended at y=${s.y.toFixed(1)}, not on the floor (${SY})`);
+  if (s.x < 990 - 1e-9 || s.x > 1010 + 1e-9) fail(`a shell under a landed crate ended at x=${s.x.toFixed(1)}, outside its range 990..1010`);
 }
 {
   // A crate resting on the floor never flips it, though the shell walks into its edge.
@@ -103,29 +109,46 @@ function steps(level, seconds, each = () => {}) {
   const level = room({
     enemies: [
       { kind: 'charger', x: 800, y: FLOOR - CONFIG.ENEMY.CHARGER.R, from: 500, to: 1400, dir: 1 },
-      { kind: 'shell', x: 1000, y: SY, from: 990, to: 1010 },
+      { kind: 'shell', x: 1000, y: SY, from: 1000, to: 1000 },   // pinned, so its box edge is fixed
     ],
   });
   const [c, s] = level.enemies;
   level.ball = ballAt(2500);
+  s.update = () => {};
   let flipped = false, hi = c.x;
   steps(level, 4, () => { if (s.state === 'flipped') flipped = true; hi = Math.max(hi, c.x); });
   console.log(`3b. patrolling charger met the shell: furthest x ${hi.toFixed(0)}, shell flipped ${flipped}`);
   if (flipped) fail('a patrolling charger flipped a shell');
-  if (hi > 1000) fail('a patrolling charger walked through a shell');
+  // It turns the step its box first touches the shell's: centres no nearer
+  // than the two radii, give or take the one step it took to touch (speed
+  // and step from config.js).
+  const LIMIT = 1000 - S.R - CONFIG.ENEMY.CHARGER.R + CONFIG.ENEMY.CHARGER.PATROL_SPEED * DT + 1e-6;
+  if (hi > LIMIT) fail(`a patrolling charger walked into a shell (reached ${hi.toFixed(2)}, limit ${LIMIT.toFixed(2)})`);
 }
 
 // --- 4. flipped: harmless, stompable, and it rights itself after FLIPPED ------
 {
   const level = room({ enemies: [{ kind: 'shell', x: 1000, y: SY, from: 800, to: 1200 }] });
   const s = level.enemies[0];
-  s.flip(1, level);
+  s.flip(1);
   if (!(s.harmless && s.stompable)) fail('a flipped shell is not harmless and stompable');
   if (!s.heavy) fail('a flipped shell stopped weighing plates');
   let back = null;
   steps(level, S.FLIPPED + 1, () => { if (back === null && s.state === 'patrol') back = level.time; });
   console.log(`\n4. flipped shell righted itself after ${back?.toFixed(2)}s (FLIPPED ${S.FLIPPED}, from config.js)`);
   if (!(Math.abs(back - S.FLIPPED) < 2 * DT + 1e-9)) fail(`righted itself after ${back}, not FLIPPED`);
+}
+
+// --- 4b. a kick that would leave the range is spent at its edge ----------------
+{
+  const level = room({ enemies: [{ kind: 'shell', x: 1195, y: SY, from: 800, to: 1200 }] });
+  const s = level.enemies[0];
+  s.flip(1);
+  let maxX = s.x;
+  steps(level, S.KICK_TIME, () => { maxX = Math.max(maxX, s.x); });
+  console.log(`\n4b. kicked at 1195 toward the range end 1200: furthest ${maxX.toFixed(2)}, kick then ${s.kick}`);
+  if (s.kick !== 0) fail(`a kick that would leave the range was not spent (kick ${s.kick})`);
+  if (maxX > 1200) fail(`a kick carried a shell out of its range, to ${maxX}`);
 }
 
 // --- 5. stomped while flipped: popped; returns only when home is clear -------
@@ -138,7 +161,7 @@ function steps(level, seconds, each = () => {}) {
   });
   const s = level.enemies[0];
   const crate = level.crates[0];
-  s.flip(0, level);
+  s.flip(0);
   steps(level, DT);
   const body = { x: s.x, y: s.box().y - 5, r: CONFIG.BALL.R, vy: 300 };
   if (!level.stompEnemy(body)) fail('a flipped shell could not be stomped');
@@ -166,7 +189,7 @@ function steps(level, seconds, each = () => {}) {
   });
   steps(level, 1);
   const upright = level.senders[0].pressed;
-  level.enemies[0].flip(0, level);
+  level.enemies[0].flip(0);
   steps(level, DT * 4);
   const flipped = level.senders[0].pressed;
   console.log(`\n6. plate under a shell: upright ${upright}, flipped ${flipped}`);
@@ -201,7 +224,7 @@ for (const what of ['flipped', 'popped']) {
   const ball = new Ball(2500, FLOOR - CONFIG.BALL.R);
   level.ball = ball;
   steps(level, 1);
-  s.flip(1, level);
+  s.flip(1);
   steps(level, DT * 10);                               // mid-kick
   if (what === 'popped') level.pop(s), steps(level, DT);
   const before = s.state;

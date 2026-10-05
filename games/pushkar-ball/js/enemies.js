@@ -339,8 +339,8 @@ const CHARGER = {
       if (c.x >= c.to) c.dir = -1;
       if (sees(c, level, K)) return 'windup';
       // A shell in front turns it, as a wall would: only a charge flips one.
-      const s2 = touching(c, level, 'shell');
-      if (s2 && Math.sign(s2.x - c.x) === c.dir) c.dir = -c.dir;
+      const shell = touching(c, level, 'shell');
+      if (shell && Math.sign(shell.x - c.x) === c.dir) c.dir = -c.dir;
       c.vx = c.dir * K.PATROL_SPEED;
       // Anything solid in front turns it round — planks included: only a
       // charge breaks wood.
@@ -359,9 +359,11 @@ const CHARGER = {
     update(c, dt, level, cfg) {
       c.vx = c.dir * cfg.ENEMY.CHARGER.CHARGE_SPEED;
       // A charge into a shell flips it, and stops the charger as stone would.
+      // A shell already flipped is not in the way: a charge passes through
+      // it harmlessly, as it would through any enemy.
       const shell = touching(c, level, 'shell');
       if (shell && shell.state === 'patrol' && Math.sign(shell.x - c.x) === c.dir) {
-        shell.flip(c.dir, level);
+        shell.flip(c.dir);
         return 'dazed';
       }
       const hit = stepCharger(c, level, dt, cfg);
@@ -537,7 +539,7 @@ const SHELL = {
     update(s, dt, level, cfg) {
       const S = cfg.ENEMY.SHELL;
       const crate = fallingCrateOn(s, level, S);
-      if (crate) { s.flip(s.x >= crate.x + crate.w / 2 ? 1 : -1, level); return; }
+      if (crate) { s.flip(s.x >= crate.x + crate.w / 2 ? 1 : -1); return; }
       if (s.x <= s.from) s.dir = 1;
       if (s.x >= s.to) s.dir = -1;
       s.vx = s.dir * S.PATROL_SPEED;
@@ -553,9 +555,13 @@ const SHELL = {
     update(s, dt, level, cfg) {
       const S = cfg.ENEMY.SHELL;
       s.vx = s.stateT < S.KICK_TIME ? s.kick * S.KICK : 0;
-      stepShell(s, level, dt, cfg);
       // The kick never carries it out of its own range: levels.mjs proves
-      // ground under the range, and nothing past it.
+      // ground under the range, and nothing past it. A kick whose next step
+      // would leave the range is spent there.
+      const nx = s.x + s.vx * dt;
+      if (nx < s.from || nx > s.to) { s.kick = 0; s.vx = 0; }
+      stepShell(s, level, dt, cfg);
+      // Backstop only: the line above should already have kept it inside.
       s.x = Math.min(s.to, Math.max(s.from, s.x));
       if (s.stateT >= S.FLIPPED) { s.kick = 0; return 'patrol'; }
     },
@@ -616,7 +622,7 @@ export function makeShell(e, cfg) {
     get harmless() { return s.state === 'flipped'; },
 
     /** Knocked onto its back. `dir` is which way it is kicked: -1, 1, or 0 for not at all. */
-    flip(dir, level) {
+    flip(dir) {
       if (!s.alive || s.state === 'flipped') return;
       s.kick = dir;
       enterState(s, SHELL, 'flipped');
