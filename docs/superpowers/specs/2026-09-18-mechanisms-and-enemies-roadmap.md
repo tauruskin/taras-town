@@ -12,7 +12,10 @@ and **built** (levels 10 and 11, 2026-09-19); a pass on 2026-09-20 settled
 every open question that build left, so that spec is closed rather than
 pending. Each spec's "What the build taught" section is worth reading before
 designing the next sub-project.
-**Nothing below sub-project 2 is designed yet** beyond what this page says,
+Sub-project 3 is specified in
+`docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md` (not built);
+it split the roadmap's single Mastery level into levels 12-15.
+**Nothing below sub-project 3 is designed yet** beyond what this page says,
 and nothing should be built from this page directly.
 
 ## Why
@@ -92,8 +95,11 @@ considered and left out — each could be a later programme's).
 | 9 | Reinforcement + Reversal | timers ("set up the room first", with a button detour, not a crate); an inverted plate that a crate holds *shut*, with a kerb so the crate cannot be pinned the wrong way | 1 (built) |
 | 10 | Introduction | the charger, somewhere safe | 2 (built) |
 | 11 | Combination | lure the charger through a plank wall and into a button; then onto a plate that holds a door open while it is dazed | 2 (built) |
-| 12 | Mastery | wiring, charger, shell, popper redirection | 3 |
-| 13+ | Introduction, then Combination | swooper, conveyor | 4 |
+| 12 | Introduction | the shell | 3 |
+| 13 | Introduction | the aimed popper | 3 |
+| 14 | Combination | a charger's dash flips a shell off a plate | 3 |
+| 15 | Mastery | wiring, charger, shell, popper redirection | 3 |
+| 16+ | Introduction, then Combination | swooper, conveyor | 4 |
 
 Levels are **appended** to `LEVELS`, never inserted — `save.js` stores a
 count, not a set of ids.
