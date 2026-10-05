@@ -42,7 +42,7 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
 // platforms already get.
 {
   const P = CONFIG.ENEMY.POPPER;
-  const e = { kind: 'popper', x: 2000, y: 760, dir: 1, period: 3.0, phase: 0 };
+  const e = { kind: 'popper', x: 2000, y: 760, dir: 1, period: 3.0, phase: 0, fixed: true };
   const p = makePopper(e, CONFIG);
   const flight = (2 * P.VY0) / CONFIG.GRAVITY;
   console.log(`\n2. a popper launches every ${e.period}s, in flight for ${flight.toFixed(2)}s`);
@@ -73,7 +73,7 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
   // branch (`((since % period) + period) % period`). Chosen so the wrap
   // lands inside the flight window: phase=1.0, period=3.0, t=-1.8 gives
   // since=-2.8, which wraps to cycle=0.2 (comfortably inside flight).
-  const e2 = { kind: 'popper', x: 500, y: 760, dir: 1, period: 3.0, phase: 1.0 };
+  const e2 = { kind: 'popper', x: 500, y: 760, dir: 1, period: 3.0, phase: 1.0, fixed: true };
   const p2 = makePopper(e2, CONFIG);
   const t2 = -1.8;
   const cycle2 = 0.2;
@@ -122,7 +122,7 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
     fail('enemyHit returned a dead enemy instead of skipping it');
   }
 
-  const pop = makePopper({ kind: 'popper', x: 4000, y: 760, dir: 1, period: 3.0, phase: 0 }, CONFIG);
+  const pop = makePopper({ kind: 'popper', x: 4000, y: 760, dir: 1, period: 3.0, phase: 0, fixed: true }, CONFIG);
   const projEnemies = [pop];
   const midCycle = flight * 0.5;
   const projAt = pop.activeProjectile(midCycle);
@@ -262,6 +262,30 @@ const fail = (m) => { console.log('  FAIL: ' + m); failures++; };
   if (ball.hits !== 1) fail('never took a hit walking into the enemy');
   if (!level.enemies[0].alive) fail('a side hit should not defeat the enemy');
   if (ball.hearts !== CONFIG.HEALTH.HEARTS - 1) fail(`hearts is ${ball.hearts}, expected ${CONFIG.HEALTH.HEARTS - 1}`);
+}
+
+// --- a fixed popper's lob is exactly what it always was ---------------------
+// Level two's popper was tuned against this closed form. The state-machine
+// rewrite must not move it by a hair, at any time, for any phase.
+{
+  const P = CONFIG.ENEMY.POPPER;
+  const flight = (2 * P.VY0) / CONFIG.GRAVITY;
+  let worst = 0, n = 0;
+  for (const phase of [0, 0.7, 2.2]) {
+    const e = { kind: 'popper', x: 2350, y: 736, dir: -1, period: 3.0, phase, fixed: true };
+    const p = makePopper(e, CONFIG);
+    for (let t = 0; t < 12; t += CONFIG.STEP) {
+      p.update(CONFIG.STEP, t, null, CONFIG);
+      const got = p.activeProjectile(t);
+      const since = t - phase, cycle = ((since % 3) + 3) % 3;
+      const want = cycle > flight ? null : { x: e.x + e.dir * P.VX * cycle, y: e.y - P.VY0 * cycle + 0.5 * CONFIG.GRAVITY * cycle * cycle };
+      if (!!got !== !!want) { fail(`fixed popper, phase ${phase}, t=${t.toFixed(3)}: projectile ${got ? 'present' : 'absent'}, expected ${want ? 'present' : 'absent'}`); break; }
+      if (got) { worst = Math.max(worst, Math.hypot(got.x - want.x, got.y - want.y)); n++; }
+    }
+  }
+  console.log(`\nfixed popper: ${n} lob positions compared, worst difference ${worst.toExponential(1)}`);
+  if (!(worst < 1e-9)) fail(`a fixed popper's lob moved by ${worst}`);
+  if (n === 0) fail('no lob positions were compared');
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL ENEMY CHECKS PASSED (so far)');

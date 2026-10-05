@@ -291,7 +291,8 @@ export const LEVELS = [
       // walker's own hit was in the picture — a few percent of the run's
       // 30 lead/delay combinations landed the ball just enough earlier or
       // later along that steep part of the arc to graze it after all.
-      { kind: 'popper', x: 2350, y: 760 - CONFIG.ENEMY.POPPER.R, dir: -1 },
+      // Timed, not aimed: tuned against the closed-form lob before poppers could aim. The aimed popper is sub-project 3's.
+      { kind: 'popper', x: 2350, y: 760 - CONFIG.ENEMY.POPPER.R, dir: -1, fixed: true },
       // Roller: the level's real test, patrolling a wide stretch (1900
       // units) of flat with room to spare from the gaps at either end and
       // from checkpoint two — there is no version of meeting it that also

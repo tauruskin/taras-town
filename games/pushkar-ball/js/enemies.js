@@ -51,12 +51,23 @@ export function makeWalker(e, cfg) {
   return w;
 }
 
+const POPPER_FIXED = {
+  // A timed popper has one state: its lob is a pure function of level time,
+  // asked for directly by activeProjectile(t), exactly as before poppers
+  // could aim.
+  timed: { update() {} },
+};
+
 /**
  * Popper: stationary, lobs a soft round ball on a timer. The projectile's
  * position is a closed-form parabola from its launch time — asked for
  * directly by `activeProjectile(t)`, never simulated step by step.
  *
- * @param e   level data: { x, y, dir?: 1|-1, period?, phase? }
+ * Only the timed ("fixed") popper exists so far; the aimed popper is not
+ * built yet, and a popper without `fixed: true` throws rather than quietly
+ * behaving as a timed one.
+ *
+ * @param e   level data: { x, y, dir?: 1|-1, period?, phase?, fixed?: true }
  */
 export function makePopper(e, cfg) {
   const P = cfg.ENEMY.POPPER;
@@ -66,6 +77,7 @@ export function makePopper(e, cfg) {
   // Time-of-flight until the projectile returns to launch height — the
   // closed-form root of `0 = -VY0*t + 0.5*GRAVITY*t^2` other than t=0.
   const flight = (2 * P.VY0) / cfg.GRAVITY;
+  if (!e.fixed) throw new Error('an aimed popper is not built yet: give the popper `fixed: true`');
 
   const p = {
     kind: 'popper',
@@ -73,9 +85,15 @@ export function makePopper(e, cfg) {
     r: P.R,
     x: e.x,
     y: e.y,
+    dir,
+    fixed: true,
+    presses: false,
+    blocks: false,
+    state: 'timed',
+    stateT: 0,
 
-    /** A popper never moves; nothing to advance except the clock the caller already owns. */
-    update(dt, t, level, cfg) {},
+    /** A popper never moves; the state machine has nothing to do but age. */
+    update(dt, t, level, cfg) { runStates(p, POPPER_FIXED, dt, level, cfg); },
 
     box() {
       return { x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 };
