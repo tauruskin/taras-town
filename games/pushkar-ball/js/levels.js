@@ -1623,6 +1623,129 @@ export const LEVELS = [
       { x: 2300, y: 760 },
     ],
   },
+  {
+    // Level fourteen: a charger's dash flips a shell. Stage: COMBINATION —
+    // the charger (levels 10-11) and the shell (12), both already taught.
+    // See the spec, docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md.
+    //
+    // Both rooms are one shape. He crosses a stone bridge and drops into a
+    // yard. Under the bridge, the charger's pen, roofed 85 over its floor. In
+    // the pen's mouth, the shell, patrolling only 30 (from..to). On the
+    // bridge (ball at y 540, charger at 734) he is not on the charger's level
+    // and is not seen; in the yard he is, and the charger dashes at him and
+    // meets the shell first. Its range is the whole of its reach: it ends 20
+    // short of the shell's `from`, so the charger's box (R 26, config.js)
+    // touches the shell's (R 26) wherever the shell stands, and every dash
+    // flips it. The flip kicks the shell right (KICK x KICK_TIME, 63, from
+    // config.js), against the end of its range, out from under the roof,
+    // where he stomps it.
+    //
+    // The pen is sealed by its shell. The roof is 85 high, under the 92 a ball
+    // needs to pass over a shell (ball 40 + shell 52, config.js), and it ends
+    // at 2116 (1196 in the warm-up), within 40 of the shell's left side
+    // wherever it stands, so there is no room to come down past it either.
+    //
+    // Warm-up: nothing wired. The dash is shown, and the route stomps the
+    // shell, but nothing makes him: the slope out is open.
+    //
+    // Main room: plate p lies under the shell's whole range, so an upright
+    // shell always holds it, and the door needs `!p` (level nine's inverted
+    // input): shut while the shell is on it. The plate starts at 2132, past
+    // the furthest a dazed charger's box reaches (2100 + 26 = 2126), so a
+    // charger dazed beside the shell never holds the door shut. Stomp the
+    // flipped shell, the plate clears and the door opens. It stays open until
+    // the popped shell may return: RETURN (4s) after the stomp, and not while
+    // he is within RETURN_CLEAR (240) of its home (both from config.js). He
+    // runs away from it to the door, so the slowest run here used 49% of
+    // RETURN, 1.97s (printed by finish.mjs 2f, against its 60%).
+    //
+    // The door is 300 from the shell's home on purpose, past RETURN_CLEAR, so
+    // that a dawdler loses the door and the room has to work a second time.
+    // A ball resting at the door sits at 2400: 280 from the shell's home,
+    // 480 from the charger's (past its `see`, 380, which is also how far it
+    // must be for a popped charger to return), and inside the charger's
+    // sight from wherever it turns at the shell (at least 2068, so 2448).
+    // `see` is 380 rather than config.js's 240 for exactly that.
+    //
+    // finish.mjs 3r: the ball alone, coming to each of 12 spots across the
+    // main yard from either side and rolling or jumping each way (96 runs,
+    // every one reached its spot), never moved the shell or opened the door,
+    // and there is no crate in the level. A broken copy with a crate on a
+    // step beside the shell is caught flipping it (12 of 96 runs). And a ball
+    // that comes down on the dazed charger and the flipped shell together
+    // pops both, dawdles at the door steering nothing, watches the shell come
+    // back and the door shut, is found there by the returned charger, and
+    // gets through on its second dash, no heart lost (all printed by 3r).
+    // The charger can only be stomped with the shell: only the 10 of it past
+    // the roof's end is ever out from under it, and a ball landing there
+    // lands on the flipped shell too.
+    //
+    // Known, and left: a ball that lets itself be hit can roll through an
+    // upright shell while it cannot be hit again, as in level twelve, and get
+    // into the pen, where the charger can reach it. The shell will not come
+    // back on top of it there (the pen is within RETURN_CLEAR of its home),
+    // and it can leave the same way. And the chargers dash at the ball on the
+    // slopes into their pens' left walls, which is only seen, never felt.
+    //
+    // Checkpoints: on the main room's bridge, 200 above the charger and so
+    // out of its sight (levels.mjs), and past the door. Sections 1 and 2 of
+    // finish.mjs run three leads at start delays 0-4.5s and from both
+    // checkpoints: every run finished, none lost a heart (this level is in
+    // COUNTS_HEARTS), slowest 18.2s (printed by finish.mjs 1).
+    id: 14,
+    theme: 'hills',
+    bounds: { w: 3040, h: 1080 },
+    spawn: { x: 200, y: 700 },
+    goal: { x: 2850, y: 760 },
+
+    ground: [
+      // Up the slope to the warm-up's bridge.
+      [[40, 760], [600, 760], [900, 560]],
+      // The warm-up's pen floor and yard, and up to the main room's bridge.
+      // Under the pen's wall, not beside it, as in level eleven.
+      [[900, 760], [1520, 760], [1820, 560]],
+      // The main room's pen floor and yard, through the door, to the flag.
+      [[1820, 760], [3000, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 3000, y: 0, w: 40, h: 1080 },
+      // Warm-up: the bridge he crosses, out past the shell; the stone that
+      // roofs the pen, 85 over its floor; the pen's left wall.
+      { x: 900, y: 560, w: 420, h: 20 },
+      { x: 900, y: 580, w: 296, h: 95 },
+      { x: 900, y: 675, w: 40, h: 85 },
+      // Main room: the same three, and the door wall above its gate.
+      { x: 1820, y: 560, w: 420, h: 20 },
+      { x: 1820, y: 580, w: 296, h: 95 },
+      { x: 1820, y: 675, w: 40, h: 85 },
+      { x: 2420, y: 0, w: 40, h: 560 },
+    ],
+
+    senders: [
+      { id: 'p', kind: 'plate', x: 2132, y: 760, w: 100 },
+    ],
+
+    gates: [
+      { x: 2420, y: 560, w: 40, h: 200, needs: ['!p'] },
+    ],
+
+    bridges: [],
+    platforms: [],
+
+    enemies: [
+      { kind: 'charger', x: 1000, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 1000, to: 1180, dir: 1, see: 380 },
+      { kind: 'shell', x: 1200, y: 760 - CONFIG.ENEMY.SHELL.R, from: 1200, to: 1230, dir: 1 },
+      { kind: 'charger', x: 1920, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 1920, to: 2100, dir: 1, see: 380 },
+      { kind: 'shell', x: 2120, y: 760 - CONFIG.ENEMY.SHELL.R, from: 2120, to: 2150, dir: 1 },
+    ],
+
+    checkpoints: [
+      { x: 1880, y: 560 },
+      { x: 2600, y: 760 },
+    ],
+  },
 ];
 
 /**
