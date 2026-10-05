@@ -9,10 +9,12 @@
  * `needs`: every id listed must be on, and an id written `!id` must be off.
  * That is the whole language, AND and NOT; see the spec for why nothing more.
  *
- * Something that presses is a PRESSER: a box `{ key, x, y, w, h, heavy, resting }`, `key` being
- * anything stable that names who is pressing (the crate, the ball, the enemy).
- * Every presser can hit a button, except one marked `buttons: false` — weight
- * only, like a shell; a plate wants one that is heavy and resting.
+ * Something that presses is a PRESSER: a box `{ key, x, y, w, h, heavy, resting, buttons }`,
+ * `key` being anything stable that names who is pressing (the crate, the
+ * ball, the enemy). Two independent questions: `buttons` (a boolean, always
+ * said outright) — does it hit buttons and timers; `heavy` — does it weigh a
+ * plate, which also wants it resting. A shell is heavy with `buttons: false`;
+ * a ball hits buttons and is never heavy.
  * The level builds the list each step — its crates, and the ball, which
  * reports itself through `level.noteBall` — and later enemies join the same
  * list without anything here changing.
@@ -117,15 +119,18 @@ export function updateSenders(senders, dt, pressers, cfg) {
   // every other keyless one — exactly the swallowed hit per-presser touch
   // was built to end — so a missing key is a loud error, never a quiet one.
   for (const p of pressers) if (p.key === undefined) throw new Error('a presser has no key');
+  // Likewise `buttons`: left unsaid it would quietly read as false, and a
+  // presser that should hit a button would silently not.
+  for (const p of pressers) if (typeof p.buttons !== 'boolean') throw new Error('a presser does not say whether it hits buttons');
   for (const s of senders) {
     if (s.kind === 'plate') {
       s.pressed = pressers.some((p) => p.heavy && p.resting && p.x < s.x + s.w && p.x + p.w > s.x);
     } else {
       const zone = hitZone(s, cfg);
       const now = new Set();
-      // A presser marked `buttons: false` is weight only (a shell): plates
-      // read it, buttons and timers never do.
-      for (const p of pressers) if (p.buttons !== false && overlaps(p, zone)) now.add(p.key);
+      // Only a presser that hits buttons counts here; weight alone (a shell)
+      // is for plates.
+      for (const p of pressers) if (p.buttons && overlaps(p, zone)) now.add(p.key);
       // A HIT is any presser that starts touching, even while another rests
       // there: one presser's touch must not swallow another's hit.
       let hit = false;

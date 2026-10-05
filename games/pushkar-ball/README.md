@@ -324,10 +324,13 @@ inside anything), and presses a button whose capped side it touches — any
 touch of the cap presses it, as for the ball, and in practice that touch is
 a charge. It holds a plate down **only while dazed** — heavy all the time would let a
 patrol open a door by walking over its plate. It reaches the wiring through
-four fields every enemy may carry, `presses`, `blocks`, `heavy` and `grounded`.
-`Level.update` reads `presses` to put it on the presser list (button hits, and
-plates when it is heavy) and `blocks` to put it on the blocker list; a closing
-gate therefore never comes down on it.
+fields every enemy may carry, each answering one independent question:
+`presses` (does it hit buttons and timers), `heavy` (does it weigh a plate),
+`blocks` (will a closing gate refuse to come down on it), plus `grounded`.
+`Level.update` puts an enemy that presses or is heavy on the presser list,
+marked `buttons: presses`, and one that blocks on the blocker list; a closing
+gate therefore never comes down on a charger. A shell is heavy and blocks but
+never presses.
 
 **The charger is written in a small state-machine shape, `enterState` and
 `runStates`, and every new enemy is written in it.** An enemy has a `state`,

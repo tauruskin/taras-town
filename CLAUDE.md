@@ -277,13 +277,16 @@ is in its own README; these are the things to know before touching it.
   drives. Anything that can press something joins the *presser* list in
   `Level.update`; the ball joins it through `level.noteBall`, and enemies are
   added in `Level.update` itself, because they are the level's own. An enemy
-  joins through four fields: `presses`, `blocks`, `heavy`, `grounded`. Beside the
+  answers three independent questions: `presses` (hits buttons and timers),
+  `heavy` (weighs a plate), `blocks` (a closing gate won't come down on it),
+  plus `grounded`. One that presses or is heavy joins the pressers carrying
+  `buttons: presses`, and every presser must say `buttons` outright —
+  `updateSenders` throws otherwise, as it does for a missing `key`. Beside the
   presser list sits the list a closing gate refuses to come down on
   (`blockers`: the ball, crates, every enemy that `blocks`, and a deflating
-  ball, which presses nothing). `presses` and `blocks` are separate fields.
-  The charger presses with its box, blocks a closing gate, and is heavy (holds
-  a plate) only while dazed. Decide `presses`, `blocks` and `heavy` per kind,
-  and keep `grounded` up to date. A phone
+  ball, which presses nothing). The charger presses, blocks, and is heavy
+  only while dazed; the shell is heavy and blocks but never presses. Decide
+  all three per kind, and keep `grounded` up to date. A phone
   shows only ~480 units ahead of the ball, so a door opened off screen is
   shown by the camera's *reveal* (`camera.reveal`), not by keeping wires
   short. And **every crate needs a dead-end check** — can the ball get behind

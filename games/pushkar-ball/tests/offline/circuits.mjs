@@ -17,21 +17,21 @@ const tick = (ss, pressers, seconds = STEP) => {
   for (let i = 0; i < n; i++) C.updateSenders(ss, STEP, pressers, CONFIG);
 };
 // A presser standing just touching a left-facing post at x=500 on y=760.
-const touchLeft = { key: 'ball', x: 500 - 40, y: 720, w: 40, h: 40, heavy: false, resting: true };
-const away = { key: 'ball', x: 100, y: 720, w: 40, h: 40, heavy: false, resting: true };
+const touchLeft = { key: 'ball', x: 500 - 40, y: 720, w: 40, h: 40, heavy: false, resting: true, buttons: true };
+const away = { key: 'ball', x: 100, y: 720, w: 40, h: 40, heavy: false, resting: true, buttons: true };
 
 console.log('\n1. a plate is weighed, never hit');
 {
   const ss = senders([{ id: 'p', kind: 'plate', x: 500, y: 760, w: 110 }]);
-  tick(ss, [{ key: 'ball', x: 520, y: 720, w: 40, h: 40, heavy: false, resting: true }]);
+  tick(ss, [{ key: 'ball', x: 520, y: 720, w: 40, h: 40, heavy: false, resting: true, buttons: true }]);
   if (ss[0].pressed) fail('the ball pressed a plate');
-  tick(ss, [{ key: 'crate', x: 505, y: 660, w: 100, h: 100, heavy: true, resting: false }]);
+  tick(ss, [{ key: 'crate', x: 505, y: 660, w: 100, h: 100, heavy: true, resting: false, buttons: true }]);
   if (ss[0].pressed) fail('a crate still falling pressed a plate');
-  tick(ss, [{ key: 'crate', x: 505, y: 660, w: 100, h: 100, heavy: true, resting: true }]);
+  tick(ss, [{ key: 'crate', x: 505, y: 660, w: 100, h: 100, heavy: true, resting: true, buttons: true }]);
   if (!ss[0].pressed) fail('a crate resting on a plate did not press it');
   tick(ss, []);
   if (ss[0].pressed) fail('a plate stayed pressed with nothing on it');
-  tick(ss, [{ key: 'crate', x: 700, y: 660, w: 100, h: 100, heavy: true, resting: true }]);
+  tick(ss, [{ key: 'crate', x: 700, y: 660, w: 100, h: 100, heavy: true, resting: true, buttons: true }]);
   if (ss[0].pressed) fail('a crate beside a plate, not overlapping it, pressed it');
 }
 
@@ -51,7 +51,7 @@ console.log('\n3. only the capped side presses');
   const ss = senders([{ id: 'b', kind: 'button', x: 500, y: 760, face: 'right' }]);
   tick(ss, [touchLeft]);
   if (ss[0].pressed) fail('a right-facing button was pressed from its left, plain side');
-  tick(ss, [{ key: 'ball', x: 500 + P.POST_W, y: 720, w: 40, h: 40, heavy: false, resting: true }]);
+  tick(ss, [{ key: 'ball', x: 500 + P.POST_W, y: 720, w: 40, h: 40, heavy: false, resting: true, buttons: true }]);
   if (!ss[0].pressed) fail('a right-facing button was not pressed from its right');
 }
 
@@ -167,7 +167,7 @@ console.log('\n8. colours come from the list, in order');
 console.log('\n9. resting on top of a post does not press it, only hanging over its capped side does');
 {
   const postTop = 760 - P.POST_H;
-  const over = (bottom) => ({ key: 'ball', x: 500 - 20, y: bottom - 40, w: 40, h: 40, heavy: false, resting: true });
+  const over = (bottom) => ({ key: 'ball', x: 500 - 20, y: bottom - 40, w: 40, h: 40, heavy: false, resting: true, buttons: true });
 
   let ss = senders([{ id: 'r1', kind: 'button', x: 500, y: 760, face: 'left' }]);
   tick(ss, [over(postTop)]);
@@ -562,7 +562,7 @@ console.log('\n22. a deflating ball still holds a closing gate up');
 {
   const s = C.makeSender({ id: 't', kind: 'timer', x: 1000, y: 760, face: 'left', time: 2 }, 0, CONFIG);
   const zone = C.hitZone(s, CONFIG);
-  const box = (key) => ({ key, x: zone.x, y: zone.y, w: zone.w, h: zone.h, heavy: false, resting: true });
+  const box = (key) => ({ key, x: zone.x, y: zone.y, w: zone.w, h: zone.h, heavy: false, resting: true, buttons: true });
   const A = {}, B = {};
   C.updateSenders([s], CONFIG.STEP, [box(A)], CONFIG);          // A hits: full time
   for (let i = 0; i < 120; i++) C.updateSenders([s], CONFIG.STEP, [box(A)], CONFIG); // A rests 1 s
@@ -579,9 +579,18 @@ per-presser touch: timer at ${before.toFixed(2)}s, then ${s.left.toFixed(2)}s af
 {
   const ss = senders([{ id: 'k', kind: 'button', x: 500, y: 760, face: 'left' }]);
   let threw = false;
-  try { C.updateSenders(ss, STEP, [{ x: 460, y: 720, w: 40, h: 40, heavy: false, resting: true }], CONFIG); } catch { threw = true; }
+  try { C.updateSenders(ss, STEP, [{ x: 460, y: 720, w: 40, h: 40, heavy: false, resting: true, buttons: true }], CONFIG); } catch { threw = true; }
   console.log(`\nkeyless presser refused: ${threw}`);
   if (!threw) fail('updateSenders accepted a presser with no key');
+}
+
+// --- a presser that does not say whether it hits buttons is refused ---------
+{
+  const ss = senders([{ id: 'k', kind: 'button', x: 500, y: 760, face: 'left' }]);
+  let msg = null;
+  try { C.updateSenders(ss, STEP, [{ key: 'q', x: 460, y: 720, w: 40, h: 40, heavy: false, resting: true }], CONFIG); } catch (e) { msg = e.message; }
+  console.log(`presser with no buttons field refused: ${msg}`);
+  if (!msg || !/buttons/.test(msg)) fail('updateSenders accepted a presser that leaves `buttons` unsaid');
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nWIRING WORKS');

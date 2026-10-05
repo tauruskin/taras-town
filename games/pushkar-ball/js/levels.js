@@ -1953,32 +1953,32 @@ class Level {
     // there. But it is still drawn squashing flat where it stood, and a timed
     // gate running out over it must not come down through the picture — so
     // it still counts as something under a gate. Anything else ever added
-    // here needs the same two questions asked of it separately. Crates and
-    // the ball are not the only things in these lists any more — an enemy
-    // that uses the world, so far the charger, joins them below.
-    const pressers = this.crates.map((c) => ({ key: c, x: c.x, y: c.y, w: c.w, h: c.h, heavy: true, resting: c.grounded }));
+    // here needs the same questions asked of it separately. Every presser
+    // says outright whether it hits buttons and timers (`buttons`) and
+    // whether it weighs a plate (`heavy`); updateSenders refuses one that
+    // leaves `buttons` unsaid. Crates and the ball are not the only things in
+    // these lists any more — enemies that use the world join them below.
+    const pressers = this.crates.map((c) => ({ key: c, x: c.x, y: c.y, w: c.w, h: c.h, heavy: true, resting: c.grounded, buttons: true }));
     const blockers = pressers.slice();
     const b = this.ball;
     if (b) {
-      const box = { key: b, x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded };
+      const box = { key: b, x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2, heavy: false, resting: b.grounded, buttons: true };
       blockers.push(box);
       if (!b.dying) pressers.push(box);
     }
-    // Enemies that use the world — so far the charger. Each one answers the
-    // two questions above for itself, with two fields: `presses` puts its box
-    // among the pressers (heavy only when it says so, a charger only while
-    // dazed), and `blocks` puts it among the things a gate never closes on.
-    // They are separate so an enemy can do either alone. A popped one is not
+    // Enemies that use the world. Each answers three independent questions
+    // with its own fields: `presses` — does it hit buttons and timers;
+    // `heavy` — does it weigh a plate down; `blocks` — will a closing gate
+    // refuse to come down on it. Any that presses or is heavy joins the
+    // pressers, carrying `buttons: presses`; any that blocks joins the
+    // blockers. The charger presses, blocks, and is heavy only while dazed;
+    // the shell is heavy and blocks but never presses. A popped one is not
     // there at all. `key` names the enemy a box came from.
     for (const e of this.enemies) {
       if (!e.alive) continue;
-      if (!e.presses && !e.blocks) continue;
-      const box = { ...e.box(), key: e, heavy: e.heavy, resting: e.grounded };
-      if (e.presses) pressers.push(box);
-      // Heavy without pressing — so far the shell — weighs a plate down and
-      // never hits a button: it joins the pressers marked `buttons: false`,
-      // which only a plate reads.
-      else if (e.heavy) pressers.push({ ...box, buttons: false });
+      if (!e.presses && !e.heavy && !e.blocks) continue;
+      const box = { ...e.box(), key: e, heavy: e.heavy, resting: e.grounded, buttons: !!e.presses };
+      if (e.presses || e.heavy) pressers.push(box);
       if (e.blocks) blockers.push(box);
     }
     // An aimed popper's lob presses a button by hitting it, like any other
@@ -1989,7 +1989,7 @@ class Level {
     for (const e of this.enemies) {
       if (!e.alive || e.kind !== 'popper' || e.fixed || !e.lobNow) continue;
       const q = e.lobNow;
-      pressers.push({ key: e.lob.shot, x: q.x - q.r, y: q.y - q.r, w: q.r * 2, h: q.r * 2, heavy: false, resting: false });
+      pressers.push({ key: e.lob.shot, x: q.x - q.r, y: q.y - q.r, w: q.r * 2, h: q.r * 2, heavy: false, resting: false, buttons: true });
     }
     updateSenders(this.senders, dt, pressers, CONFIG);
     this.opened = [];
