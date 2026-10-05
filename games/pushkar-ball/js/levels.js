@@ -1344,6 +1344,139 @@ export const LEVELS = [
       { x: 4000, y: 760 },
     ],
   },
+  {
+    // Level twelve: the shell. Stage: INTRODUCTION. See the spec,
+    // docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md.
+    //
+    // Room A, "it can't be stomped, but its weight is useful". The shell
+    // patrols a pen under a stone roof, which is the path: the ball walks
+    // over it and can never touch it. Plate p, at the pen's far end, holds
+    // the door open while the shell stands on it, so the lesson is to wait on
+    // the roof for it to walk onto the plate, then go. Its patrol is 15s
+    // (from config.js: 2 x 600 / PATROL_SPEED 80), the plate held for 5.66s
+    // of it, and the slowest run used 26% of that between the plate going
+    // down and the ball being through (printed by finish.mjs 2d; the route
+    // goes only on a fresh press, so arriving at the end of a window is not
+    // what is timed). 3o shows the door never opens in 45s with the shell's
+    // range cut short of the plate.
+    //
+    // Room B, "drop a crate on it". A corridor 85 high (corridor floor 760,
+    // roof underside 675), under the 92 a ball needs to jump a shell (ball
+    // 40 + shell 52, from config.js), is the only way on, and its shell
+    // patrols it. The ball comes up onto the crate's flat and shoves the
+    // crate into hole 1 (4000-4080). Hole 2 (4120-4200) is his way down, and
+    // the tall wall just past it stops him walking the roof instead. The
+    // crate flips a shell under it (falling 53 to the shell's top, it is
+    // doing about 480, over FLIP_VY's 250: from config.js); he jumps hole 1,
+    // drops through hole 2 onto the flipped shell, stomps it, and runs the
+    // corridor while it is gone.
+    //
+    // Hole 1 is 80 and not the 70 first worked out by hand. Held right, the
+    // ball shoves the crate on while it falls, and at 70 its far side met
+    // the stone after about 8 steps, fallen about 5 — under STEP_UP's 6 — so
+    // the crate was lifted back up onto the stone between the holes and lay
+    // there across hole 1 (simulated, finish.mjs's route on the paper
+    // layout). At 80 it has fallen about 20 when it meets that face, which
+    // stops it, and it drops. So a crate always lands at 4000-4020, its
+    // middle at most 4050; the shell's `from`, 4052, is past that, so a flip
+    // always kicks the shell right, towards hole 2 (simulated: every flip in
+    // a sweep of the arrival time kicked it right). The window to land on it
+    // is 1.2s a patrol, the crate arriving from 0.65s before the shell's turn
+    // at `from` to 0.55s after (simulated, a scratch sweep every 0.05s; the
+    // hand estimate was 1.15s), out of a 12.7s patrol (from config.js:
+    // 2 x 508 / 80). finish.mjs's route aims at the turn and is up to 0.3s
+    // off either way; 3o's shoves every 0.25s of a patrol flipped it 5 times
+    // in 51, as that window says they should.
+    //
+    // A crate that misses lands in the corridor under hole 1, where it stays
+    // until the ball moves it: wait on the roof for the shell to walk away
+    // past hole 2, drop in through hole 2, shove the crate left into the pit
+    // at the corridor's closed left end (3920-4000, roofed over), and it falls
+    // out of the level and goes home to the roof; jump back out of hole 1.
+    // That is the user's option A, with the pit at the corridor's closed end
+    // rather than its open one: a crate under hole 1 is left of the shell,
+    // and shoving it right would bulldoze the shell along ahead of it (a
+    // crate is not stopped by enemies) and out of its range. The pit's edge
+    // is hole 1's left edge, so the ball can never get left of a crate in the
+    // corridor, and cannot push it right at all. Every get-back in 3o used at
+    // most 38% of the time before the shell came back to hole 1 (printed by
+    // finish.mjs 3o), and none lost a heart. A ball that follows the crate
+    // into hole 1 stands on it, out of the shell's reach (its top is 8 above
+    // the shell's), and jumps out. The crate cannot be shoved left off the
+    // flat either: the plateau's end, 20 higher, stops it, and a ball on the
+    // plateau can still push it from there (3o).
+    //
+    // Known, and left: a ball that drops into the corridor beside an upright
+    // shell can take two hits and run on through it while it cannot be hit
+    // again, as with any enemy. 3o's own tries do it. It costs two of three
+    // hearts, and the stomp is what this room teaches, not a wall.
+    //
+    // Checkpoints: 1500, before room A's roof, and 3300, after its door and
+    // before room B's slope — out of reach of both shells (one is in a pen,
+    // the other in the corridor). Sections 1 and 2 of finish.mjs run three
+    // leads at start delays 0-4.5s and from both checkpoints: every run
+    // finished, none lost a heart (this level is in COUNTS_HEARTS), slowest
+    // 25.9s (printed by finish.mjs 1).
+    id: 12,
+    theme: 'hills',
+    bounds: { w: 5400, h: 1080 },
+    spawn: { x: 200, y: 700 },
+    goal: { x: 5150, y: 760 },
+
+    ground: [
+      [[40, 760], [1800, 760]],
+      // Room A's pen floor, running under both its walls.
+      [[1800, 900], [3000, 900]],
+      // Room A's yard, then up to room B's plateau.
+      [[3000, 760], [3400, 760], [3650, 635], [3720, 635]],
+      // The crate's flat, 20 below the plateau; it ends at the pit.
+      [[3720, 655], [3920, 655]],
+      // The corridor's floor, past the pit, and on to the flag.
+      [[4000, 760], [5360, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 5360, y: 0, w: 40, h: 1080 },
+      // Room A: the roof he walks along, flush with the ground, and the
+      // pen's two walls under it.
+      { x: 1800, y: 760, w: 1200, h: 20 },
+      { x: 1800, y: 780, w: 40, h: 120 },
+      { x: 2960, y: 780, w: 40, h: 120 },
+      // Room A's door wall, above its gate.
+      { x: 3200, y: 0, w: 40, h: 560 },
+      // Room B: the corridor's roof. Over the pit; hole 1 (4000-4080); the
+      // stone between the holes; hole 2 (4120-4200); the tall wall, which is
+      // roof too; then roof on to the corridor's open end at 4660.
+      { x: 3920, y: 655, w: 80, h: 20 },
+      { x: 4080, y: 655, w: 40, h: 20 },
+      { x: 4200, y: 0, w: 40, h: 675 },
+      { x: 4240, y: 655, w: 420, h: 20 },
+      // The crate.
+      { x: 3780, y: 595, w: 60, h: 60, movable: true },
+    ],
+
+    senders: [
+      { id: 'p', kind: 'plate', x: 2700, y: 900, w: 220 },
+    ],
+
+    gates: [
+      { x: 3200, y: 560, w: 40, h: 200, needs: ['p'] },
+    ],
+
+    bridges: [],
+    platforms: [],
+
+    enemies: [
+      { kind: 'shell', x: 2500, y: 900 - CONFIG.ENEMY.SHELL.R, from: 2300, to: 2900, dir: 1 },
+      { kind: 'shell', x: 4300, y: 760 - CONFIG.ENEMY.SHELL.R, from: 4052, to: 4560, dir: 1 },
+    ],
+
+    checkpoints: [
+      { x: 1500, y: 760 },
+      { x: 3300, y: 760 },
+    ],
+  },
 ];
 
 /**
