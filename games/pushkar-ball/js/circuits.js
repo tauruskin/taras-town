@@ -111,6 +111,11 @@ function overlaps(a, b) {
  * shut.
  */
 export function updateSenders(senders, dt, pressers, cfg) {
+  // Every presser names itself with `key`, and a hit is a key that was not
+  // touching last step. A presser with no key would share one identity with
+  // every other keyless one — exactly the swallowed hit per-presser touch
+  // was built to end — so a missing key is a loud error, never a quiet one.
+  for (const p of pressers) if (p.key === undefined) throw new Error('a presser has no key');
   for (const s of senders) {
     if (s.kind === 'plate') {
       s.pressed = pressers.some((p) => p.heavy && p.resting && p.x < s.x + s.w && p.x + p.w > s.x);
