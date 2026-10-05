@@ -1664,7 +1664,11 @@ export const LEVELS = [
     // A ball resting at the door sits at 2400: 280 from the shell's home,
     // 480 from the charger's (past its `see`, 380, which is also how far it
     // must be for a popped charger to return), and inside the charger's
-    // sight from wherever it turns at the shell (at least 2068, so 2448).
+    // sight from wherever it turns at the shell. A patrolling charger turns
+    // when its box meets the shell's, at the shell's x minus both radii (26 +
+    // 26, config.js); the shell stands at 2120 at the least (its home and
+    // `from`, above), so the charger gets to at least 2120 - 52 = 2068 and
+    // sees to 2068 + 380 = 2448, past 2400.
     // `see` is 380 rather than config.js's 240 for exactly that.
     //
     // finish.mjs 3r: the ball alone, coming to each of 12 spots across the

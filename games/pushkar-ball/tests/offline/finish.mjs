@@ -649,7 +649,9 @@ function room14(level, i) {
   else {
     const line = level.data.ground.find((l) => l[0][0] <= c.from && l.at(-1)[0] > s.to);
     if (!line) throw new Error(`level ${level.data.id}: no ground line under room ${i}`);
-    x1 = line[line.findIndex((p) => p[1] !== line[0][1]) - 1][0];
+    const climb = line.findIndex((p) => p[1] !== line[0][1]);
+    if (climb < 1) throw new Error(`level ${level.data.id}: room ${i}'s ground line never climbs out of its yard`);
+    x1 = line[climb - 1][0];
   }
   const x0 = s.to + s.r + R;
   return {
@@ -684,8 +686,12 @@ function route14(level, lead) {
   const lureA = lure14(A), lureB = lure14(B);
   const p = sender(level, 'p');
   let stage = null, poppedAt = 0, hopped = false;
+  const warm = { lead, stomped: false };
   return (ball) => {
-    if (!stage) stage = ball.x < A.x1 ? 'toA' : ball.x < B.gate.x ? 'mid' : 'end';
+    if (!stage) {
+      stage = ball.x < A.x1 ? 'toA' : ball.x < B.gate.x ? 'mid' : 'end';
+      if (stage === 'toA') WARM14.push(warm);
+    }
     // The warm-up: down off the bridge, stand in sight, and when the dash
     // has flipped the shell, stomp it. Nothing is wired; it is shown, not
     // needed, but a miss is waited out and lured again like the main room.
@@ -698,7 +704,7 @@ function route14(level, lead) {
       else return lureA(ball);
     }
     if (stage === 'stompA') {
-      if (!A.s.alive) { stage = 'mid'; WARM14.push({ lead, at: level.time }); }
+      if (!A.s.alive) { stage = 'mid'; warm.stomped = true; }
       else if (A.s.state !== 'flipped') { stage = 'lureA'; return lureA(ball); }
       else return stomp14(ball, A.s, lead);
     }
@@ -1322,13 +1328,15 @@ console.log('\n2f. level fourteen: time to spare before the shell can come back'
   const fromSpawn = LEADS.length * DELAYS.length;
   if (!Number.isFinite(RET)) fail('ENEMY.SHELL.RETURN is not a number');
   if (missed.length) fail(`${missed.length} of ${SPARE14.length} runs of level fourteen missed the main door: the shell came back before the ball got through`);
-  if (!(WARM14.length >= fromSpawn)) fail(`only ${WARM14.length} of level fourteen's ${fromSpawn} runs from the spawn stomped the warm-up's shell`);
+  const warmed = WARM14.filter((w) => w.stomped).length;
+  if (WARM14.length !== fromSpawn) fail(`${WARM14.length} of level fourteen's runs started before the warm-up, not ${fromSpawn}`);
+  if (warmed !== WARM14.length) fail(`only ${warmed} of level fourteen's ${WARM14.length} runs through the warm-up stomped its shell`);
   if (!through.length) fail('no run of level fourteen ever got through its door — nothing was measured');
   else if (Number.isFinite(RET)) {
     const worst = through.reduce((w, s) => Math.max(w, s.used / s.time), 0);
     const tight = through.filter((s) => !(s.used <= 0.6 * s.time));
     if (tight.length) fail(`${tight.length} of ${through.length} runs used more than 60% of the shell's RETURN (worst ${(worst * 100).toFixed(0)}%)`);
-    else console.log(`   ${through.length} runs (${WARM14.length} stomped the warm-up's shell too); the slowest used ${(worst * 100).toFixed(0)}% of RETURN (${through.reduce((w, s) => Math.max(w, s.used), 0).toFixed(2)}s of ${RET}s)`);
+    else console.log(`   ${through.length} runs (${warmed} of ${WARM14.length} from the spawn stomped the warm-up's shell too); the slowest used ${(worst * 100).toFixed(0)}% of RETURN (${through.reduce((w, s) => Math.max(w, s.used), 0).toFixed(2)}s of ${RET}s)`);
   }
 }
 
@@ -2336,14 +2344,19 @@ console.log('\n3r. level fourteen: the shell moves only for the charger, and no 
   }
 
   // Not a dead end.
-  let restX = -Infinity, both = 0, shellBack = false, shutAgain = false, chargerBack = false, dashes = 0, idleT = 0, waits = 0;
+  let restX = -Infinity, both = 0, shellBack = false, shutAgain = false, chargerBack = false, dashes = 0, doorDashes = 0, idleT = 0, waits = 0;
   const route = (level) => {
     const B = room14(level, 1), lure = lure14(B);
     const roofEnd = B.roof.x + B.roof.w;
     let stage = 'lure', wasDazed = false, waitFrom = null;
     return (ball) => {
       const dazed = B.c.alive && B.c.state === 'dazed';
-      if (dazed && !wasDazed) dashes++;
+      if (dazed && !wasDazed) {
+        dashes++;
+        // A dash at the ball resting at the door: only these show the
+        // returned charger found it there.
+        if (stage === 'wait' || stage === 'again') doorDashes++;
+      }
       wasDazed = dazed;
       if (stage === 'lure') {
         if (dazed && B.s.state === 'flipped') {
@@ -2391,11 +2404,11 @@ console.log('\n3r. level fourteen: the shell moves only for the charger, and no 
   const from = { x: B0.x0 + 2 * R, y: B0.c.y + B0.c.r - R - 20 };
   const { ball } = play(data, route, { from, seconds: 60 });
   const through = ball.x > B0.gate.x + B0.gate.w;
-  console.log(`   popped both together ${both} time(s) (${waits} daze(s) under the roof let pass), rested at the door ${idleT.toFixed(1)}s steering nothing, at most at x=${restX.toFixed(0)} (the gate is at ${B0.gate.x}): shell back=${shellBack}, door shut again=${shutAgain}, charger back=${chargerBack}, ${dashes} dash(es) in all, got through: ${through} (x=${ball.x.toFixed(0)}, ${ball.hits} heart(s) lost)`);
+  console.log(`   popped both together ${both} time(s) (${waits} daze(s) under the roof let pass), rested at the door ${idleT.toFixed(1)}s steering nothing, at most at x=${restX.toFixed(0)} (the gate is at ${B0.gate.x}): shell back=${shellBack}, door shut again=${shutAgain}, charger back=${chargerBack}, ${dashes} dash(es) in all, ${doorDashes} at the ball resting at the door, got through: ${through} (x=${ball.x.toFixed(0)}, ${ball.hits} heart(s) lost)`);
   if (both !== 1) fail(`level fourteen: 3r popped the charger and shell together ${both} time(s), not once — the early stomp was not tested`);
   if (!shellBack || !shutAgain) fail('level fourteen: 3r never saw the shell come back and the door shut — the dawdle was not tested');
   if (!chargerBack) fail('level fourteen: a charger stomped early never came back');
-  if (!(dashes >= 2)) fail(`level fourteen: 3r saw ${dashes} dash(es) — the charger never came back for a ball standing at the door`);
+  if (!(doorDashes >= 1)) fail(`level fourteen: 3r saw ${doorDashes} dash(es) at the ball resting at the door (${dashes} in all) — the returned charger never found it there`);
   if (!(restX + R <= B0.gate.x + 2)) fail(`level fourteen: 3r's resting ball reached x=${restX.toFixed(0)}, inside the gate's footprint — it held the door, it did not wait at it`);
   if (!through) fail('level fourteen: after stomping the charger early and missing the door, the ball could not get through');
   if (ball.hits) fail(`level fourteen: 3r lost ${ball.hits} heart(s)`);
