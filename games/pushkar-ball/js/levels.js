@@ -18,7 +18,7 @@ import { segment, boxSegments, SegmentGrid, segmentHitsBox, supportUnder } from 
 import { CONFIG } from './config.js';
 // Hazards are geometry, not colliders, so this brings in a hit test and
 // nothing that touches the segment world or the DOM.
-import { hitsSpikes, spikeHit, spikeHeight } from './hazards.js';
+import { hitsSpikes, spikeHit, spikeHeight, circleHitsBox } from './hazards.js';
 import { makeWalker, makeRoller, makePopper, makeCharger, enemyHit, projectileHit } from './enemies.js';
 // The wiring: senders and the needs logic. circuits.js imports nothing, so
 // this adds no cycle and nothing that touches the DOM.
@@ -2142,48 +2142,56 @@ class Level {
   }
 
   /**
-   * Is this body landing on top of an alive enemy? If so, defeat it and
-   * return true. False otherwise, including when the body is touching an
-   * enemy in any other way — that is `hazardKnockDir`'s job instead.
+   * Is this body landing on top of an alive enemy it can stomp? If so, defeat
+   * every such enemy under it and return true. False otherwise, including when
+   * the body is touching an enemy in any other way — that is `hazardKnockDir`'s
+   * job instead.
+   *
+   * Every enemy under the ball is considered, not just the first: two can
+   * overlap, and the ball aimed at the one it can stomp. If any is stompable,
+   * every stompable one pops and nothing hurts; hazardKnockDir is then never
+   * asked, because player.js asks it only when this returns false. An enemy
+   * that cannot be stomped (a charger that is not dazed) neither pops nor
+   * stops the stomp.
    *
    * "On top" is a downward-moving body whose centre is still above roughly
    * the enemy's own top edge when the two first overlap — generous for the
    * same reason SPIKE.FORGIVE is: a stomp that looked close enough and
-   * wasn't reads as the game cheating.
+   * wasn't reads as the game cheating. Each enemy is judged against its own box.
    */
   stompEnemy(body) {
-    const e = enemyHit(body, this.enemies);
-    if (!e) return false;
-    // A charger can be stomped only while dazed. Any other landing on it is
-    // left to hazardKnockDir, which player.js asks next, and costs a heart.
-    if (e.stompable === false) return false;
-    const box = e.box();
-    if (body.vy > 0 && body.y < box.y + CONFIG.ENEMY.STOMP_MARGIN) {
-      e.alive = false;
-      // Fixed, evenly-spaced angles around the enemy's own position — not
-      // randomised, so a level looks identical on every attempt, the same
-      // reason moving platforms are a sine of level time rather than
-      // integrated physics. Six pieces, 60° apart — the same ring shape a
-      // walker or roller already wears, just fewer pieces and now flying
-      // apart instead of standing still. (A popper has no ring of its own,
-      // but gets the same burst: one pop animation for every enemy kind,
-      // coloured by the kind's own `popShade`, the usual enemy violet by default.)
-      const shade = e.popShade || { fill: 'ENEMY', edge: 'ENEMY_EDGE' };
-      const P = CONFIG.ENEMY.POP;
-      for (let i = 0; i < P.COUNT; i++) {
-        const a = (i / P.COUNT) * Math.PI * 2;
-        this.particles.push({
-          x: e.x, y: e.y,
-          vx: Math.cos(a) * P.SPEED,
-          vy: Math.sin(a) * P.SPEED,
-          angle: a,
-          life: P.LIFE,
-          shade,
-        });
-      }
-      return true;
+    const under = this.enemies.filter((e) => e.alive && circleHitsBox(body.x, body.y, body.r, e.box()));
+    const targets = under.filter((e) => e.stompable !== false &&
+      body.vy > 0 && body.y < e.box().y + CONFIG.ENEMY.STOMP_MARGIN);
+    if (!targets.length) return false;
+    for (const e of targets) this.pop(e);
+    return true;
+  }
+
+  /** An enemy popped: gone, and a burst in its own shade at fixed angles. */
+  pop(e) {
+    e.alive = false;
+    // Fixed, evenly-spaced angles around the enemy's own position — not
+    // randomised, so a level looks identical on every attempt, the same
+    // reason moving platforms are a sine of level time rather than
+    // integrated physics. Six pieces, 60° apart — the same ring shape a
+    // walker or roller already wears, just fewer pieces and now flying
+    // apart instead of standing still. (A popper has no ring of its own,
+    // but gets the same burst: one pop animation for every enemy kind,
+    // coloured by the kind's own `popShade`, the usual enemy violet by default.)
+    const shade = e.popShade || { fill: 'ENEMY', edge: 'ENEMY_EDGE' };
+    const P = CONFIG.ENEMY.POP;
+    for (let i = 0; i < P.COUNT; i++) {
+      const a = (i / P.COUNT) * Math.PI * 2;
+      this.particles.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * P.SPEED,
+        vy: Math.sin(a) * P.SPEED,
+        angle: a,
+        life: P.LIFE,
+        shade,
+      });
     }
-    return false;
   }
 
   /**

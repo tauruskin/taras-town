@@ -4,6 +4,7 @@
 // that the same situation always plays out the same way, step by step.
 const { CONFIG } = await import('../../js/config.js');
 const { makeCharger } = await import('../../js/enemies.js');
+const { circleHitsBox } = await import('../../js/hazards.js');
 const { loadLevel } = await import('../../js/levels.js');
 const { Ball } = await import('../../js/player.js');
 
@@ -377,6 +378,28 @@ function dropOn(state) {
 15. popped charger: ${level.particles.length} pieces, fills ${fills.join(',')}`);
   if (c.alive || !level.particles.length) fail('the dazed charger was not popped');
   else if (fills.length !== 1 || fills[0] !== 'CHARGER_POP') fail(`its debris was drawn in ${fills.join(',')}, not CHARGER_POP`);
+}
+
+// --- 16. two enemies under one landing: the stomp wins ----------------------
+{
+  // A dazed charger (stompable) and a patrolling one (not) both under the
+  // ball. Whichever comes first in the list, the ball must stomp, not be hurt.
+  for (const order of ['dazedFirst', 'dazedSecond']) {
+    const dazed = makeCharger({ kind: 'charger', x: 1000, y: CY, from: 900, to: 1100 }, CONFIG);
+    const awake = makeCharger({ kind: 'charger', x: 1010, y: CY, from: 900, to: 1100 }, CONFIG);
+    dazed.state = 'dazed';
+    const level = room({ enemies: [] });
+    level.enemies = order === 'dazedFirst' ? [dazed, awake] : [awake, dazed];
+    const body = { x: 1005, y: CY - K.R - 5, r: CONFIG.BALL.R, vy: 300 };
+    const both = [dazed, awake].every((e) => circleHitsBox(body.x, body.y, body.r, e.box()));
+    const stomped = level.stompEnemy(body);
+    console.log(`
+16. stomp over two (${order}): overlaps both=${both}, stomped=${stomped}, dazed alive=${dazed.alive}, awake alive=${awake.alive}`);
+    if (!both) fail(`${order}: the body does not overlap both enemies, so this checks nothing`);
+    if (!stomped) fail(`${order}: a landing over a dazed charger was not a stomp because another enemy overlapped too`);
+    if (dazed.alive) fail(`${order}: the dazed charger was not popped`);
+    if (!awake.alive) fail(`${order}: an awake charger was popped by a stomp`);
+  }
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL CHARGER CHECKS PASSED');
