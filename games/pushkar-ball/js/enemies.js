@@ -4,7 +4,7 @@
  * Like a spike, an enemy is NOT a collider: the ball never bounces off one,
  * it rolls into (or lands on) one and something happens — a stomp defeats
  * it, anything else costs a heart via the same `Ball.hit()` a spike already
- * calls. That is what makes a walker and a popper pure functions of level
+ * calls. That is what makes a walker and a fixed popper pure functions of level
  * time, the same trick levels.js's moving platforms already use: no physics
  * simulation needed to know where either one is at time *t*, which is what
  * lets a test assert an exact position with no browser.
@@ -14,7 +14,7 @@
  * (`enterState`/`runStates`), which every new enemy uses.
  */
 import { circleHitsBox } from './hazards.js';
-import { step } from './physics.js';
+import { segmentHitsBox, step } from './physics.js';
 
 /**
  * Walker: paces back and forth, `x = patrolCenter + amplitude * sin(t * speed)`.
@@ -53,31 +53,129 @@ export function makeWalker(e, cfg) {
 
 const POPPER_FIXED = {
   // A timed popper has one state: its lob is a pure function of level time,
-  // asked for directly by activeProjectile(t), exactly as before poppers
-  // could aim.
+  // asked for directly by activeProjectile(t). This is level two's popper,
+  // which keeps the lob it was tuned against through `fixed: true`.
   timed: { update() {} },
 };
 
+/** Is the ball in front of this aimed popper, within its range, near its height? */
+function popperSees(p, level, P) {
+  const b = level && level.ball;
+  if (!b || b.dying) return false;
+  const dx = b.x - p.x;
+  return Math.sign(dx) === p.dir && Math.abs(dx) <= p.range && Math.abs(b.y - p.y) < P.LEVEL_TOL;
+}
+
 /**
- * Popper: stationary, lobs a soft round ball on a timer. The projectile's
- * position is a closed-form parabola from its launch time — asked for
- * directly by `activeProjectile(t)`, never simulated step by step.
+ * The launch velocity that carries a lob from just above the popper to its
+ * locked target in exactly FLIGHT seconds. The aim arc and the lob both ask
+ * this, so the arc he is warned with is the arc that flies.
+ */
+function lobVelocity(p, cfg) {
+  const F = cfg.ENEMY.POPPER.FLIGHT;
+  const x0 = p.x, y0 = p.y - p.r;
+  return { x0, y0, vx: (p.target.x - x0) / F, vy: (p.target.y - y0 - 0.5 * cfg.GRAVITY * F * F) / F };
+}
+
+/** The lob's position `s` seconds after launch: closed form, never integrated. */
+function lobAt(p, s, cfg) {
+  const L = p.lob;
+  return { x: L.x0 + L.vx * s, y: L.y0 + L.vy * s + 0.5 * cfg.GRAVITY * s * s, r: cfg.ENEMY.POPPER.PROJ_R };
+}
+
+const POPPER_AIMED = {
+  idle: {
+    // The target is locked the moment it sees the ball, on the step it starts
+    // aiming, and never moves after: the arc he sees is the arc that flies.
+    // Never behind itself, never past its range.
+    update(p, dt, level, cfg) {
+      if (!popperSees(p, level, cfg.ENEMY.POPPER)) return;
+      const b = level.ball;
+      const reach = Math.min(Math.abs(b.x - p.x), p.range);
+      p.target = { x: p.x + p.dir * reach, y: b.y };
+      return 'aim';
+    },
+  },
+  aim: {
+    update(p, dt, level, cfg) { if (p.stateT >= cfg.ENEMY.POPPER.AIM) return 'fire'; },
+  },
+  fire: {
+    enter(p) { p.lob = null; },
+    update(p, dt, level, cfg) {
+      if (!p.lob) {
+        // `shot` is this lob's presser key, made once per shot: a button
+        // sees one hit per lob, never a fresh one every step.
+        p.lob = { ...lobVelocity(p, cfg), shot: {} };
+      }
+      const q = lobAt(p, p.stateT, cfg);
+      p.lobNow = q;
+      // Ends at the first solid thing it meets, past the target or not.
+      // Planks break; anything else just stops it. Nothing here is random, so
+      // where a lob ends depends only on where it was aimed.
+      const bx = q.x - q.r, by = q.y - q.r, w = q.r * 2;
+      const hit = level.near(q.x, q.y, q.r * 2).find((s) => segmentHitsBox(s, bx, by, w, w));
+      if (hit || q.y > level.bounds.h) {
+        if (hit && hit.owner && hit.owner.breakable && !hit.owner.broken) level.breakWood(hit.owner);
+        return 'reload';
+      }
+    },
+  },
+  reload: {
+    enter(p) { p.target = null; },
+    update(p, dt, level, cfg) {
+      // The lob's last position stays a presser for this one step, so a lob
+      // ending against a button's post still counts as having touched its cap.
+      if (p.stateT > dt * 1.5) p.lobNow = null;
+      if (p.stateT >= cfg.ENEMY.POPPER.RELOAD) return 'idle';
+    },
+  },
+};
+
+/**
+ * Popper: stationary, and one of two kinds.
  *
- * Only the timed ("fixed") popper exists so far; the aimed popper is not
- * built yet, and a popper without `fixed: true` throws rather than quietly
- * behaving as a timed one.
+ * A fixed popper (`fixed: true`, level two's) lobs a soft round ball on a
+ * timer. Its projectile is a closed-form parabola from its launch time,
+ * asked for directly by `activeProjectile(t)`, never simulated step by step;
+ * its one-state machine has nothing to do but age.
  *
- * @param e   level data: { x, y, dir?: 1|-1, period?, phase?, fixed?: true }
+ * An aimed popper (no `fixed`) waits until the ball is in front of it within
+ * its `range`, locks the spot where the ball was, draws the dotted arc to it
+ * for AIM seconds, then lobs onto exactly that arc. The lob ends at the
+ * first solid thing it meets, breaking planks, and presses a button it hits
+ * (Level.update puts it among the pressers). `activeProjectile` ignores `t`
+ * for it: an aimed lob belongs to the machine, not the clock.
+ *
+ * @param e   level data: { x, y, dir?: 1|-1, fixed?, period?, phase?, range? }
  */
 export function makePopper(e, cfg) {
   const P = cfg.ENEMY.POPPER;
+  const dir = e.dir ?? 1;
+  if (!e.fixed) {
+    const p = {
+      kind: 'popper', alive: true, r: P.R, x: e.x, y: e.y, dir,
+      fixed: false,
+      // How far ahead it notices and can reach: the level's, else CONFIG's.
+      // Ask the loaded popper, never the config (levels.mjs does).
+      range: e.range ?? P.RANGE,
+      target: null, lob: null, lobNow: null,
+      // Its body presses nothing and blocks nothing; its lob presses, through
+      // its own loop in Level.update.
+      presses: false, blocks: false,
+      state: 'idle', stateT: 0,
+      update(dt, t, level, cfg) { runStates(p, POPPER_AIMED, dt, level, cfg); },
+      box() { return { x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 }; },
+      /** The lob in flight, or null. Ignores `t`: an aimed lob is the machine's, not the clock's. */
+      activeProjectile() { return p.state === 'fire' ? p.lobNow : null; },
+    };
+    return p;
+  }
+
   const period = e.period ?? P.PERIOD;
   const phase = e.phase || 0;
-  const dir = e.dir ?? 1;
   // Time-of-flight until the projectile returns to launch height — the
   // closed-form root of `0 = -VY0*t + 0.5*GRAVITY*t^2` other than t=0.
   const flight = (2 * P.VY0) / cfg.GRAVITY;
-  if (!e.fixed) throw new Error('an aimed popper is not built yet: give the popper `fixed: true`');
 
   const p = {
     kind: 'popper',
@@ -92,7 +190,7 @@ export function makePopper(e, cfg) {
     state: 'timed',
     stateT: 0,
 
-    /** A popper never moves; the state machine has nothing to do but age. */
+    /** A fixed popper never moves; its state machine has nothing to do but age. */
     update(dt, t, level, cfg) { runStates(p, POPPER_FIXED, dt, level, cfg); },
 
     box() {
@@ -420,6 +518,10 @@ export function drawEnemies(ctx, enemies, time, cfg) {
     else drawSpikyBody(ctx, e, cfg);
   }
   for (const e of enemies) {
+    if (!e.alive || e.kind !== 'popper' || e.state !== 'aim' || !e.target) continue;
+    drawAimArc(ctx, e, cfg);
+  }
+  for (const e of enemies) {
     if (!e.alive || e.kind !== 'popper') continue;
     const p = e.activeProjectile(time);
     if (p) drawProjectile(ctx, p, cfg);
@@ -630,6 +732,26 @@ function drawAngryFace(ctx, cx, cy, s, cfg) {
   ctx.lineTo(cx - s * 0.6, cy + s * 0.15);
   ctx.closePath();
   ctx.fill();
+}
+
+/**
+ * The warning: dots along exactly the curve the lob will fly, from the popper
+ * to the spot it locked. Drawn for the whole AIM, so nothing an aimed popper
+ * throws is ever a surprise.
+ */
+function drawAimArc(ctx, p, cfg) {
+  const F = cfg.ENEMY.POPPER.FLIGHT;
+  const L = lobVelocity(p, cfg);
+  ctx.save();
+  ctx.fillStyle = cfg.COLOURS.POPPER_ARC;
+  ctx.globalAlpha = 0.85;
+  for (let i = 1; i <= 12; i++) {
+    const s = (i / 12) * F;
+    ctx.beginPath();
+    ctx.arc(L.x0 + L.vx * s, L.y0 + L.vy * s + 0.5 * cfg.GRAVITY * s * s, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 /** A popper's lobbed ball — steel, the same as a spike, not a shaped weapon. */

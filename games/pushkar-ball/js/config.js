@@ -497,6 +497,12 @@ export const CONFIG = {
       VX: 160,        // px/s, the projectile's horizontal launch speed
       VY0: 520,       // px/s, its upward launch speed
       PERIOD: 3.0,    // s between launches, unless a level authors its own
+      // The aimed popper (sub-project 3). Every one a guess awaiting a thumb.
+      RANGE: 360,     // px ahead it notices the ball and can reach; a level may set its own `range`
+      LEVEL_TOL: 160, // px of height difference it still notices across
+      AIM: 1.0,       // s the dotted arc is drawn before it fires — the warning
+      FLIGHT: 1.1,    // s a lob takes from the popper to the spot it locked
+      RELOAD: 1.2,    // s after a lob ends before it looks again
     },
     ROLLER: {
       R: 20,
@@ -846,6 +852,7 @@ export const CONFIG = {
     ENEMY: '#8B5FBF',
     ENEMY_EDGE: '#5E3D8A',
     ENEMY_EYE: '#2A1B40',
+    POPPER_ARC: '#FFFFFF',   // the aimed popper's dotted aim arc; drawn at reduced alpha
     // The charger's own body, so it never reads as a walker. It is the one
     // enemy whose stomp rule is conditional — safe only while dazed — and
     // level twelve puts it beside a shell and a popper. Blue: red minus blue

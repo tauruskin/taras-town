@@ -1977,6 +1977,16 @@ class Level {
       if (e.presses) pressers.push(box);
       if (e.blocks) blockers.push(box);
     }
+    // An aimed popper's lob presses a button by hitting it, like any other
+    // presser. Its key is made once per shot, so every lob is one hit of its
+    // own and a lob resting against a timer cannot hold it full. It is never
+    // heavy and never holds a gate up. Enemies update before this list is
+    // built, so the lob's position this step is the one the senders see.
+    for (const e of this.enemies) {
+      if (!e.alive || e.kind !== 'popper' || e.fixed || !e.lobNow) continue;
+      const q = e.lobNow;
+      pressers.push({ key: e.lob.shot, x: q.x - q.r, y: q.y - q.r, w: q.r * 2, h: q.r * 2, heavy: false, resting: false });
+    }
     updateSenders(this.senders, dt, pressers, CONFIG);
     this.opened = [];
     for (const g of this.gates) {

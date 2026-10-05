@@ -451,5 +451,28 @@ for (const data of LEVELS) {
   console.log(`\nchargers: ${n} checked for ground under their whole range and checkpoints out of sight`);
 }
 
+// --- aimed poppers: no checkpoint within reach -------------------------------
+// The roadmap's "range never covers a checkpoint": a ball respawning must
+// never be inside what a popper can see and reach.
+{
+  let n = 0;
+  for (const data of LEVELS) {
+    const level = loadLevel(data);
+    for (const [i, e] of (data.enemies || []).entries()) {
+      if (e.kind !== 'popper' || e.fixed) continue;
+      n++;
+      const range = level.enemies[i].range;
+      if (!Number.isFinite(range)) { fail(`level ${data.id}: popper ${i} has no numeric range`); continue; }
+      for (const c of data.checkpoints || []) {
+        const dx = c.x - e.x;
+        if (Math.sign(dx) === (e.dir ?? 1) && Math.abs(dx) <= range + CONFIG.BALL.R) {
+          fail(`level ${data.id}: checkpoint at x=${c.x} is within reach of popper ${i} (range ${range})`);
+        }
+      }
+    }
+  }
+  console.log(`\naimed poppers: ${n} checked for checkpoints out of reach`);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL LEVEL CHECKS PASSED');
 process.exit(failures ? 1 : 0);
