@@ -1533,13 +1533,14 @@ export const LEVELS = [
     // 140, so its bottom stays below 100, short of the step. The roof's stone
     // left end keeps a running jump off the planks' face, and the roof is
     // too thick to climb onto. The lob locked on a ball resting at the step
-    // comes down on the planks and breaks them. Anywhere from 2725 to 2780
-    // works with no heart lost (55 wide, printed by finish.mjs 3p). Then he
+    // comes down on the planks and breaks them. Anywhere from 2705 to 2780
+    // works with no heart lost (75 wide, printed by finish.mjs 3p). Then he
     // jumps up the step.
     //
     // 3p also shows that without the poppers no ball gets through either
     // room, or up beside a popper, from any spot coming either way, rolling
-    // or jumping (240 and 200 runs). Two broken copies do get through: the
+    // or jumping (240 and 200 runs), and none gets up beside room A's popper
+    // either (312 runs, from 400 behind it). Two broken copies do get through: the
     // button lowered 60, and the porch with no stone end and a flat run-up.
     //
     // Ranges: room A's is config.js's 360. Rooms B and C use 280, since
