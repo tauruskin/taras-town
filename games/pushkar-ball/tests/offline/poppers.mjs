@@ -131,9 +131,9 @@ function steps(level, seconds, each = () => {}) {
 // Through the real respawn path: the popper has locked a target and is
 // aiming (or already throwing), the ball is put back home behind it, and
 // nothing that lob would have done happens.
-for (const [what, extra, ballX, wait] of [
-  ['button, mid-flight', { senders: [{ id: 'b', kind: 'button', x: 1260, y: FLOOR, face: 'left' }] }, 1250, P.AIM + P.FLIGHT / 2],
-  ['planks, mid-aim', { breakables: [{ x: 1240, y: 600, w: 30, h: 160 }] }, 1300, P.AIM / 2],
+for (const [what, extra, ballX, wait, expect] of [
+  ['button, mid-flight', { senders: [{ id: 'b', kind: 'button', x: 1260, y: FLOOR, face: 'left' }] }, 1250, P.AIM + P.FLIGHT / 2, 'fire'],
+  ['planks, mid-aim', { breakables: [{ x: 1240, y: 600, w: 30, h: 160 }] }, 1300, P.AIM / 2, 'aim'],
 ]) {
   const level = room({ enemies: [{ kind: 'popper', x: 1000, y: FLOOR - P.R, dir: 1 }], ...extra });
   const p = level.enemies[0];
@@ -142,6 +142,7 @@ for (const [what, extra, ballX, wait] of [
   level.ball = ball;
   steps(level, wait);
   const before = p.state;
+  if (before !== expect) fail(`${what}: popper was in ${before} at the respawn, expected ${expect}`);
   ball.respawn(level);
   let pressed = false, broken = false;
   steps(level, P.AIM + P.FLIGHT + 1, () => {
