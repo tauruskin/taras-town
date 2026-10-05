@@ -11,7 +11,8 @@
  *
  * Something that presses is a PRESSER: a box `{ key, x, y, w, h, heavy, resting }`, `key` being
  * anything stable that names who is pressing (the crate, the ball, the enemy).
- * Every presser can hit a button; a plate wants one that is heavy and resting.
+ * Every presser can hit a button, except one marked `buttons: false` — weight
+ * only, like a shell; a plate wants one that is heavy and resting.
  * The level builds the list each step — its crates, and the ball, which
  * reports itself through `level.noteBall` — and later enemies join the same
  * list without anything here changing.
@@ -122,7 +123,9 @@ export function updateSenders(senders, dt, pressers, cfg) {
     } else {
       const zone = hitZone(s, cfg);
       const now = new Set();
-      for (const p of pressers) if (overlaps(p, zone)) now.add(p.key);
+      // A presser marked `buttons: false` is weight only (a shell): plates
+      // read it, buttons and timers never do.
+      for (const p of pressers) if (p.buttons !== false && overlaps(p, zone)) now.add(p.key);
       // A HIT is any presser that starts touching, even while another rests
       // there: one presser's touch must not swallow another's hit.
       let hit = false;

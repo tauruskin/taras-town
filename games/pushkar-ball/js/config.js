@@ -533,6 +533,20 @@ export const CONFIG = {
       CRATE_SHOVE: 60,    // px a charge slides a crate it runs into
       PUFF_TIME: 0.4,     // s its return puff is drawn for
     },
+    // The shell — see enemies.js's makeShell and the spec,
+    // docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md.
+    // Every one of these is a guess awaiting a thumb.
+    SHELL: {
+      R: 26,              // half its hit box, the charger's 26 (config.js)
+      PATROL_SPEED: 80,   // px/s — slower than the charger's 120; it never chases
+      FLIPPED: 4.0,       // s on its back: harmless, stompable, counting down
+      FLIP_VY: 250,       // px/s a crate must be falling at to flip it, not merely resting
+      KICK: 180,          // px/s sideways it is knocked, away from what flipped it
+      KICK_TIME: 0.35,    // s that kick lasts
+      RETURN: 4.0,        // s before a popped shell may come back
+      RETURN_CLEAR: 240,  // px the ball must be from its home for it to come back
+      PUFF_TIME: 0.5,     // s of return puff, cosmetic
+    },
   },
 
   // ---------------------------------------------------------------------
@@ -877,6 +891,13 @@ export const CONFIG = {
     // blue, not barely above it.
     CHARGER_DUST: '#D9CBB0',
     CHARGER_STAR: '#FFD84A',
+    // The shell: its own colours, like the charger, because its rules differ
+    // and the browser suite counts SHELL_BODY to find it.
+    SHELL_BODY: '#2FA37A',
+    SHELL_EDGE: '#1C6B4F',
+    SHELL_SHINE: '#B8F0D8',
+    SHELL_POP: '#8FD9B9',
+    SHELL_POP_EDGE: '#4F9F7F',
     DIM: '#0B1E2A',      // what the screen dims towards during a deflate
     // The results panel. Every one of these was checked by hand against
     // IS_BALL in tests/browser/_helpers.mjs, which calls a pixel the ball when

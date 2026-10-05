@@ -19,7 +19,7 @@ import { CONFIG } from './config.js';
 // Hazards are geometry, not colliders, so this brings in a hit test and
 // nothing that touches the segment world or the DOM.
 import { hitsSpikes, spikeHit, spikeHeight, circleHitsBox } from './hazards.js';
-import { makeWalker, makeRoller, makePopper, makeCharger, enemyHit, projectileHit } from './enemies.js';
+import { makeWalker, makeRoller, makePopper, makeCharger, makeShell, enemyHit, projectileHit } from './enemies.js';
 // The wiring: senders and the needs logic. circuits.js imports nothing, so
 // this adds no cycle and nothing that touches the DOM.
 import { makeSender, postBox, updateSenders, resetSenders as clearSenders, powered, warning, rampToward } from './circuits.js';
@@ -1899,7 +1899,7 @@ class Level {
     // to move it and so needs to know the level (`this`, below) rather than
     // just its own starting data.
     // The charger moves the same way the roller does.
-    const MAKERS = { walker: makeWalker, roller: makeRoller, popper: makePopper, charger: makeCharger };
+    const MAKERS = { walker: makeWalker, roller: makeRoller, popper: makePopper, charger: makeCharger, shell: makeShell };
     this.enemies = (data.enemies || []).map((e) => MAKERS[e.kind](e, CONFIG));
 
     // Purely decorative: the triangles a stomp scatters. Nothing else in
@@ -1975,6 +1975,10 @@ class Level {
       if (!e.presses && !e.blocks) continue;
       const box = { ...e.box(), key: e, heavy: e.heavy, resting: e.grounded };
       if (e.presses) pressers.push(box);
+      // Heavy without pressing — so far the shell — weighs a plate down and
+      // never hits a button: it joins the pressers marked `buttons: false`,
+      // which only a plate reads.
+      else if (e.heavy) pressers.push({ ...box, buttons: false });
       if (e.blocks) blockers.push(box);
     }
     // An aimed popper's lob presses a button by hitting it, like any other
@@ -2049,7 +2053,8 @@ class Level {
   /**
    * Every enemy that can act on a respawned room puts itself back: so far
    * the aimed popper, which goes back to sleep with nothing aimed and no lob
-   * in flight. Without this, a lob thrown before a fall lands after it, on a
+   * in flight, and the shell, which goes home upright, patrolling and alive.
+   * (Not yet the charger: a known gap, deliberately deferred.) Without this, a lob thrown before a fall lands after it, on a
    * button just reset or a plank wall, and the room is changed by nobody.
    */
   resetEnemies() {

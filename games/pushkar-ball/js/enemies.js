@@ -338,6 +338,9 @@ const CHARGER = {
       if (c.x <= c.from) c.dir = 1;
       if (c.x >= c.to) c.dir = -1;
       if (sees(c, level, K)) return 'windup';
+      // A shell in front turns it, as a wall would: only a charge flips one.
+      const s2 = touching(c, level, 'shell');
+      if (s2 && Math.sign(s2.x - c.x) === c.dir) c.dir = -c.dir;
       c.vx = c.dir * K.PATROL_SPEED;
       // Anything solid in front turns it round — planks included: only a
       // charge breaks wood.
@@ -355,6 +358,12 @@ const CHARGER = {
   charge: {
     update(c, dt, level, cfg) {
       c.vx = c.dir * cfg.ENEMY.CHARGER.CHARGE_SPEED;
+      // A charge into a shell flips it, and stops the charger as stone would.
+      const shell = touching(c, level, 'shell');
+      if (shell && shell.state === 'patrol' && Math.sign(shell.x - c.x) === c.dir) {
+        shell.flip(c.dir, level);
+        return 'dazed';
+      }
       const hit = stepCharger(c, level, dt, cfg);
       // Never past the end of its range. levels.mjs proves there is ground
       // under all of it, which is what "never charges off a ledge" rests on.
@@ -397,14 +406,14 @@ const CHARGER = {
     update(c, dt, level, cfg) {
       const K = cfg.ENEMY.CHARGER;
       if (c.stateT < K.RETURN) return;
-      const b = level && level.ball;
       // Never back on top of him. A keep-away box round home, not a sight
       // line: `sees` splits the axes (sight across, LEVEL_TOL up and down)
       // because it asks what the charger can notice, and this asks whether it
       // is about to appear on top of him, which has no front or back. Its own
       // `see` on both axes, so a level that widens a charger's reach widens
-      // the room it gives him too.
-      if (b && Math.abs(b.x - c.home.x) < c.see && Math.abs(b.y - c.home.y) < c.see) return;
+      // the room it gives him too. And never back inside a crate sitting on
+      // its home: homeClear refuses that too.
+      if (!homeClear(c, level, c.see)) return;
       c.x = c.home.x; c.y = c.home.y;
       c.dir = c.home.dir;
       c.alive = true;
@@ -483,6 +492,170 @@ export function makeCharger(e, cfg) {
 }
 
 /**
+ * May a popped enemy reappear at home? Not with the ball within `clear` on
+ * either axis, and not inside a crate sitting there — both would put it on
+ * top of something.
+ */
+function homeClear(e, level, clear) {
+  const b = level && level.ball;
+  if (b && Math.abs(b.x - e.home.x) < clear && Math.abs(b.y - e.home.y) < clear) return false;
+  const h = { x: e.home.x - e.r, y: e.home.y - e.r, w: e.r * 2, h: e.r * 2 };
+  return !((level && level.crates) || []).some((c) => c.x < h.x + h.w && c.x + c.w > h.x && c.y < h.y + h.h && c.y + c.h > h.y);
+}
+
+/** Another alive enemy of `kind` overlapping this one's box, if any. */
+function touching(e, level, kind) {
+  const a = e.box();
+  return ((level && level.enemies) || []).find((o) => {
+    if (o === e || !o.alive || o.kind !== kind) return false;
+    const b = o.box();
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  });
+}
+
+/** Move a shell one step through the real physics; true if something solid is in front of it. */
+function stepShell(s, level, dt, cfg) {
+  const contacts = step(s, level, dt, cfg);
+  s.grounded = contacts.some((k) => k.ny < -0.5);
+  return contacts.some((k) => Math.abs(k.nx) > 0.5 && Math.sign(k.nx) === -s.dir);
+}
+
+/**
+ * A crate falling onto this shell fast enough to flip it, if any. Crates
+ * update before enemies in Level.update, so a crate on its landing step has
+ * already had its vy zeroed — but it overlaps the shell's box, still falling,
+ * on the steps before that, and that is when this sees it.
+ */
+function fallingCrateOn(s, level, S) {
+  const a = s.box();
+  return ((level && level.crates) || []).find((c) => c.vy >= S.FLIP_VY &&
+    c.x < a.x + a.w && c.x + c.w > a.x && c.y + c.h > a.y && c.y < a.y + a.h);
+}
+
+const SHELL = {
+  patrol: {
+    update(s, dt, level, cfg) {
+      const S = cfg.ENEMY.SHELL;
+      const crate = fallingCrateOn(s, level, S);
+      if (crate) { s.flip(s.x >= crate.x + crate.w / 2 ? 1 : -1, level); return; }
+      if (s.x <= s.from) s.dir = 1;
+      if (s.x >= s.to) s.dir = -1;
+      s.vx = s.dir * S.PATROL_SPEED;
+      // Anything solid in front turns it — a button's post included, which is
+      // why a shell never presses buttons — and so does a charger it meets
+      // walking. Only a charge flips it.
+      const other = touching(s, level, 'charger');
+      const blocked = stepShell(s, level, dt, cfg);
+      if (blocked || (other && Math.sign(other.x - s.x) === s.dir && other.state !== 'charge')) s.dir = -s.dir;
+    },
+  },
+  flipped: {
+    update(s, dt, level, cfg) {
+      const S = cfg.ENEMY.SHELL;
+      s.vx = s.stateT < S.KICK_TIME ? s.kick * S.KICK : 0;
+      stepShell(s, level, dt, cfg);
+      // The kick never carries it out of its own range: levels.mjs proves
+      // ground under the range, and nothing past it.
+      s.x = Math.min(s.to, Math.max(s.from, s.x));
+      if (s.stateT >= S.FLIPPED) { s.kick = 0; return 'patrol'; }
+    },
+  },
+  popped: {
+    enter(s) { s.vx = 0; s.vy = 0; s.kick = 0; },
+    update(s, dt, level, cfg) {
+      const S = cfg.ENEMY.SHELL;
+      if (s.stateT < S.RETURN) return;
+      if (!homeClear(s, level, S.RETURN_CLEAR)) return;
+      s.x = s.home.x; s.y = s.home.y; s.dir = s.home.dir;
+      s.alive = true;
+      s.returnT = S.PUFF_TIME;
+      return 'patrol';
+    },
+  },
+};
+
+/**
+ * Shell: armoured, slow, and heavy. Cannot be stomped upright; flipped by a
+ * falling crate or a charger's dash, it lies harmless and stompable for
+ * FLIPPED seconds, then rights itself. A popped one comes back. See the spec,
+ * docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md.
+ *
+ * Not a collider: a crate that flips it lands on the floor through it, and
+ * the shell is kicked out from under, through the real physics.
+ *
+ * @param e   level data: { x, y, from, to, dir?: 1|-1 } — x, y is home
+ */
+export function makeShell(e, cfg) {
+  const S = cfg.ENEMY.SHELL;
+  const s = {
+    kind: 'shell',
+    popShade: { fill: 'SHELL_POP', edge: 'SHELL_POP_EDGE' },
+    alive: true,
+    r: S.R,
+    x: e.x,
+    y: e.y,
+    vx: 0,
+    vy: 0,
+    dir: e.dir ?? 1,
+    from: e.from,
+    to: e.to,
+    home: { x: e.x, y: e.y, dir: e.dir ?? 1 },
+    grounded: false,
+    kick: 0,             // -1, 0 or 1: which way a flip knocked it
+    returnT: 0,          // cosmetic: its return puff
+    state: 'patrol',
+    stateT: 0,
+
+    // Weight, not buttons: it holds plates in every state it is there for
+    // (Level.update skips it while popped), and a gate never closes on it;
+    // it turns at a button's post.
+    presses: false,
+    blocks: true,
+    heavy: true,
+    get stompable() { return s.state === 'flipped'; },
+    get harmless() { return s.state === 'flipped'; },
+
+    /** Knocked onto its back. `dir` is which way it is kicked: -1, 1, or 0 for not at all. */
+    flip(dir, level) {
+      if (!s.alive || s.state === 'flipped') return;
+      s.kick = dir;
+      enterState(s, SHELL, 'flipped');
+    },
+
+    /**
+     * A respawn: home, upright, patrolling, alive, nothing carried over —
+     * not a kick, not a fall speed, not a return puff.
+     */
+    reset() {
+      s.x = s.home.x; s.y = s.home.y; s.dir = s.home.dir;
+      s.vx = 0; s.vy = 0;
+      s.kick = 0;
+      s.alive = true;
+      s.grounded = false;
+      s.returnT = 0;
+      enterState(s, SHELL, 'patrol');
+    },
+
+    update(dt, t, level, cfg) {
+      // stompEnemy only ever sets `alive`; the machine notices.
+      if (!s.alive && s.state !== 'popped') enterState(s, SHELL, 'popped');
+      s.returnT = Math.max(0, s.returnT - dt);
+      runStates(s, SHELL, dt, level, cfg);
+    },
+
+    box() {
+      return { x: s.x - s.r, y: s.y - s.r, w: s.r * 2, h: s.r * 2 };
+    },
+
+    /** A shell never throws anything. */
+    activeProjectile(t) {
+      return null;
+    },
+  };
+  return s;
+}
+
+/**
  * Which alive enemy this body is touching, or null.
  *
  * One question for a whole level's enemies, the same shape `spikeHit` in
@@ -523,6 +696,7 @@ export function drawEnemies(ctx, enemies, time, cfg) {
     if (!e.alive) continue;
     if (e.kind === 'popper') drawPopper(ctx, e, cfg);
     else if (e.kind === 'charger') drawCharger(ctx, e, time, cfg);
+    else if (e.kind === 'shell') drawShell(ctx, e, time, cfg);
     else drawSpikyBody(ctx, e, cfg);
   }
   for (const e of enemies) {
@@ -691,6 +865,130 @@ function drawCharger(ctx, e, time, cfg) {
     const f = 1 - e.returnT / K.PUFF_TIME;
     ctx.globalAlpha = 1 - f;
     ctx.fillStyle = C.CHARGER_DUST;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(e.x + Math.cos(a) * r * (0.6 + f), e.y + Math.sin(a) * r * (0.6 + f), r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/**
+ * A shell: a shiny armoured dome with a jagged rim and narrowed eyes peering
+ * from a pale head under its front edge. Flipped, the dome is upside down,
+ * its pale belly up, four stubby legs wave in the air, and stars circle it,
+ * one fewer each quarter of the flip. Nothing held, nothing thrown.
+ */
+function drawShell(ctx, e, time, cfg) {
+  const C = cfg.COLOURS, S = cfg.ENEMY.SHELL;
+  const r = e.r, d = e.dir;
+  const feet = e.y + r;
+  const flipped = e.state === 'flipped';
+
+  ctx.save();
+  if (flipped) {
+    // Upside down: the dome's crown rests on the ground, rocking a little,
+    // and its pale belly faces the sky with four legs waving off it.
+    ctx.translate(e.x, feet - r * 1.05);
+    ctx.rotate(Math.sin(time * 6) * 0.12);
+    ctx.strokeStyle = C.SHELL_EDGE;
+    ctx.lineWidth = r * 0.22;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const lx = -r * 0.75 + i * r * 0.5;
+      const wave = Math.sin(time * 12 + i * 1.7) * r * 0.25;
+      ctx.beginPath();
+      ctx.moveTo(lx, 0);
+      ctx.lineTo(lx + wave, -r * 0.6);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    ctx.scale(1, -1);
+  } else {
+    ctx.translate(e.x, feet - r * 0.3);
+    ctx.scale(d, 1);
+    // A head poking out under the front rim, pale so the face on it reads.
+    ctx.beginPath();
+    ctx.ellipse(r * 1.0, -r * 0.15, r * 0.55, r * 0.48, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C.SHELL_SHINE;
+    ctx.fill();
+    ctx.strokeStyle = C.SHELL_EDGE;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // The dome.
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 1.15, r * 1.05, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = C.SHELL_BODY;
+  ctx.fill();
+  ctx.strokeStyle = C.SHELL_EDGE;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Armour plates: two curved seams across the dome.
+  ctx.lineWidth = 2;
+  for (const k of [-0.4, 0.4]) {
+    ctx.beginPath();
+    ctx.moveTo(r * k * 1.6, 0);
+    ctx.quadraticCurveTo(r * k * 0.9, -r * 0.7, 0, -r * 1.05);
+    ctx.stroke();
+  }
+
+  if (flipped) {
+    // The belly: a pale flat plate across the open side.
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 1.05, r * 0.22, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C.SHELL_SHINE;
+    ctx.fill();
+    ctx.strokeStyle = C.SHELL_EDGE;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else {
+    // A jagged rim: six teeth pointing down along its edge.
+    ctx.fillStyle = C.SHELL_EDGE;
+    for (let i = 0; i < 6; i++) {
+      const x0 = -r * 1.15 + i * (r * 2.3 / 6);
+      ctx.beginPath();
+      ctx.moveTo(x0, -1);
+      ctx.lineTo(x0 + r * 2.3 / 12, r * 0.3);
+      ctx.lineTo(x0 + r * 2.3 / 6, -1);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // The shine: a curved highlight high on the dome, toward the back.
+  ctx.strokeStyle = C.SHELL_SHINE;
+  ctx.lineWidth = r * 0.16;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.8, r * 0.72, 0, Math.PI * 1.18, Math.PI * 1.45);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.restore();
+
+  // Upright: the shared face on the head under the front rim, unmirrored.
+  if (!flipped) drawAngryFace(ctx, e.x + d * r * 1.05, feet - r * 0.45, r * 0.5, cfg);
+
+  // Flipped: stars circling it, one fewer each quarter of the flip.
+  if (flipped) {
+    const left = Math.ceil(4 * (1 - e.stateT / S.FLIPPED));
+    ctx.fillStyle = C.CHARGER_STAR;
+    for (let i = 0; i < left; i++) {
+      const a = time * 3 + (i / 4) * Math.PI * 2;
+      drawStar(ctx, e.x + Math.cos(a) * r * 1.1, feet - r * 2.1 + Math.sin(a) * r * 0.25, r * 0.26);
+    }
+  }
+
+  // Coming back: a puff that swells and fades.
+  if (e.returnT > 0) {
+    const f = 1 - e.returnT / S.PUFF_TIME;
+    ctx.globalAlpha = 1 - f;
+    ctx.fillStyle = C.SHELL_POP;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
       ctx.beginPath();

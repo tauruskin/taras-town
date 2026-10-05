@@ -415,32 +415,35 @@ for (const data of LEVELS) {
   }
 }
 
-// --- chargers: ground under the whole range, and no checkpoint in sight ----
+// --- chargers and shells: ground under the whole range ---------------------
 //
 // "Never charges off a ledge" rests on this: a charge ends at the end of its
 // range, so if every x in the range, plus the body's radius each side, has
 // ground under it at the charger's own feet, there is no ledge to go off.
-// And the roadmap's "never at a checkpoint": a ball respawning must not be
-// in sight of one — its own sight past either end of its range.
+// A shell patrols its range the same way and is kicked about inside it, so
+// it gets the same check. And, for chargers only, the roadmap's "never at a
+// checkpoint": a ball respawning must not be in sight of one — its own sight
+// past either end of its range. A shell has no sight.
 {
-  const R = CONFIG.ENEMY.CHARGER.R;
   let n = 0;
   for (const data of LEVELS) {
     const level = loadLevel(data);
     for (const [i, e] of (data.enemies || []).entries()) {
-      if (e.kind !== 'charger') continue;
+      if (e.kind !== 'charger' && e.kind !== 'shell') continue;
       n++;
-      // Ask the charger itself rather than re-deriving the default here:
+      // Ask the enemy itself rather than re-deriving the default here:
       // `level.enemies` is a straight map of `data.enemies`, so this is the
-      // same enemy, and makeCharger keeps sole ownership of the rule.
+      // same enemy, and its maker keeps sole ownership of the rule.
+      const R = level.enemies[i].r;
       const SEE = level.enemies[i].see;
       const feet = e.y + R;
       for (let x = e.from - R; x <= e.to + R; x += 5) {
         const held = level.statics.some((s) => s.ny < -0.9 &&
           Math.min(s.ax, s.bx) <= x && Math.max(s.ax, s.bx) >= x &&
           Math.abs(s.ay + (s.by - s.ay) * ((x - s.ax) / ((s.bx - s.ax) || 1)) - feet) < 2);
-        if (!held) { fail(`level ${data.id}: charger ${i} has no ground under x=${x} at y=${feet}`); break; }
+        if (!held) { fail(`level ${data.id}: ${e.kind} ${i} has no ground under x=${x} at y=${feet}`); break; }
       }
+      if (e.kind !== 'charger') continue;
       for (const c of data.checkpoints || []) {
         if (c.x > e.from - SEE && c.x < e.to + SEE && Math.abs(c.y - feet) < 200) {
           fail(`level ${data.id}: checkpoint at x=${c.x} is within sight of charger ${i} (${e.from}..${e.to}, sees ${SEE})`);
@@ -448,7 +451,25 @@ for (const data of LEVELS) {
       }
     }
   }
-  console.log(`\nchargers: ${n} checked for ground under their whole range and checkpoints out of sight`);
+  console.log(`\nchargers and shells: ${n} checked for ground under their whole range (chargers: and checkpoints out of sight)`);
+}
+
+// --- the charger's and the shell's colours are their own ---------------------
+//
+// The browser suites find a charger or a shell by counting its colour's
+// pixels, so a SHELL_ or CHARGER_ colour that equals any other COLOURS entry
+// would be counted as something else too (STAR_ON and FLAG already share one).
+{
+  const C = CONFIG.COLOURS;
+  let n = 0;
+  for (const k of Object.keys(C)) {
+    if (!k.startsWith('SHELL_') && !k.startsWith('CHARGER_')) continue;
+    n++;
+    for (const o of Object.keys(C)) {
+      if (o !== k && String(C[o]).toLowerCase() === String(C[k]).toLowerCase()) fail(`COLOURS.${k} is the same colour as COLOURS.${o} (${C[k]})`);
+    }
+  }
+  console.log(`\ncolours: ${n} SHELL_/CHARGER_ colours checked unique`);
 }
 
 // --- aimed poppers: no checkpoint within reach -------------------------------
