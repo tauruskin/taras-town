@@ -120,9 +120,10 @@ function steps(level, seconds, each = () => {}) {
   console.log(`3b. patrolling charger met the shell: furthest x ${hi.toFixed(0)}, shell flipped ${flipped}`);
   if (flipped) fail('a patrolling charger flipped a shell');
   // It turns the step its box first touches the shell's: centres no nearer
-  // than the two radii, give or take the one step it took to touch (speed
+  // than the two radii, give or take two steps of travel, so a change of speed or start cannot
+  // make it miss by one (speed
   // and step from config.js).
-  const LIMIT = 1000 - S.R - CONFIG.ENEMY.CHARGER.R + CONFIG.ENEMY.CHARGER.PATROL_SPEED * DT + 1e-6;
+  const LIMIT = 1000 - S.R - CONFIG.ENEMY.CHARGER.R + 2 * CONFIG.ENEMY.CHARGER.PATROL_SPEED * DT + 1e-6;
   if (hi > LIMIT) fail(`a patrolling charger walked into a shell (reached ${hi.toFixed(2)}, limit ${LIMIT.toFixed(2)})`);
 }
 

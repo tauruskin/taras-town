@@ -480,15 +480,19 @@ for (const data of LEVELS) {
 // something it cannot see. So every crate in a level with a shell is at least
 // the shell's full height, 2 × its r — read from the loaded enemy.
 {
+  // Clearance on top of the shell's height: a landing ball can sink about
+  // this far into a box in one step before it is pushed out. A test margin,
+  // not a config tunable.
+  const LANDING_STEP = 4;
   let n = 0;
   for (const data of LEVELS) {
     const level = loadLevel(data);
     const shells = level.enemies.filter((e) => e.kind === 'shell');
     if (!shells.length) continue;
-    const tallest = Math.max(...shells.map((s) => 2 * s.r));
+    const tallest = Math.max(...shells.map((s) => 2 * s.r)) + LANDING_STEP;
     for (const c of level.crates) {
       n++;
-      if (c.h < tallest) fail(`level ${data.id}: a crate at x=${c.x} is ${c.h} tall, under a shell's ${tallest}`);
+      if (c.h < tallest) fail(`level ${data.id}: a crate at x=${c.x} is ${c.h} tall, under a shell's height plus clearance, ${tallest}`);
     }
   }
   console.log(`\ncrates over shells: ${n} checked at least a shell's height tall`);
