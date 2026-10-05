@@ -502,24 +502,48 @@ for (const data of LEVELS) {
 // The roadmap's "range never covers a checkpoint": a ball respawning must
 // never be inside what a popper can see and reach.
 {
-  let n = 0;
-  for (const data of LEVELS) {
+  // Every complaint about one level's data, so the same check can be run on
+  // a broken copy below and be seen to complain.
+  const popperReach = (data) => {
+    const out = [];
+    let n = 0;
     const level = loadLevel(data);
     for (const [i, e] of (data.enemies || []).entries()) {
       if (e.kind !== 'popper' || e.fixed) continue;
       n++;
       const range = level.enemies[i].range;
-      if (!Number.isFinite(range)) { fail(`level ${data.id}: popper ${i} has no numeric range`); continue; }
+      if (!Number.isFinite(range)) { out.push(`level ${data.id}: popper ${i} has no numeric range`); continue; }
       // The spawn too: a zero-heart fail respawns there.
       for (const c of [...(data.checkpoints || []), { ...data.spawn, spawn: true }]) {
         const dx = c.x - e.x;
         if (Math.sign(dx) === (e.dir ?? 1) && Math.abs(dx) <= range + CONFIG.BALL.R) {
-          fail(`level ${data.id}: ${c.spawn ? 'spawn' : 'checkpoint'} at x=${c.x} is within reach of popper ${i} (range ${range})`);
+          out.push(`level ${data.id}: ${c.spawn ? 'spawn' : 'checkpoint'} at x=${c.x} is within reach of popper ${i} (range ${range})`);
         }
       }
     }
+    return { out, n };
+  };
+  let n = 0;
+  for (const data of LEVELS) {
+    const r = popperReach(data);
+    n += r.n;
+    for (const m of r.out) fail(m);
   }
   console.log(`\naimed poppers: ${n} checked for checkpoints out of reach`);
+  // Level thirteen is the first with any; with none counted this proves nothing.
+  if (n === 0) fail('no aimed popper was found to check — this check measured nothing');
+  // And it can fail: level thirteen with its first checkpoint moved 100 in
+  // front of room B's popper must be complained about.
+  const l13 = LEVELS.find((l) => l.id === 13);
+  if (!l13) fail('no level thirteen to break a copy of');
+  else {
+    const popB = l13.enemies.filter((e) => e.kind === 'popper' && !e.fixed).sort((a, b) => a.x - b.x)[1];
+    const copy = structuredClone(l13);
+    copy.checkpoints[0] = { ...copy.checkpoints[0], x: popB.x + 100 };
+    const bit = popperReach(copy).out.length;
+    console.log(`   a copy of level 13 with a checkpoint 100 in front of room B's popper: ${bit} complaint(s)`);
+    if (!bit) fail('the popper-reach check did not complain about a checkpoint inside room B\'s popper range');
+  }
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL LEVEL CHECKS PASSED');

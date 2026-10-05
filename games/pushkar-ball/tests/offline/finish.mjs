@@ -496,6 +496,69 @@ const SPARE11 = [];
 // through the door. Checked in 2d.
 const SPARE12 = [];
 
+/**
+ * Level thirteen's rooms, from the level's own geometry, so ROUTES[13] and
+ * 3p read the same numbers and neither copies a position out of levels.js.
+ *
+ * The three aimed poppers, left to right, are rooms A, B and C. Room B's
+ * door is the gate that button b drives, and the ball waits resting against
+ * it (`spotB`). Room C's porch is the one plank wall; the step it roofs over
+ * is the stone box starting where the planks end, the ball waits resting
+ * against that (`spotC`), and the porch's stone end is the stone piece
+ * flush with the planks' left end.
+ */
+function room13(level) {
+  const R = CONFIG.BALL.R;
+  const [pA, pB, pC] = level.enemies.filter((e) => e.kind === 'popper' && !e.fixed).sort((a, b) => a.x - b.x);
+  if (!pC) throw new Error(`level ${level.data.id}: room13 needs three aimed poppers`);
+  const b = sender(level, 'b');
+  const gate = level.gates.find((g) => g.needs.includes('b'));
+  const wood = level.breakables[0];
+  if (!b || !gate || !wood) throw new Error(`level ${level.data.id}: no button b, its gate, or planks`);
+  const step = level.walls.find((w) => !w.movable && Math.abs(w.x - (wood.x + wood.w)) < 1 && w.y > wood.y + wood.h);
+  if (!step) throw new Error(`level ${level.data.id}: no stone step where the porch's planks end (${wood.x + wood.w})`);
+  return { pA, pB, pC, poppers: [pA, pB, pC], b, gate, wood, step, spotB: gate.x - R, spotC: step.x - R };
+}
+
+/**
+ * Level thirteen's route. Room A: never stop — whatever spot the popper
+ * locks, the ball is long gone when its lob lands. Room B: roll to the door
+ * and rest against it until it is open; the lob locked on a ball there ends
+ * on button b's cap, over the ball's head. Room C: the same against the
+ * step, until the lob breaks the porch roof; then jump up the step.
+ * A sloppy thumb like level eleven's: it hesitates longer the sloppier the
+ * lead before going on through an opened door or up the step.
+ */
+function route13(level, lead) {
+  const { gate, wood, step, spotB, spotC } = room13(level);
+  let stage = null, at = null;
+  const steer = (ball, x) => (ball.x < x - 1 ? { right: true } : ball.x > x + 1 ? { left: true } : {});
+  const hesitate = () => {
+    if (at == null) at = level.time;
+    return level.time - at < (lead - 0.7) * 1.5;
+  };
+  return (ball) => {
+    if (!stage) stage = ball.x < gate.x ? 'toB' : 'toC';
+    if (stage === 'toB') {
+      if (gate.openT > 0.9) { if (hesitate()) return {}; stage = 'throughB'; at = null; }
+      else return steer(ball, spotB);
+    }
+    if (stage === 'throughB') {
+      if (ball.x > gate.x + gate.w + CONFIG.BALL.R) stage = 'toC';
+      else return { right: true };
+    }
+    if (stage === 'toC') {
+      if (wood.broken) { if (hesitate()) return {}; stage = 'up'; }
+      else return steer(ball, spotC);
+    }
+    if (stage === 'up') {
+      if (ball.grounded && ball.y < step.y) stage = 'end';
+      else return { right: true, jump: ball.grounded };
+    }
+    return { right: true };
+  };
+}
+
 // --- the routes ------------------------------------------------------------
 //
 // Keyed by level id. Each takes the loaded level and a lead, and returns the
@@ -852,6 +915,9 @@ const ROUTES = {
 
   // Level twelve: see route12.
   12: (level, lead) => route12(level, lead),
+
+  // Level thirteen: see route13.
+  13: (level, lead) => route13(level, lead),
 };
 
 // Level four's other way: shove the crate against the planks, back off at
@@ -926,8 +992,12 @@ const DELAYS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5];
 // On level eleven both chargers are shut in their pens and nothing else
 // there can hurt, so any heart lost at all is a charger got out. On level
 // twelve the route never stands where an upright shell can reach it, so a
-// heart lost is a crate that missed or a stomp that did not land.
-const COUNTS_HEARTS = new Set([10, 11, 12]);
+// heart lost is a crate that missed or a stomp that did not land. On level
+// thirteen nothing can hurt but the three poppers' lobs, and the route never
+// stands where one lands: room A is run straight through, and in rooms B and
+// C the lob locked on the waiting ball ends on the button or the porch roof
+// over its head. A heart lost is a lob that came down on the ball instead.
+const COUNTS_HEARTS = new Set([10, 11, 12, 13]);
 
 // --- 1. every level is finished by its route, every way it is tried --------
 console.log(`\n1. ${LEVELS.length} level(s), each tried ${LEADS.length * DELAYS.length} ways`);
@@ -1804,6 +1874,121 @@ console.log('\n3o. level twelve: room B has no dead end, and room A needs its sh
     if (!stalledOk) fail(`level 12 room A opened (openT ${opened.toFixed(2)}) or was passed (x=${stalled.ball.x.toFixed(0)}) with its shell kept off the plate`);
     if (!controlOk) fail(`level 12 room A: the same route on the real level did not get through its door in ${seconds}s either, so the stall proves nothing`);
     if (stalledOk && controlOk) console.log(`   room A with its shell kept off the plate: the door never opened in ${seconds}s, ball held at x=${stalled.ball.x.toFixed(0)}; on the real level the same route got through`);
+  }
+}
+
+// --- 3p. level thirteen: rooms B and C need their poppers -------------------
+//
+// With every popper taken out, a ball in room B or C tries everything a thumb
+// can, the way 3m does: it comes to each spot across the room's floor, from
+// the checkpoint at full speed or back from the door, then rolls or jumps
+// each way. Button b must stay unpressed and the ball must never be through
+// its door; the porch must stay whole and the ball never up the step. Every
+// run must really have reached its spot, or it proves nothing. Then the same
+// tries on two broken copies, to show the check can fail: room B's button and
+// bracket lowered 60, to where a jump reaches the cap, and room C's porch
+// without its stone end and with the dip under its popper flattened, so a
+// running jump meets the planks' face.
+console.log('\n3p. level thirteen: rooms B and C need their poppers');
+{
+  const data = LEVELS.find((l) => l.id === 13);
+  const tryAlone = (d, which) => {
+    const bare = { ...d, enemies: [] };
+    const r = room13(loadLevel(d));
+    // From the room's checkpoint, so a running jump from anywhere on the
+    // way in is tried too, not only from under the popper.
+    const from = { x: which === 'B' ? d.checkpoints[0].x : d.checkpoints[1].x, y: 700 };
+    const [x0, x1] = [from.x, which === 'B' ? r.spotB : r.spotC];
+    // Every popper's perch: the stone its foot stands on. A ball that ever
+    // gets up beside a popper can stomp the room's only tool, which never
+    // comes back.
+    const perches = r.poppers.map((p) => {
+      const w = loadLevel(d).walls.find((s) => s.y === p.y + p.r && s.x <= p.x && s.x + s.w >= p.x);
+      if (!w) throw new Error(`level ${d.id}: no perch under the popper at ${p.x}`);
+      return w;
+    });
+    let opened = false, perched = false, runs = 0, missed = 0;
+    const spots = [];
+    for (let x = x0; x < x1; x += 20) spots.push(x);
+    spots.push(x1);
+    for (const spot of spots) {
+      for (const fromX of [from.x, x1]) {
+        for (const move of [{ left: true }, { right: true }, { left: true, jump: true }, { right: true, jump: true }]) {
+          runs++;
+          let reached = false;
+          const route = () => (ball) => {
+            if (perches.some((w) => ball.y < w.y && ball.x > w.x - CONFIG.BALL.R && ball.x < w.x + w.w + CONFIG.BALL.R)) perched = true;
+            if (!reached && Math.abs(ball.x - spot) > 5) return ball.x < spot ? { right: true } : { left: true };
+            reached = true;
+            return { ...move, jump: move.jump && ball.grounded };
+          };
+          const { ball, level } = play(bare, route, { from: { x: fromX, y: from.y }, seconds: 6 });
+          // The same pieces room13 found, in this run's own copy of the level
+          // (room13 itself wants the poppers this copy has not got).
+          const b = sender(level, 'b'), wd = level.breakables[0];
+          if (which === 'B' && (b.pressed || ball.x > r.gate.x + r.gate.w)) opened = true;
+          if (which === 'C' && (wd.broken || (ball.x > r.step.x && ball.y < r.step.y))) opened = true;
+          if (!reached) missed++;
+        }
+      }
+    }
+    return { opened, perched, runs, missed, spots };
+  };
+  for (const which of ['B', 'C']) {
+    const { opened, perched, runs, missed, spots } = tryAlone(data, which);
+    console.log(`   room ${which}: ${runs} runs from ${spots.length} spots (${spots[0]}-${spots.at(-1)}), each from both sides: got through without a popper=${opened}, up beside a popper=${perched}`);
+    if (perched) fail(`level thirteen: in room ${which} the ball got up beside a popper, where it can stomp it`);
+    if (missed) fail(`level thirteen: ${missed} of 3p's room ${which} runs never reached their spot — they prove nothing`);
+    if (opened) fail(`level thirteen: the ball got through room ${which} without its popper`);
+  }
+  // The broken copies: each must be got through somewhere, or 3p cannot fail.
+  const lowB = structuredClone(data);
+  lowB.senders = lowB.senders.map((s) => (s.id === 'b' ? { ...s, y: s.y + 60 } : s));
+  const bracket = lowB.boxes.find((bx) => bx.x + bx.w === data.gates[0].x && bx.y === data.senders[0].y - CONFIG.CIRCUIT.POST_H);
+  if (!bracket) throw new Error('level 13: no bracket beside button b\'s post');
+  bracket.y += 60;
+  const wood = data.breakables[0];
+  const noEnd = structuredClone(data);
+  noEnd.boxes = noEnd.boxes.filter((bx) => !(bx.x + bx.w === wood.x && bx.y === wood.y));
+  if (noEnd.boxes.length !== data.boxes.length - 1) throw new Error('level 13: no stone end to the porch');
+  // And a flat run-up to it: the dip under room C's popper alone already
+  // spoils every running jump at the bare face.
+  const fl = data.ground[0][0][1];
+  noEnd.ground = [[[data.ground[0][0][0], fl], [data.ground[0].at(-1)[0], fl]]];
+  const bitB = tryAlone(lowB, 'B'), bitC = tryAlone(noEnd, 'C');
+  console.log(`   broken copies: button lowered 60, got through=${bitB.opened}; porch without its stone end, got through=${bitC.opened}`);
+  if (!bitB.opened) fail('3p cannot fail: a ball alone never pressed room B\'s button even lowered to where a jump reaches it');
+  if (!bitC.opened) fail('3p cannot fail: a ball alone never broke room C\'s porch even with its planks\' face bare');
+
+  // How exact the waiting has to be, with the poppers in: a ball that comes
+  // from the room's checkpoint and rests at x, every 5 back from where the
+  // route waits. The window is the unbroken stretch, ending at the route's
+  // own spot, where the lob does its job and no heart is lost. It must be at
+  // least a ball wide (2 x BALL.R, from config.js) — a guess at what a thumb
+  // can stop within, not a measured one.
+  const rw = room13(loadLevel(data));
+  for (const which of ['B', 'C']) {
+    const spot = which === 'B' ? rw.spotB : rw.spotC;
+    const from = { x: data.checkpoints[which === 'B' ? 0 : 1].x, y: 700 };
+    let lo = null, tried = 0;
+    for (let x = spot; x > spot - 200; x -= 5) {
+      tried++;
+      // Hearts are counted up to the moment the job is done: a ball that
+      // then sits on where it was aimed at is simply aimed at again.
+      let hitsAtDone = null;
+      const steerTo = (lv) => (ball) => {
+        const done = which === 'B' ? sender(lv, 'b').pressed : lv.breakables[0].broken;
+        if (done && hitsAtDone == null) hitsAtDone = ball.hits;
+        return ball.x < x - 2 ? { right: true } : ball.x > x + 2 ? { left: true } : {};
+      };
+      play(data, steerTo, { from, seconds: 14 });
+      if (hitsAtDone !== 0) break;
+      lo = x;
+    }
+    const width = lo == null ? 0 : spot - lo;
+    console.log(`   room ${which}: resting anywhere from ${lo} to ${spot} works (${width} wide, ${tried} rests tried)`);
+    if (!Number.isFinite(CONFIG.BALL.R)) fail('BALL.R is not a number');
+    else if (!(width >= 2 * CONFIG.BALL.R)) fail(`level thirteen: room ${which}'s waiting spot is only ${width} wide, under a ball's width`);
   }
 }
 

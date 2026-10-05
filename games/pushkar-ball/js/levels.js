@@ -1477,6 +1477,138 @@ export const LEVELS = [
       { x: 3300, y: 760 },
     ],
   },
+  {
+    // Level thirteen: the aimed popper. Stage: INTRODUCTION. See the spec,
+    // docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md.
+    //
+    // Three rooms in a line, each one popper facing right from a perch at
+    // its left, a checkpoint (or the spawn) before each perch. Every popper
+    // is out of the ball's reach. A popped popper never comes back, and in
+    // rooms B and C it is the room's only tool, so stomping it would leave
+    // the room with no way through. The perch is 140 over the floor and a
+    // post at each end tops out at 170. A jump lifts the ball's centre to 151
+    // (from config.js: BALL.R 20 + the 131 a jump clears), and a ball that
+    // meets a stone corner lower than its centre is lifted onto it. Before
+    // the posts, finish.mjs 3p's tries found a ball climbing a bare 140
+    // perch that way. The posts sit below the lob's launch point, so they
+    // never catch a lob.
+    //
+    // The floor dips 40 under each perch. A popper's centre is 164 over the
+    // floor and a ball's is 20, so 144 apart, under LEVEL_TOL's 160
+    // (config.js). In the dip they are 184 apart and the popper cannot see
+    // him. It first sees him partway up the dip's far side, about 95 in front
+    // of it (by hand, from this geometry), so its first lock is out in the
+    // room and not under its own perch.
+    //
+    // Room A, "it aims where you were": open floor and nothing to press. The
+    // route never stops, and the lob lands where he was long after he has
+    // gone.
+    //
+    // Room B, "make it hit the button": button b's post is held out 70 from
+    // the door by a stone bracket, its cap facing the popper, 185-231 over
+    // the floor. A jump's top reaches 171 (config.js), so only a lob reaches
+    // it. The lob comes down steeply, about 4.5 down for every 1 forward at
+    // the end (simulated, see poppers.mjs 4a), so a cap on a post standing on
+    // the floor is hit only on its top, which presses nothing. Up on the
+    // bracket, the lob locked on a ball resting under it at the door meets
+    // the cap's face over his head. Anywhere from 2030 to 2080 works with no
+    // heart lost (50 wide, printed by finish.mjs 3p). Further left, the lob
+    // misses the cap and comes down on him.
+    //
+    // Room C, "make it break the planks": a porch roof 140-175 over the floor
+    // covers the foot of a 110 step. Under it the ball's top cannot rise past
+    // 140, so its bottom stays below 100, short of the step. The roof's stone
+    // left end keeps a running jump off the planks' face, and the roof is
+    // too thick to climb onto. The lob locked on a ball resting at the step
+    // comes down on the planks and breaks them. Anywhere from 2725 to 2780
+    // works with no heart lost (55 wide, printed by finish.mjs 3p). Then he
+    // jumps up the step.
+    //
+    // 3p also shows that without the poppers no ball gets through either
+    // room, or up beside a popper, from any spot coming either way, rolling
+    // or jumping (240 and 200 runs). Two broken copies do get through: the
+    // button lowered 60, and the porch with no stone end and a flat run-up.
+    //
+    // Ranges: room A's is config.js's 360. Rooms B and C use 280, since
+    // their waiting spots are 220 in front of their poppers. Each checkpoint
+    // is out of reach of every popper (levels.mjs). The waiting spots were
+    // 280 away on paper. Moved to 220 after LOOKing at 568x320: at 280, a
+    // waiting ball's popper sat under the hearts.
+    //
+    // Known, and left: at 740x280 a ball waiting at room B's door has the cap
+    // at the very top of the screen, half cut off. The cap has to sit above a
+    // jump, and that screen shows about 200 over the ball. The wire from the
+    // door and the dotted arc both lead up to it.
+    //
+    // Sections 1 and 2 of finish.mjs run three leads at start delays 0-4.5s
+    // and from both checkpoints. Every run finished and none lost a heart
+    // (this level is in COUNTS_HEARTS), slowest 20.1s (printed by
+    // finish.mjs 1).
+    id: 13,
+    theme: 'hills',
+    bounds: { w: 3400, h: 1080 },
+    spawn: { x: 200, y: 700 },
+    goal: { x: 3200, y: 650 },
+
+    ground: [
+      // One floor at 760, dipping 40 under each popper's perch, so a ball
+      // passing beneath is too far below it to be seen (LEVEL_TOL) and the
+      // first spot it locks is out in its room, not under its own feet.
+      [[40, 760], [600, 760], [660, 800], [760, 800], [820, 760],
+       [1760, 760], [1820, 800], [1920, 800], [1980, 760],
+       [2460, 760], [2520, 800], [2620, 800], [2680, 760], [3360, 760]],
+    ],
+
+    boxes: [
+      { x: 0, y: 0, w: 40, h: 1080 },
+      { x: 3360, y: 0, w: 40, h: 1080 },
+      // Each popper's perch, and a post at each end of it.
+      { x: 660, y: 620, w: 80, h: 20 },
+      { x: 660, y: 590, w: 10, h: 30 },
+      { x: 730, y: 590, w: 10, h: 30 },
+      { x: 1820, y: 620, w: 80, h: 20 },
+      { x: 1820, y: 590, w: 10, h: 30 },
+      { x: 1890, y: 590, w: 10, h: 30 },
+      { x: 2520, y: 620, w: 80, h: 20 },
+      { x: 2520, y: 590, w: 10, h: 30 },
+      { x: 2590, y: 590, w: 10, h: 30 },
+      // Room B: the door wall above the gate, and the stone bracket that
+      // holds button b's post out from it, 185 over the floor.
+      { x: 2100, y: 0, w: 40, h: 575 },
+      { x: 2060, y: 525, w: 40, h: 50 },
+      // Room C: the step up to the flag, 110 high, and the stone end of the
+      // porch roof in front of it, which keeps a jump off the planks' face.
+      { x: 2800, y: 650, w: 560, h: 110 },
+      { x: 2650, y: 585, w: 40, h: 35 },
+    ],
+
+    breakables: [
+      // Room C's porch roof.
+      { x: 2690, y: 585, w: 110, h: 35 },
+    ],
+
+    senders: [
+      { id: 'b', kind: 'button', x: 2030, y: 575, face: 'left' },
+    ],
+
+    gates: [
+      { x: 2100, y: 575, w: 40, h: 185, needs: ['b'] },
+    ],
+
+    bridges: [],
+    platforms: [],
+
+    enemies: [
+      { kind: 'popper', x: 700, y: 620 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 360 },
+      { kind: 'popper', x: 1860, y: 620 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 280 },
+      { kind: 'popper', x: 2560, y: 620 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 280 },
+    ],
+
+    checkpoints: [
+      { x: 1500, y: 760 },
+      { x: 2300, y: 760 },
+    ],
+  },
 ];
 
 /**
