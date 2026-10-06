@@ -1529,14 +1529,26 @@ export const LEVELS = [
     // on him.
     //
     // Popper B's own flight is 0.72s, not config.js's 1.1, for a lower arc.
-    // A lob always takes its whole flight, so at 1.1s the arc rose about 410
-    // over a ball resting at the door, and a settled camera shows only about
-    // 231 over it at 740x280: 2 of the arc's 12 dots were in view mid-aim at
-    // 740x280 and 3 at 568x320 (printed by shells.mjs's Node half). At 0.72
-    // it is 8 and 11. 0.70 is the floor: there the lob presses a cap on the
-    // floor and the bracket stops being the reason (3p's check fails, tried).
-    // The bracket stood 70 out at 1.1s; the flatter lob met the cap's face
-    // only from 2075, so it moved 40 further out (printed by finish.mjs 3p).
+    // A lob always takes its whole flight, so at 1.1s the arc's top was
+    // about 410 over a ball resting at the door (worked out from config.js:
+    // GRAVITY 2200, FLIGHT 1.1, the popper 144 over the ball), while the
+    // view reaches only about 231 over a resting ball's centre at 740x280
+    // (CAMERA.TOP_CLEAR's note in config.js; this is the view, not the cap).
+    // Mid-aim, 2 of the arc's 12 dots were in view at 740x280 and 3 at
+    // 568x320; at 0.72 it is 8 and 11 (printed by shells.mjs's Node half).
+    //
+    // 0.72 is a trade, close to a floor on purpose. At 0.70 the lob presses
+    // a cap on a post on the floor from 3 of 17 rests, so 3p's floor-cap
+    // check fails and the bracket stops being the reason (printed by
+    // finish.mjs 3p, run at 0.70). 0.71 still passes it (finish.mjs 3p,
+    // run at 0.71). At 0.73 and 0.75 only 7 dots are in view at 740x280, one
+    // over the shells suite's "more than 6" (shells.mjs's Node half, run at
+    // each). 0.72 gives 8 dots and passes 3p, with 0.02s to spare.
+    //
+    // The bracket stood 70 out at 1.1s. With the cap there, a 0.70s lob
+    // met the cap's face only from 2075 (simulated: finish.mjs 3p's window
+    // scan run with the old bracket, which printed 2075-2080, 5 wide), so
+    // it moved 40 further out.
     //
     // Room C, "make it break the planks": a porch roof 140-175 over the floor
     // covers the foot of a 110 step. Under it the ball's top cannot rise past

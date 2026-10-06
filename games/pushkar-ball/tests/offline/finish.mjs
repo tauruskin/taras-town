@@ -2646,12 +2646,12 @@ console.log('\n3p. level thirteen: rooms B and C need their poppers');
   }
 
   // Why the bracket: room B's lob comes down too steeply to hit the face of a
-  // cap on a post standing on the floor. A copy with the bracket gone and
-  // the button lowered 60 onto such a post (as the broken copy above), the ball resting at each spot the window
-  // scan tries that keeps it clear of the button: popper B's lob must never
-  // press it. Asked at popper B's own flight (the loaded popper's, never
-  // the config's), and at a much flatter 0.45s, which must press it, or
-  // this cannot fail.
+  // cap on a post standing on the floor. Take a copy with the bracket gone
+  // and the button lowered 60 onto such a post (as the broken copy above),
+  // and rest the ball at each spot the window scan tries that keeps it clear
+  // of the button: popper B's lob must never press it. Asked at popper B's
+  // own flight (the loaded popper's, never the config's), and at a much
+  // flatter 0.45s, which must press it, or this cannot fail.
   const floorLob = (flight) => {
     const d = structuredClone(data);
     d.boxes = d.boxes.filter((bx) => !same(bx, r13.bracket));
