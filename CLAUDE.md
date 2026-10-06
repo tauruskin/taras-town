@@ -272,8 +272,9 @@ is in its own README; these are the things to know before touching it.
 - **Wiring lives in `js/circuits.js`**: senders (plate, button, timer) and the
   AND/NOT `needs` of gates and bridges. A button is pressed by a *hit* — the
   moment of touching — not by touching, or a ball parked against a timer holds
-  its door open for ever. A respawn resets buttons and timers, which is only
-  safe because `levels.mjs` forbids a checkpoint between a sender and what it
+  its door open for ever. A respawn resets buttons and timers (and puts aimed
+  poppers and shells back home; chargers deliberately have no `reset()`),
+  which is only safe because `levels.mjs` forbids a checkpoint between a sender and what it
   drives. Anything that can press something joins the *presser* list in
   `Level.update`; the ball joins it through `level.noteBall`, and enemies are
   added in `Level.update` itself, because they are the level's own. An enemy
@@ -294,13 +295,21 @@ is in its own README; these are the things to know before touching it.
   only by trying to break the room on purpose (`finish.mjs` 3g, 3k).
 - **Every new enemy is a state machine** (`enterState`/`runStates` in
   `js/enemies.js`): named states that change only on a timer, a distance check
-  or a contact, never at random. The charger is the first. Walker, roller and
-  popper predate it and are deliberately left as they are, because their level
-  placements were tuned against their exact maths. `stompable` and `harmless`
+  or a contact, never at random. The charger, popper and shell are on it.
+  Walker and roller predate it and are deliberately left as they are, because
+  their level placements were tuned against their exact maths; level 2's
+  popper keeps its timed lob through `fixed: true`, pinned by `enemies.mjs`. `stompable` and `harmless`
   are how an enemy tells `stompEnemy` and `hazardKnockDir` when the usual
   rules don't apply. How far a charger sees is its level's to set (`see` in
   the level data, `CONFIG.ENEMY.CHARGER.SEE` otherwise), so ask the loaded
-  enemy for it and never the config.
+  enemy for it and never the config. An aimed popper's `range` and `flight`
+  are the same: level 13's room B popper flies 0.72 s, not config's 1.1.
+- **A crate flips a shell by kicking the shell out from under it**, not by
+  sliding the crate off. The shell is not a collider, so the crate lands on
+  the floor through it; moving the shell through `physics.step` leaves the
+  crate exactly where its own rules put it and adds no crate motion needing
+  its own dead-end check. A blocked kick leaves the shell flipped under the
+  crate — harmless and not solid, so nothing is trapped.
 - **Falling out of the level respawns the ball at the spawn immediately**, and
   the camera snaps rather than easing back across the whole level. Every piece
   of carried state has to be cleared, not just position: a surviving `buffer`

@@ -16,7 +16,7 @@ else from them — no artwork, no names, no level layouts.
 
 ## What is here, and what is not
 
-**Eleven levels**, chosen from a level-select screen rather than played in a
+**Fifteen levels**, chosen from a level-select screen rather than played in a
 fixed order: level one is always open, and finishing a level opens the next
 one. A tile shows its level's number, a star once it is finished, a highlight
 on the one open tile not yet finished, and an unresponsive padlock on anything
@@ -40,8 +40,10 @@ level select and the corner buttons were added later and are documented in
 [`docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md`](../../docs/superpowers/specs/2026-09-15-level-select-and-corner-buttons-design.md),
 the wiring of levels 8 and 9 in
 [`docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md`](../../docs/superpowers/specs/2026-09-18-wiring-buttons-timers-bridges-design.md),
-and the charger of levels 10 and 11 in
-[`docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md`](../../docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md).
+the charger of levels 10 and 11 in
+[`docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md`](../../docs/superpowers/specs/2026-09-18-charger-enemy-state-machines-design.md),
+and the shell and the aimed popper of levels 12 to 15 in
+[`docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md`](../../docs/superpowers/specs/2026-10-05-shell-aimed-popper-design.md).
 
 ## How it's built
 
@@ -100,7 +102,7 @@ when one does.
 | `js/config.js` | every tunable number and colour | never |
 | `js/physics.js` | segments, the broad-phase grid, circle-vs-segment resolution, the step, and the two box questions a crate asks | never |
 | `js/levels.js` | the level data, the loader that expands it, moving platforms, crates | never |
-| `js/enemies.js` | walker, roller, popper and charger; the state-machine shape every new enemy is written in | update never; drawing on a canvas handed in |
+| `js/enemies.js` | walker, roller, popper (fixed or aimed), charger and shell; the state-machine shape every new enemy is written in | update never; drawing on a canvas handed in |
 | `js/circuits.js` | wiring: plates, buttons, timers, the AND/NOT needs, and the drawing of lamps, wires and bridges | canvas only, handed in |
 | `js/player.js` | the ball: acceleration, friction, jump, coyote time, buffering, spin, pushing, respawning | never |
 | `js/camera.js` | follow with lookahead and a vertical deadzone, clamped to the level | never |
@@ -266,12 +268,13 @@ touching, or a ball parked against a timer would hold its door open for ever;
 resting on top of a post presses nothing. **A respawn resets buttons and
 timers**, which is only safe because no checkpoint sits between a sender and
 what it drives, and a sender is within `CIRCUIT.SEE` of its receivers —
-`levels.mjs` enforces both. **A gate never closes onto the ball, a crate or a
-charger** under its closed footprint; it holds and finishes closing once they
-have moved, and since it asks only about those, `levels.mjs` forbids spikes,
-walker patrols, roller ranges and charger ranges under any gate — a charger
-because a gate hanging open over one looks just as broken as one closing
-through it. **A bridge's top is its only solid part**, it slides
+`levels.mjs` enforces both. **A gate never closes onto the ball, a crate or
+any enemy that `blocks`** (a charger, a shell) under its closed footprint; it
+holds and finishes closing once they have moved, and since it asks only about
+those, `levels.mjs` forbids spikes, walker patrols and roller ranges under any
+gate, and the range of anything that blocks — a gate hanging open over one
+looks just as broken as one closing through it. That check reads `blocks`,
+not kind names, so a new kind cannot be forgotten there. **A bridge's top is its only solid part**, it slides
 out from under what stands on it rather than carrying it, and it shakes for
 its last `CIRCUIT.WARN` second before a timer withdraws it; it still owes
 `dx`/`dy`/`vx`/`vy` like every carrier. And **every crate gets a dead-end
@@ -330,7 +333,11 @@ fields every enemy may carry, each answering one independent question:
 `Level.update` puts an enemy that presses or is heavy on the presser list,
 marked `buttons: presses`, and one that blocks on the blocker list; a closing
 gate therefore never comes down on a charger. A shell is heavy and blocks but
-never presses.
+never presses. Every presser carries a `key` and says `buttons` outright, and
+`updateSenders` throws on one that does not: two keyless pressers would share
+one identity and swallow each other's hits. A sender's `touched` is a set of
+those keys, so a hit is *a presser's own* moment of touching — a lob landing
+on a timer that a crate already rests against still counts as a hit.
 
 **The charger is written in a small state-machine shape, `enterState` and
 `runStates`, and every new enemy is written in it.** An enemy has a `state`,
@@ -338,9 +345,13 @@ a `stateT` (seconds in it) and a table of named states, each with an
 `update` that returns the next state's name or nothing, and an optional
 `enter`. A state changes only on a timer, a distance check or a contact,
 never at random, so the same situation plays out the same way every time — which is
-what lets a child learn it and Node test it. Walker, roller and popper
-predate the shape and are deliberately left as they are, because their
-levels were tuned against their exact maths.
+what lets a child learn it and Node test it. The popper and the
+shell are on it too. Walker and roller predate the shape and are deliberately
+left as they are, because their levels were tuned against their exact maths.
+One trap in it: `runStates` runs a new state's `update` only on the *next*
+step, so anything that must be captured on entering a state is captured in
+the state before it — the aimed popper locks its target in `idle`, on the
+step it sees the ball.
 
 Level 10 introduces it in a pen with nothing else in it that can hurt: its
 first charge ends dazed against the stone step the ball came in over, and a
@@ -350,6 +361,117 @@ A a charge breaks planks and presses a button the ball cannot reach, and in
 room B the charge ends dazed on a plate, and the door is open for as long as
 it sits there. The ball can never get into either pen, so the room's tool can
 never be stomped out of the way.
+
+## Stomps and pops
+
+**When a landing ball is over more than one enemy, the stomp wins.**
+`stompEnemy` gathers every enemy the ball overlaps, not the first: if any of
+them is stompable, every stompable one pops, the ball bounces, and nothing
+hurts that step. A hurt beside a stomp is postponed one step rather than
+cancelled — if the ball is still touching the awake one next step, that step
+hurts as usual (`offline/chargers` 16-18). A popped enemy goes through
+`Level.pop(e)`.
+
+**Each kind bursts in its own shade**, from its `popShade`:
+`COLOURS.CHARGER_POP` for a charger, `SHELL_POP` for a shell, and the usual
+`ENEMY` violet for walkers and poppers. Never the body colour: the browser
+suites find a charger or a shell by counting its body colour, and debris in it
+would be counted as the enemy while it flew. `levels.mjs` checks every
+`SHELL_` and `CHARGER_` colour is unique. A popped charger or shell also waits
+for its home to be clear of crates before it comes back, as well as for the
+ball to be away.
+
+## The shell
+
+Level data: `{ kind: 'shell', x, y, from, to, dir? }`; numbers in
+`CONFIG.ENEMY.SHELL`, every one a guess awaiting a thumb. Levels 12, 14 and 15
+use it. It moves through the real physics like the charger, and has three
+states:
+
+- **patrol** — walks `[from, to]` at `PATROL_SPEED` (80, slower than the
+  charger's 120), turning at either end or at anything solid. Upright it is
+  armoured: any touch costs a heart, a landing from above included, and the
+  shiny dome is what says so.
+- **flipped** — on its back, legs waving, harmless and stompable, for
+  `FLIPPED` seconds, then upright again. A crate landing on it falling at
+  `FLIP_VY` or faster flips it (one merely resting does not), and so does a
+  charging charger, which is dazed as if it had hit stone. A patrolling
+  charger only turns at it.
+- **popped** — stomped while flipped. It comes back home, upright, after
+  `RETURN`, once the ball is `RETURN_CLEAR` from home and no crate is on it.
+
+**A crate flips it by kicking the shell out from under the crate**, not by
+sliding the crate off. The shell is not a collider, so a falling crate lands
+on the floor through it; moving the shell (`KICK` for `KICK_TIME`, away from
+whatever flipped it) through `physics.step` leaves the crate exactly where its
+own rules put it and adds no new crate motion needing a dead-end check. A kick
+is spent at the edge of the shell's range, and a blocked kick leaves it
+flipped under the crate — harmless and not solid, so nothing is trapped.
+`levels.mjs` requires every crate in a shell's level to stand taller than a
+shell, so a crate's lid can never sit inside one.
+
+**Wiring:** heavy in every state but popped, so freeing a plate under it means
+flip, *then* stomp; it blocks gates; it never presses buttons. `levels.mjs`
+requires unbroken ground under its whole range, plus its radius each side. A
+respawn puts it back home (`reset()`, through `Level.resetEnemies`). The
+charger deliberately has no `reset()`.
+
+## The aimed popper
+
+Level data: `{ kind: 'popper', x, y, dir?, range?, flight?, fixed?, period?,
+phase? }`. **`fixed: true`** keeps the old timed lob on its clock exactly —
+level 2's popper is the only one, and `offline/enemies` pins its lob against
+the old closed form. Without `fixed` the popper aims:
+
+- **idle** — waits until the ball is in front of it, within `range` and
+  `LEVEL_TOL` of its height. It locks the target on that step, where the ball
+  *was*, clamped to `range`, never behind it.
+- **aim** — draws a dotted arc to the target for `AIM` (1 s). That is the
+  warning, and it always comes.
+- **fire** — the lob flies a closed-form parabola (`lobVelocity`, shared with
+  the arc's drawing) that reaches the target in exactly the popper's `flight`
+  and carries on along the same curve to the first solid thing.
+- **reload** — waits `RELOAD`, then looks again.
+
+The lob costs the ball a heart, presses a button or timer it hits (it joins
+the presser list under its own key, `lob.shot`, once per shot), and breaks a
+plank wall in one hit. It passes through enemies and flips nothing. Steering
+it onto a cap the ball cannot reach is the puzzle.
+
+**`range` and `flight` belong to the loaded enemy**, defaulting to
+`CONFIG.ENEMY.POPPER`'s `RANGE` and `FLIGHT` (1.1 s), so anything that needs
+them asks the enemy, never the config — as for a charger's `see`. A shorter
+flight is a lower arc: level 13's room B popper flies 0.72 s so its arc fits
+on a phone screen while he waits under it. `levels.mjs` fails any aimed popper
+whose reach covers a checkpoint or the spawn. A respawn puts poppers back to
+sleep with nothing in flight.
+
+A lob comes down steeply, so it cannot hit the face of a cap on a post
+standing on the floor. A button meant for a lob is mounted high, on a wall or
+a bracket facing the popper, and the ball waits at its foot.
+
+## Levels twelve to fifteen
+
+- **12, the shell.** Room A: a shell patrols a pen under the roof he walks
+  along, and its weight on the plate holds the door open — time the run.
+  Room B: shove a crate down a hole in a corridor's roof onto the shell,
+  then drop in through the second hole and stomp it. A crate that misses is
+  shoved into a pit at the corridor's closed end and goes home.
+- **13, the aimed popper.** Three rooms, each a popper on a perch he comes in
+  under from behind: A, it aims where you were; B, stand at the door and its
+  lob presses a cap held out on a stone bracket; C, its lob breaks planks
+  under a porch roof.
+- **14, the shell and the charger.** A warm-up with nothing wired, then a pen
+  sealed by a shell on a plate that holds the door shut (`!p`): lure the
+  charger, its dash flips the shell, stomp the shell, run for the door before
+  the shell comes back.
+- **15, mastery.** Room 1: a lob breaks planks that free a crate, which flips
+  a shell. Room 2: a charger's dash flips a shell, and the stomp is forced.
+  Room 3: the crate holds plate c and a lob starts timer t while the crate
+  already touches it — the per-presser `touched` in use.
+
+Each level's header comment in `js/levels.js` has its numbers and where each
+came from.
 
 ## Levels are data
 
@@ -379,6 +501,9 @@ geometry is worked out at draw time.
                { id, kind: 'timer', x, y, face, time } ],  // lets go after `time` s
   gates:     [ { x, y, w, h, needs: ['a', '!b'] } ],        // all lamps lit → open
   bridges:   [ { x, y, w, dir, needs } ],                   // slides out across a gap
+  enemies:   [ { kind: 'charger', x, y, from, to, dir, see? },
+               { kind: 'shell', x, y, from, to, dir },
+               { kind: 'popper', x, y, dir, range?, flight? } ], // or fixed: true
 }
 ```
 
@@ -417,6 +542,14 @@ tenth of a tall window, but 44% of a 280px one. The buttons always win, so
 is not: about two fifths of the screen is land on a monitor, closer to a half
 on the shortest phone, and `tests/offline/camera.mjs` asserts both halves of
 that rule rather than one number that could only be right on one screen.
+
+**A ball on the ground brings the camera to rest** inside the vertical
+deadzone, at the same place a settled camera rests. Before, a ball that
+climbed out of a dip by less than the deadzone left the camera where the dip
+left it, low by the climb, for as long as it stood there — which cut level
+13's room B cap off the top of a 740×280 view. Only on the ground, so a jump
+still moves the camera not at all. It changes the feel everywhere there are
+slopes and steps, and wants a thumb on it.
 
 ## Tests
 

@@ -314,13 +314,13 @@ taught, which was mostly about the suites rather than about the charger.
   `CHARGER_BODY` and `CHARGER_EDGE`. That is the shape the shell and the
   swooper should follow — an enemy whose rules differ wants its own colour,
   and a browser suite that counts pixels of it wants one too.
-- **A popped charger's debris still bursts in `COLOURS.ENEMY` violet**, not
-  in its own blue, which a child does see because level 10's optional lesson
-  is stomping a dazed one. Deliberately deferred, not forgotten:
-  `tests/browser/chargers.mjs` finds the charger by counting `CHARGER_BODY`
-  and leans on nothing else in the game being drawn in it, so debris in that
-  blue would be counted as charger while it flew. The fix is to give the pop
-  its own shade, not to reuse the body colour.
+- **A popped charger's debris once burst in `COLOURS.ENEMY` violet**, not in
+  its own blue, which a child does see because level 10's optional lesson is
+  stomping a dazed one. Fixed in sub-project 3 (`334e2b5`): each kind carries
+  a `popShade`, and a charger's debris is `COLOURS.CHARGER_POP` (`#7FA8E0`),
+  a paler blue than `CHARGER_BODY`. Not the body colour itself:
+  `tests/browser/chargers.mjs` finds the charger by counting `CHARGER_BODY`,
+  so debris in it would be counted as charger while it flew.
 
 ### The open questions, decided (2026-09-20)
 
