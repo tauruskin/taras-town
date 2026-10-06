@@ -39,9 +39,12 @@
 //   rooms it never reached;
 // - each kind is where it is supposed to be, by counting its own colour
 //   (SHELL_BODY, CHARGER_BODY, the popper's arc dots, the lob's steel);
-// - a pop is drawn in its own shade, and in no picture is a pop's debris
-//   drawn beside its kind's body colour: the body is gone in the very frame
-//   the pop appears.
+// - a pop is drawn in its own shade, and the body is gone in the very frame
+//   the pop appears. That is counted on EVERY frame the page draws while
+//   the stomp is steered (recordStart / popFrames), not from the pictures:
+//   a pop lasts a few frames and a screenshot only catches it by luck. The
+//   pictures are still held to it — none may show the pop and the body
+//   together — and the ones around the pop are kept to look at.
 // The pictures are the point: look at every one of them.
 import { connect, IS_BALL } from './_helpers.mjs';
 import { writeFileSync } from 'node:fs';
@@ -322,8 +325,6 @@ function shellAhead(s, t) {
 function route12(level) {
   const S = CONFIG.ENEMY.SHELL;
   const { sB, roofA, gate, crate, home, lip, L, hole1, hole2, floor } = room12(level);
-  const p = sender(level, 'p');
-  const phase = 0;
   let stage = null;
   const fall = Math.sqrt(2 * ((floor - 2 * sB.r) - lip) / CONFIG.GRAVITY);
   const inCorridor = () => crate.y > lip;
@@ -336,9 +337,10 @@ function route12(level) {
     if (!sB.alive || sB.state !== 'patrol') return false;
     const CONTACT = 0.03;
     const t = (L - crate.x) / CONFIG.CRATE.PUSH_SPEED + CONTACT + fall;
-    const want = sB.from + Math.abs(phase) * S.PATROL_SPEED, dir = phase < 0 ? -1 : 1;
+    // The crate lands as the shell, heading right, is at the start of its
+    // patrol (finish.mjs's route12 with its phase 0).
     const x0 = shellAhead(sB, t), x1 = shellAhead(sB, t + STEP);
-    return Math.sign(x1 - x0) === dir && Math.abs(x0 - want) <= S.PATROL_SPEED * STEP;
+    return Math.sign(x1 - x0) === 1 && Math.abs(x0 - sB.from) <= S.PATROL_SPEED * STEP;
   };
   return (ball) => {
     if (!stage) stage = ball.x < gate.x ? 'toA' : 'toB';
@@ -486,7 +488,6 @@ function room14(level, i) {
   };
 }
 
-
 // Level fourteen, blind part: roll into room A's yard and let go once down
 // (route14's 'toA'), and let the ball coast to a stop there instead of
 // steering it to and fro inside the lure band — every turn of a steer is a
@@ -507,7 +508,12 @@ function route14(level) {
 // loaded run (printed by this suite, at both sizes on level twelve), past
 // the four steps this was first; Node proves every plan survives this many.
 const LATE = 8;
-const DELAY = 1.2;    // seconds of level time before the first press: the page needs a moment after the tap
+// Seconds of level time before the first press. The page needs a moment
+// after the tile's tap before a touch reaches the game; this suite's own
+// lateness print stays under ten milliseconds from the first press on with
+// it (printed by this suite), and it costs nothing, since every plan is
+// simulated with the same idle start.
+const DELAY = 1.2;
 
 // Every planner takes an optional recording to replay instead of its route
 // (the jitter check), and an optional screen to run a camera for.
@@ -616,7 +622,7 @@ function prepare(id, planner) {
 }
 
 /** Replay a plan with every press up to LATE steps late; every moment must still come, on time. */
-function jitterCheck(id, { data, pl }, planner, keys) {
+function jitterCheck(id, { data, pl }, planner, keys, tol = {}) {
   const bad = [];
   for (let seed = 1; seed <= 12; seed++) {
     const again = planner(data, jittered(pl.steps, LATE, seed));
@@ -624,7 +630,7 @@ function jitterCheck(id, { data, pl }, planner, keys) {
     for (const k of keys) {
       const a = pl.seen[k], b = again.seen[k];
       if (a == null) continue;
-      if (b == null || Math.abs(a - b) > 0.15) bad.push(`seed ${seed}: ${k} ${a.toFixed(2)} -> ${b == null ? 'never' : b.toFixed(2)}`);
+      if (b == null || Math.abs(a - b) > (tol[k] ?? 0.15)) bad.push(`seed ${seed}: ${k} ${a.toFixed(2)} -> ${b == null ? 'never' : b.toFixed(2)}`);
     }
   }
   console.log(`   every press up to ${LATE} steps late, 12 runs: ${bad.length ? bad.length + ' went wrong' : 'every moment kept'}`);
@@ -633,7 +639,21 @@ function jitterCheck(id, { data, pl }, planner, keys) {
 
 const plans = { 12: prepare(12, plan12), 13: prepare(13, plan13), 14: prepare(14, plan14) };
 jitterCheck(12, plans[12], plan12, ['plate', 'flip']);
-jitterCheck(13, plans[13], plan13, ['aim0', 'lob0']);
+// The lob is photographed mid-way through the stretch it is in view, which
+// is about a tenth of a second at 740x280 (0.108s, printed by this suite).
+// Holding lob0 to half of that under LATE-step jitter was tried and cannot
+// hold: the popper aims once the ball has rested, so the lob moves one for
+// one with how late the presses that brought the ball were (simulated:
+// 6 of 12 seeds moved lob0 by 0.06-0.07s, i.e. the 8 steps). So Node checks
+// the lob is never moved MORE than the presses were, and the page checks
+// what matters directly: its presses on this level were less than half the
+// window late, and the picture was captured inside the window.
+const lobWindow = Math.min(...SIZES.map((sz) => {
+  const sn = plan13(plans[13].data, plans[13].pl.steps, sz).seen;
+  return sn.lobIn1 - sn.lobIn0;
+}));
+console.log(`   level 13: the lob's narrowest window in view is ${lobWindow.toFixed(3)}s; presses there may be at most ${(lobWindow / 2 * 1000).toFixed(0)}ms late`);
+jitterCheck(13, plans[13], plan13, ['aim0', 'lob0'], { lob0: (LATE + 1) * STEP });
 jitterCheck(14, plans[14], plan14, ['dash']);
 for (const [id, keys] of [[12, ['plate', 'flip']], [13, ['aim0', 'aim1', 'lob0']], [14, ['dash']]]) {
   for (const k of keys) if (plans[id].pl.seen[k] == null) fail(`level ${id}: Node never saw ${k}, so there is nothing to photograph`);
@@ -719,13 +739,15 @@ function camera(W, H) {
   const taken = [];
   return {
     take(name) {
-      chain = chain.then(() => send('Page.captureScreenshot', { format: 'png' })).then((m) => {
+      let at = 0;
+      chain = chain.then(() => { at = Date.now(); return send('Page.captureScreenshot', { format: 'png' }); }).then((m) => {
         if (!m.result) { fail(`no picture for ${name}`); return; }
-        taken.push({ name, buf: Buffer.from(m.result.data, 'base64') });
+        taken.push({ name, at, buf: Buffer.from(m.result.data, 'base64') });
       });
       return chain;
     },
     idle() { return chain; },
+    peek() { return taken; },
     async done() { await chain; return taken; },
     W, H,
   };
@@ -765,6 +787,11 @@ async function blind(origin, hands, cam, steps, shots, seconds) {
     let t = sh.t;
     const clash = pressTimes.find((p) => p >= t - 0.01 && p < t + 0.25);
     if (clash != null) t = clash + 0.02;
+    // A picture with a window ([from, to], level time) must be ASKED for
+    // inside it; moved past a press, it may not be.
+    if (sh.window && (t < sh.window[0] || t > sh.window[1])) {
+      fail(`${sh.name}: ${clash != null ? `a press at ${clash.toFixed(3)}s moves the picture to` : 'the picture is asked for at'} ${t.toFixed(3)}s, outside its window ${sh.window[0].toFixed(3)}-${sh.window[1].toFixed(3)}s`);
+    }
     acts.push({ t, shot: sh.name });
   }
   acts.push({ t: seconds, end: true });
@@ -782,8 +809,23 @@ async function blind(origin, hands, cam, steps, shots, seconds) {
     else await hands.hold(a.held);
   }
   console.log(`   ${acts.length - 1} presses and pictures by level time; the latest was ${latest.toFixed(0)}ms behind, the latest press ${held.toFixed(0)}ms`);
+  // A windowed picture is held to its window by when its capture actually
+  // began, not when it was asked for: one queued behind another picture
+  // starts late. Checked once all of them are in.
+  const windowed = shots.filter((sh) => sh.window);
+  if (windowed.length) {
+    const taken = await cam.idle().then(() => cam.peek());
+    for (const sh of windowed) {
+      const got = taken.find((x) => x.name === sh.name);
+      if (!got) continue;
+      const lt = (got.at - origin) / 1000;
+      console.log(`   ${sh.name}: captured at ${lt.toFixed(3)}s of level time, window ${sh.window[0].toFixed(3)}-${sh.window[1].toFixed(3)}s`);
+      if (lt < sh.window[0] || lt > sh.window[1]) fail(`${sh.name} was captured at ${lt.toFixed(3)}s, outside its window ${sh.window[0].toFixed(3)}-${sh.window[1].toFixed(3)}s`);
+    }
+  }
   // LATE steps is what the jitter check proved the plan survives.
   if (held > LATE * STEP * 1000) fail(`a press went ${held.toFixed(0)}ms late, more than the ${LATE} steps the plan was checked against`);
+  return held;
 }
 
 /**
@@ -793,7 +835,9 @@ async function blind(origin, hands, cam, steps, shots, seconds) {
  * which is more than five hundred away at its nearest — at 740x280 the
  * whole of level fourteen's room B, its charger and its shell, is on screen
  * while the ball is still in room A, and a centroid of both rooms' shells is
- * a point between them where there is nothing to stomp.
+ * a point between them where there is nothing to stomp. 400 is a round
+ * number between the two: the yard is under 400 wide and the next pair more
+ * than 500 away (both read off level fourteen's data in levels.js).
  */
 const REACH = 400;
 
@@ -803,6 +847,8 @@ const REACH = 400;
  * which is plenty for a centroid and keeps a look to a hundredth of a second
  * or two. CSS pixels.
  */
+/** The ball and the stars only: no target colour, so no reach is needed. */
+const lookBall = () => look(null, 1, CONFIG.VIEW_H);
 const look = (hex, W, H) => {
   const [r, g, b] = hex ? rgb(hex) : [-99, -99, -99];
   const [sr, sg, sb] = rgb(C.CHARGER_STAR);
@@ -838,7 +884,7 @@ async function rollToRest(hands, dir, still = 1.2, seconds = 20) {
   const end = Date.now() + seconds * 1000;
   let last = null, since = 0;
   while (Date.now() < end) {
-    const q = await look(null, 1, 1);
+    const q = await lookBall();
     if (q.ball && last && Math.hypot(q.ball.x - last.x, q.ball.y - last.y) < 0.5) {
       if (!since) since = Date.now();
       else if (Date.now() - since > still * 1000) return true;
@@ -851,7 +897,7 @@ async function rollToRest(hands, dir, still = 1.2, seconds = 20) {
 /** Wait for a dazed charger's (or a flipped shell's) stars. */
 async function waitForStars(seconds = 20) {
   const end = Date.now() + seconds * 1000;
-  while (Date.now() < end) if ((await look(null, 1, 1)).stars > 5) return true;
+  while (Date.now() < end) if ((await lookBall()).stars > 5) return true;
   return false;
 }
 
@@ -886,6 +932,12 @@ async function stompLive(hands, cam, hex, name, W, H, { whileStars = false, afte
     if (whileStars && q.tgt && (q.stars ? (starless = 0) : ++starless >= 3)) { await hands.hold(null); return 'came round'; }
     if (!q.ball || !q.tgt) continue;
     const dx = (q.ball.x - q.tgt.x) / scale;
+    // Tolerances in world units. The steering band (4 on the ground, 3 in
+    // the air) and jumping only from the target's near side are stomp14's in
+    // finish.mjs. Its jump gap is 30 + 40 × lead; 70 is that with lead 1,
+    // its default, because a look lags the page by a frame or so. 1.5 CSS
+    // pixels is how still the ball's centroid sits on flat ground between
+    // looks (chosen; the ball's own bounce is smaller).
     const grounded = Math.abs(q.ball.y - ground) < 1.5;
     if (grounded) {
       await hands.hold(dx > 4 ? 'l' : dx < -4 ? 'r' : null);
@@ -932,15 +984,28 @@ async function recordStart(popHex, bodyHex, W, H) {
       if (bn) { const cx = bx / bn; x0 = Math.max(2, Math.floor(cx - ${reach} * dpr)); x1 = Math.min(w - 2, Math.ceil(cx + ${reach} * dpr)); }
       const P = ${POP_TOL};
       const isP = (i) => Math.abs(d[i] - ${pr}) <= P && Math.abs(d[i + 1] - ${pg}) <= P && Math.abs(d[i + 2] - ${pb}) <= P;
+      // The body on EVERY device pixel, as popCheck's count() does on a
+      // picture, so "no frame shows both" is as strict as the pictures' own
+      // check; the pop on every second, which can only miss a piece, never
+      // invent one.
       let pop = 0, body = 0;
-      for (let y = 2; y < h - 2; y += 2) for (let x = x0; x < x1; x += 2) {
+      for (let y = 0; y < h; y++) for (let x = Math.max(0, x0 - 2); x < Math.min(w, x1 + 2); x++) {
         const i = (y * w + x) * 4;
         if (Math.abs(d[i] - ${br}) <= 6 && Math.abs(d[i + 1] - ${bg}) <= 6 && Math.abs(d[i + 2] - ${bb}) <= 6) body++;
-        else if (isP(i) && isP(i - 8) && isP(i + 8) && isP(i - 8 * w) && isP(i + 8 * w)) pop++;
+      }
+      for (let y = 2; y < h - 2; y += 2) for (let x = x0; x < x1; x += 2) {
+        const i = (y * w + x) * 4;
+        if (isP(i) && isP(i - 8) && isP(i + 8) && isP(i - 8 * w) && isP(i + 8 * w)) pop++;
       }
       rec.frames.push([pop, body, bn > 0 ? 1 : 0]);
       requestAnimationFrame(frame);
     };
+    // Ordering: the game's loop asked for its animation frame when the page
+    // loaded, long before this, and asks again from inside each callback,
+    // so in every frame its callback runs first and draws, and this one then
+    // reads what it drew. Were the order ever reversed, this would read the
+    // frame before — still one whole drawn frame, one frame late, and the
+    // body-gone-with-the-pop check would hold all the same.
     requestAnimationFrame(frame);
   })()`);
 }
@@ -981,13 +1046,6 @@ function heartsHeld(W, H, pics, label) {
   }
 }
 
-/**
- * A pop, checked across a run of pictures: some picture shows it, and none
- * shows its debris beside its kind's body colour. Pictures from before the
- * pop (the body still there) are the proof that the pop count admits
- * nothing else on screen. Returns the names worth keeping on disk: the last
- * three before the pop and the first five with it.
- */
 const isBall = new Function('d', 'i', `return ${IS_BALL};`);
 /** The part of a picture within REACH of the ball, in CSS pixels, or the whole of it if there is no ball. */
 function nearBall(img, W, H) {
@@ -998,6 +1056,13 @@ function nearBall(img, W, H) {
   return { x0: x - reach, y0: 0, x1: x + reach, y1: H };
 }
 
+/**
+ * A pop, checked across the pictures of one stomp: none shows its debris
+ * beside its kind's body colour, and the first to show the pop is not the
+ * first picture. Whether any picture caught the pop is not asked here —
+ * popFrames asks it of every frame. Returns the names worth keeping on disk:
+ * the last three before the pop and the first five with it, or all of them.
+ */
 function popCheck(W, H, pics, name, popHex, bodyHex, kind) {
   const rows = [], keep = [];
   let firstPop = -1, i = 0;
@@ -1061,13 +1126,16 @@ for (const [W, H] of SIZES) {
     if (!seen.cameraStill) fail(`level 13 at ${W}x${H}: the camera moves between the frame before the aim and the aim, so the arc's dots cannot be told from the scenery`);
     const cam = camera(W, H), hands = thumbs(W, H);
     const origin = await openTimed(W, H, 13);
-    await blind(origin, hands, cam, steps, [
+    const held13 = await blind(origin, hands, cam, steps, [
       { name: '13-start', t: 0.6 },
       { name: '13-roomB-before', t: seen.aim0 - 0.15 },
       { name: '13-roomB-aim', t: seen.aimMid },
-      { name: '13-roomB-lob', t: (seen.lobIn0 + seen.lobIn1) / 2 },
+      { name: '13-roomB-lob', t: (seen.lobIn0 + seen.lobIn1) / 2, window: [seen.lobIn0, seen.lobIn1] },
     ], seconds);
     await hands.lift();
+    // The lob moves with the presses (see lobWindow): late by half its
+    // window, and the picture taken at Node's moment could miss it.
+    if (held13 > lobWindow / 2 * 1000) fail(`level 13 at ${W}x${H}: a press went ${held13.toFixed(0)}ms late, more than half the lob's ${(lobWindow * 1000).toFixed(0)}ms window`);
     const pics = develop(W, H, await cam.done());
     heartsHeld(W, H, pics, `level 13 at ${W}x${H}`);
     const before = pics.get('13-roomB-before'), aim = pics.get('13-roomB-aim'), lob = pics.get('13-roomB-lob');
