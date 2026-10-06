@@ -804,16 +804,21 @@ function room15(level) {
   const lane1 = level.data.ground.find((l) => l[0][0] === Xr1 && l.length > 2);
   if (!lane1) fail15("no lane floor starting at room 1's roof");
   const dip = lane1.reduce((a, q) => (q[1] > a[1] ? q : a));
-  const plate2 = level.senders.find((s) => s.kind === 'plate' && s !== plate1 && s.x < c.from + c.r && s.x + s.w > c.from - c.r);
-  const gate2 = plate2 && level.gates.find((g) => g.needs.includes(plate2.id));
-  if (!gate2) fail15("no gate driven by a plate under the charger's range end");
+  // Room 2's door: the other gate that needs a plate off, and that plate
+  // (under the second shell's range; 3s(g) moves it in a copy).
+  const gate2 = level.gates.find((g) => g !== gate1 && g.needs.some((n) => n.startsWith('!')));
+  const plate2 = gate2 && level.senders.find((s) => s.kind === 'plate' && gate2.needs.includes('!' + s.id));
+  if (!gate2) fail15("no gate needing room 2's shell's plate off");
+  // The pen's roof: the stone over the charger's range whose top the door stands on.
+  const roof2 = level.walls.find((w) => !w.movable && w.x <= c.from && w.x + w.w >= gate2.x + gate2.w && Math.abs(w.y - (gate2.y + gate2.h)) < 1);
+  if (!roof2) fail15("no pen roof under room 2's door");
   const gate3 = level.gates.find((g) => g.needs.includes(t.id));
   const roof3 = level.walls.filter((w) => !w.movable && w.x + w.w <= t.x && Math.abs(w.y - roofTop) < 1).sort((a, b) => a.x - b.x).at(-1);
   if (!gate3 || !roof3) fail15('no gate on the timer, or no roof short of its post');
   return {
     p1, p3, s1, s2, c, wood, t, crate1, crate3,
     hatch, hc: (hatch[0] + hatch[1]) / 2, roofTop, Xr1, floor1, L, pit: [overPit.x, L], gate1, plate1,
-    dipX: dip[0], plate2, gate2, gate3, Xr3: roof3.x, gap3: [roof3.x + roof3.w, t.x], gc: (roof3.x + roof3.w + t.x) / 2,
+    dipX: dip[0], plate2, gate2, roof2, gate3, Xr3: roof3.x, gap3: [roof3.x + roof3.w, t.x], gc: (roof3.x + roof3.w + t.x) / 2,
     floor2: s1.y + s1.r,
   };
 }
@@ -831,9 +836,10 @@ function room15(level) {
  * the pit (it goes home), jump out of hole 1 into the lane, settle in the dip
  * under the hatch, jump straight up out through it, and come round again.
  *
- * Room 2: rest against the pen's door. When a fresh dash flips the shell and
- * the dazed charger holds the door open, in, stomp the shell, and on through
- * the pen past the dazed charger.
+ * Room 2: rest just short of the shell at the pen's mouth. When a fresh
+ * dash flips the shell and dazes the charger, stomp the shell, and on through
+ * the pen past the dazed charger and out of its far door, which needs both.
+ * `opts.noStomp`: walk through the flipped shell instead (3s).
  *
  * Room 3: shove the crate along the lane until it is touching the timer's
  * cap; out, up onto the roof, into the gap beside the post; when popper 3
@@ -841,9 +847,7 @@ function room15(level) {
  * starts the timer.
  *
  * A sloppy thumb like level eleven's: it hesitates longer the sloppier the
- * lead before each go — capped at 0.6s in rooms 2 and 3, whose windows are
- * the charger's daze and the timer: level eleven's full 0.9s there took a
- * third of the runs in each past 2g's 60%, worst 64% and 63% (simulated). `opts.pushAfter`: in room 1, shove this long after
+ * lead before each go. `opts.pushAfter`: in room 1, shove this long after
  * reaching the edge instead of timing it (3s's way of missing on purpose);
  * once a crate has been got back, it times it properly. `opts.push3`: stop
  * shoving room 3's crate this far short of touching the cap (3s).
@@ -851,7 +855,7 @@ function room15(level) {
 function route15(level, lead, opts = {}) {
   const R = CONFIG.BALL.R, S = CONFIG.ENEMY.SHELL;
   const m = room15(level);
-  const { p1, p3, s1, s2, c, wood, t, crate1, crate3, hatch, hc, roofTop, Xr1, floor1, L, gate1, dipX, plate2, gate2, gate3, Xr3, gc } = m;
+  const { p1, p3, s1, s2, c, wood, t, crate1, crate3, hatch, hc, roofTop, Xr1, floor1, L, gate1, dipX, plate2, gate2, roof2, gate3, Xr3, gc } = m;
   const phase = opts.phase ?? (lead - 1);
   const hes = (lead - 0.7) * 1.5;
   // How long the crate takes to fall from the lane floor to the shell's top, from rest.
@@ -865,7 +869,7 @@ function route15(level, lead, opts = {}) {
   };
   const inCorridor = () => crate1.y > floor1;
   const seen = { lead, flips: 0, stomps: 0, recovered: 0, misses: 0 };
-  let backRun = false, stage = null, at = null, aimAt = 0, sawUp = false, dazedAt = null, rec3 = null, prevS1 = s1.state;
+  let popAt = null, backRun = false, stage = null, at = null, aimAt = 0, sawUp = false, dazedAt = null, rec3 = null, prevS1 = s1.state;
   // Up onto a lane roof from its plateau: a run-up from at least RUN back,
   // and a jump between RUN * lead and 60 short of the roof's end — from
   // nearer, the ball meets the roof's end face on the way up and bounces
@@ -888,6 +892,17 @@ function route15(level, lead, opts = {}) {
     return Math.sign(x1 - x0) === dir && Math.abs(x0 - want) <= S.PATROL_SPEED * CONFIG.STEP;
   };
   return (ball) => {
+    // Room 3's timer, watched every step once he is in the room, so each
+    // claim in 2g is something seen. The crate's own press: its key in
+    // `touched` with the time full. Run out: the crate still touching and
+    // the timer off, before the lob's hit. The hit: a key that is neither the
+    // crate nor the ball arriving with the time full.
+    if (rec3 && rec3.hitAt == null) {
+      const full = t.left === t.time;
+      if (rec3.crateAt == null && full && t.touched.has(crate3)) rec3.crateAt = level.time;
+      if (rec3.crateAt != null && !t.pressed && t.touched.has(crate3)) rec3.ranOut = true;
+      if (full) for (const k of t.touched) if (k !== crate3 && k !== ball) { rec3.hitAt = level.time; rec3.crateTouching = t.touched.has(crate3); rec3.ballX = ball.x; }
+    }
     if (s1.state === 'flipped' && prevS1 !== 'flipped') seen.flips++;
     if (s1.state === 'popped' && prevS1 !== 'popped') seen.stomps++;
     prevS1 = s1.state;
@@ -994,34 +1009,44 @@ function route15(level, lead, opts = {}) {
     }
     // --- room 2 ---
     if (stage === 'to2') {
-      // Only a dash that starts while he rests at the door counts: one
-      // that met him on his way in may have used its daze up already.
-      const atDoor = Math.abs(ball.x - (gate2.x - R - 2)) < 6;
-      if (!plate2.pressed) sawUp = atDoor;
+      // Rest just short of the shell's reach. Only a dash that starts while
+      // he rests there counts: one that met him on his way in may have used
+      // its daze up already.
+      const lure2 = s2.from - s2.r - R - 4;
+      const atSpot = Math.abs(ball.x - lure2) < 6;
+      if (c.state !== 'dazed') sawUp = atSpot;
       else if (sawUp && dazedAt == null) dazedAt = level.time;
-      if (dazedAt != null && gate2.openT > 0.9 && (s2.state === 'flipped' || !s2.alive)) { stage = 'in2'; at = null; }
-      else if (dazedAt != null && !plate2.pressed) { dazedAt = null; sawUp = false; }
-      else return steer(ball, gate2.x - R - 2, 3);
+      if (dazedAt != null && s2.state === 'flipped') { stage = 'in2'; at = null; }
+      else if (dazedAt != null && c.state !== 'dazed') { dazedAt = null; sawUp = false; }
+      else return settle(ball, lure2);
     }
     if (stage === 'in2') {
-      if (wait(Math.min(hes, 0.6))) return {};
-      if (!s2.alive || s2.state !== 'flipped') stage = 'run2';
+      if (wait(hes)) return {};
+      if (!s2.alive) { stage = 'up2'; popAt = level.time; at = null; }
+      else if (opts.noStomp || s2.state !== 'flipped') stage = 'up2';
       else {
         const dx = ball.x - s2.x;
         if (ball.grounded) return { left: dx > 4, right: dx < -4, jump: dx < 0 && dx > -(30 + 40 * lead) };
         return dx > 3 ? { left: true } : dx < -3 ? { right: true } : {};
       }
     }
-    if (stage === 'run2') {
-      // Past the dazed charger: once he is behind it, waking cannot reach
-      // him before it has patrolled, turned and wound up.
-      if (ball.x - R > c.x + c.r) {
-        SPARE15B.push({ lead, used: level.time - dazedAt, time: CONFIG.ENEMY.CHARGER.DAZED, stomped: !s2.alive });
+    // Up onto the pen's roof from the shell's well, and along it through the
+    // door standing on it, which needs the shell's plate off. A run that has
+    // not stomped waits at the door. One whose shell came back first, shutting
+    // the door before he got through, is recorded as missed.
+    if (stage === 'up2') {
+      if (ball.x - R > gate2.x + gate2.w) {
+        if (popAt != null) SPARE15B.push({ lead, used: level.time - popAt, time: CONFIG.ENEMY.SHELL.RETURN });
         stage = 'to3';
-      } else return { right: true };
+      } else if (popAt != null && s2.alive && plate2.pressed && gate2.openT === 0) {
+        SPARE15B.push({ lead, missed: true });
+        stage = 'stuck2';
+      } else if (ball.y > roof2.y) return { right: true, jump: ball.grounded };
+      else return gate2.openT > 0.9 ? { right: true } : settle(ball, gate2.x - R - 2);
     }
     // --- room 3 ---
     if (stage === 'to3') {
+      if (!rec3) { rec3 = { lead, crateAt: null, ranOut: false, lockAt: null, hitAt: null, crateTouching: null, through: null, time: t.time }; SPARE15.push(rec3); }
       if (ball.grounded && ball.y > floor1 - 2 * R && ball.x > Xr3 + R) stage = 'push3';
       else return { right: true };
     }
@@ -1049,17 +1074,13 @@ function route15(level, lead, opts = {}) {
     if (stage === 'sit3') {
       if (p3.state === 'aim' && p3.target && Math.abs(p3.target.x - gc) < 10 && p3.target.y > roofTop - R) {
         stage = 'go3'; at = null;
-        rec3 = { lead, lockAt: level.time, hitAt: null, crateTouching: null, through: null, time: t.time };
-        SPARE15.push(rec3);
+        rec3.lockAt = level.time;
       } else return {};
     }
     if (stage === 'go3') {
       // The hit, observed: the first step a key that is neither the crate
       // nor the ball is in the timer's touched set with its time full.
-      if (rec3.hitAt == null && t.left === t.time) {
-        for (const k of t.touched) if (k !== crate3 && k !== ball) { rec3.hitAt = level.time; rec3.crateTouching = t.touched.has(crate3); rec3.ballX = ball.x; }
-      }
-      if (wait(Math.min(hes, 0.6))) return {};
+      if (wait(hes)) return {};
       if (ball.x > gate3.x + gate3.w + R) { rec3.through = level.time; stage = 'end'; }
       else return { right: true, jump: ball.grounded && ball.y > roofTop - R && ball.x < t.x };
     }
@@ -1671,26 +1692,32 @@ console.log('\n2f. level fourteen: time to spare before the shell can come back'
 
 // --- 2g. level fifteen: the lob's hit counts with the crate on the cap, and time to spare
 //
-// Room 3: every run that reached the gap must have SEEN the lob's hit — a
-// presser key that is neither the crate nor the ball arriving in the timer's
-// `touched` with the timer refilled — and at that very step the crate must
-// have been in `touched` too: that is the per-presser fix in use, not
-// assumed. Then from that hit to through the gate, at most 60% of the
-// timer's `time`, as level nine's 2b. Room 2: from the charger's daze
-// starting on its plate to the ball out past the charger's reach, at most 60%
-// of DAZED (config.js), as level eleven's 2c.
+// Room 3, every run that reached it, all observed in the timer's own state:
+// the crate's first touch pressed it (its key in `touched`, time full); the
+// timer then ran out (off) while the crate was still touching; and the lob's
+// hit came after (a key that is neither the crate nor the ball arriving with
+// the time refilled), with the crate's key in `touched` at that very step.
+// That is the per-presser fix in use, not assumed. Then from that hit to
+// through the gate, at most 60% of the timer's `time`, as level nine's 2b.
+// Room 2: from the shell popping to through the door on the pen's roof, at
+// most 60% of SHELL.RETURN (config.js) — the least that door is open for, as
+// level fourteen's 2f — and no run whose shell came back first.
 console.log('\n2g. level fifteen: the lob counts with the crate on the cap; time to spare');
 {
-  const DZ = CONFIG.ENEMY.CHARGER.DAZED;
+  const RET = CONFIG.ENEMY.SHELL.RETURN;
   // From the spawn (section 1) and from both checkpoints (section 2), every
-  // run reaches room 3.
+  // run reaches room 3; all but those from the second checkpoint, room 2.
   const l15 = LEVELS.find((l) => l.id === 15);
   const expect = LEADS.length * DELAYS.length + LEADS.length * (l15.checkpoints || []).length;
+  const unpressed = SPARE15.filter((r) => r.crateAt == null);
+  const notRunOut = SPARE15.filter((r) => r.crateAt != null && !r.ranOut);
   const unhit = SPARE15.filter((r) => r.hitAt == null);
   const untouched = SPARE15.filter((r) => r.hitAt != null && r.crateTouching !== true);
   const unthrough = SPARE15.filter((r) => r.hitAt != null && r.through == null);
   const done = SPARE15.filter((r) => r.hitAt != null && r.through != null);
-  if (SPARE15.length !== expect) fail(`${SPARE15.length} runs of level fifteen reached room 3's gap, not ${expect}`);
+  if (SPARE15.length !== expect) fail(`${SPARE15.length} runs of level fifteen reached room 3, not ${expect}`);
+  if (unpressed.length) fail(`${unpressed.length} of level fifteen's room 3 runs never saw the crate press the timer`);
+  if (notRunOut.length) fail(`${notRunOut.length} of level fifteen's room 3 runs never saw the timer run out with the crate still on it before the lob`);
   if (unhit.length) fail(`${unhit.length} of level fifteen's room 3 runs never saw the lob hit the timer`);
   if (untouched.length) fail(`${untouched.length} of level fifteen's lob hits came with the crate NOT touching the timer — the fix was not in use`);
   if (unthrough.length) fail(`${unthrough.length} of level fifteen's room 3 runs saw the hit but never got through the gate`);
@@ -1700,17 +1727,18 @@ console.log('\n2g. level fifteen: the lob counts with the crate on the cap; time
     const worst = done.reduce((w, r) => Math.max(w, (r.through - r.hitAt) / r.time), 0);
     const xs = done.map((r) => r.ballX);
     if (tight.length) fail(`${tight.length} of ${done.length} level fifteen runs used more than 60% of room 3's timer (worst ${(worst * 100).toFixed(0)}%)`);
-    else if (!untouched.length) console.log(`   room 3: ${done.length} runs, every lob hit seen with the crate on the cap; the slowest used ${(worst * 100).toFixed(0)}% of the timer; the ball was at x ${Math.min(...xs).toFixed(0)}-${Math.max(...xs).toFixed(0)} when the lob hit`);
+    else if (!untouched.length && !notRunOut.length && !unpressed.length) console.log(`   room 3: ${done.length} runs; in every one the crate pressed the timer, it ran out with the crate still on it, and the lob's hit came with the crate on the cap; the slowest used ${(worst * 100).toFixed(0)}% of the timer from the hit; the ball was at x ${Math.min(...xs).toFixed(0)}-${Math.max(...xs).toFixed(0)} when the lob hit`);
   }
-  const through = SPARE15B;
-  if (!Number.isFinite(DZ)) fail('ENEMY.CHARGER.DAZED is not a number');
-  else if (through.length !== expect - LEADS.length) fail(`${through.length} runs of level fifteen got through room 2, not ${expect - LEADS.length}`);
+  const missed = SPARE15B.filter((r) => r.missed);
+  const through = SPARE15B.filter((r) => !r.missed);
+  if (!Number.isFinite(RET)) fail('ENEMY.SHELL.RETURN is not a number');
+  else if (missed.length) fail(`${missed.length} runs of level fifteen missed room 2's door: the shell came back before the ball got through`);
+  else if (through.length !== expect - LEADS.length) fail(`${through.length} runs of level fifteen got through room 2 after a stomp, not ${expect - LEADS.length}`);
   else {
     const tight = through.filter((r) => !(r.used <= 0.6 * r.time));
     const worst = through.reduce((w, r) => Math.max(w, r.used / r.time), 0);
-    const stomped = through.filter((r) => r.stomped).length;
-    if (tight.length) fail(`${tight.length} of ${through.length} level fifteen runs used more than 60% of the charger's daze in room 2 (worst ${(worst * 100).toFixed(0)}%)`);
-    else console.log(`   room 2: ${through.length} runs (${stomped} stomped the shell); the slowest used ${(worst * 100).toFixed(0)}% of the daze`);
+    if (tight.length) fail(`${tight.length} of ${through.length} level fifteen runs used more than 60% of the shell's RETURN in room 2 (worst ${(worst * 100).toFixed(0)}%)`);
+    else console.log(`   room 2: ${through.length} runs, each through the door after a stomp; the slowest used ${(worst * 100).toFixed(0)}% of RETURN (${through.reduce((w, r) => Math.max(w, r.used), 0).toFixed(2)}s of ${RET}s)`);
   }
 }
 
@@ -2818,10 +2846,10 @@ console.log('\n3s. level fifteen: each room needs its mechanic, and no crate is 
   // got through it, not just where it is at the end. (Room 3's gate does
   // open by itself once — the crate's own first touch on the timer — but
   // with the ball far off in the lane, so through is the question.)
-  const watchDoor = (d, door, lead, from, seconds) => {
+  const watchDoor = (d, door, lead, from, seconds, opts = {}) => {
     let opened = false;
     const { ball } = play(d, (lv) => {
-      const g = room15(lv)[door], drive = route15(lv, lead);
+      const g = room15(lv)[door], drive = route15(lv, lead, opts);
       return (b) => { if (b.x - CONFIG.BALL.R > g.x + g.w) opened = true; return drive(b); };
     }, { from, seconds });
     return { won: ball.won, opened };
@@ -3004,19 +3032,68 @@ console.log('\n3s. level fifteen: each room needs its mechanic, and no crate is 
     if (!caught.pressed) fail('a copy of level fifteen with a 14-wider gap was not caught reaching the cap — (e) proves nothing');
   }
 
-  // (f) Room 3's crate: left short of the cap by 20, 60 or 120, or never
-  // moved at all, the lob through the gap still starts the timer (only now
-  // nothing else is touching it) and every run finishes with no heart lost.
-  // The crate can only go right: the ball can never get past it in the lane.
+  // (f) Room 3 needs its crate on the cap. The gate needs plate c as well as
+  // the timer, and only the crate, flush against the cap, rests on c. Left
+  // short by 20, 60 or 120, or never moved, the route never gets through
+  // the gate (watched every step), though the lob still hits the timer. A
+  // copy whose gate needs only the timer is caught getting through. And the
+  // crate is no dead end: the ball can never get past it in the lane, so it
+  // only ever goes right, and left anywhere down the lane the route still
+  // shoves it onto the cap and finishes with no heart lost.
   {
-    let bad = [], n = 0;
-    for (const push3 of [20, 60, 120, 10000]) for (const lead of LEADS) {
-      n++;
-      const { ball } = play(data, (lv) => route15(lv, lead, { push3 }), { from: cp[1], seconds: 60 });
-      if (!ball.won || ball.hits > 0) bad.push(`short by ${push3}, lead ${lead}: won=${ball.won} hits=${ball.hits} at ${ball.x.toFixed(0)},${ball.y.toFixed(0)}`);
+    const shorts = [20, 60, 120, 10000];
+    const tryShort = (d) => {
+      let through = 0, n = 0;
+      for (const push3 of shorts) for (const lead of LEADS) {
+        n++;
+        if (watchDoor(d, 'gate3', lead, cp[1], 40, { push3 }).opened) through++;
+      }
+      return { through, n };
+    };
+    const real = tryShort(data);
+    const tOnly = { ...data, gates: data.gates.map((g) => (g.needs.includes(m.t.id) ? { ...g, needs: [m.t.id] } : g)) };
+    const caught = tryShort(tOnly);
+    const bad = [];
+    let spots = 0;
+    const flush = m.t.x - CONFIG.CIRCUIT.REACH - m.crate3.w;
+    for (let x = m.Xr3 + 2; x < flush - 20; x += 40) for (const lead of LEADS) {
+      spots++;
+      const r = play(data, (lv) => { room15(lv).crate3.x = x; return route15(lv, lead); }, { from: cp[1], seconds: 60 });
+      if (!r.ball.won || r.ball.hits > 0) bad.push(`crate left at ${x}, lead ${lead}: won=${r.ball.won} hits=${r.ball.hits} at ${r.ball.x.toFixed(0)},${r.ball.y.toFixed(0)}`);
     }
-    console.log(`   (f) room 3's crate left short of the cap or never moved: ${n - bad.length} of ${n} runs finished with no heart lost`);
+    console.log(`   (f) room 3's crate short of the cap or never moved: through the gate in ${real.through} of ${real.n}; with the gate needing only the timer, ${caught.through} of ${caught.n}; left at ${spots / LEADS.length} spots down the lane, ${spots - bad.length} of ${spots} runs finished with no heart lost`);
+    if (real.through) fail(`level fifteen's room 3 gate let the ball through ${real.through} time(s) with the crate off the cap`);
+    if (!caught.through) fail('a copy of level fifteen whose gate needs only the timer was not caught getting through — (f) proves nothing');
     if (bad.length) { fail(`level fifteen's room 3 crate left a dead end or cost a heart ${bad.length} time(s):`); for (const b of bad.slice(0, 5)) console.log('        ' + b); }
+  }
+
+  // (g) Room 2 needs the stomp. Plate s lies under the shell's range, and the
+  // door needs it off; a flipped shell is still heavy. A route that walks
+  // through the flipped shell instead of stomping it never gets through the
+  // door (watched every step), though the flip is seen. A copy with the
+  // plate moved out of the shell's way is caught getting through.
+  {
+    const noStomp = (d) => {
+      let through = 0, flipped = 0;
+      for (const lead of LEADS) {
+        let sawFlip = false, got = false;
+        play(d, (lv) => {
+          const r = room15(lv), drive = route15(lv, lead, { noStomp: true });
+          return (b) => { if (r.s2.state === 'flipped') sawFlip = true; if (b.x - CONFIG.BALL.R > r.gate2.x + r.gate2.w) got = true; return drive(b); };
+        }, { from: cp[0], seconds: 30 });
+        if (sawFlip) flipped++;
+        if (got) through++;
+      }
+      return { through, flipped };
+    };
+    const real = noStomp(data);
+    // The plate moved out into the yard, where nothing heavy ever stands.
+    const noPlate = { ...data, senders: data.senders.map((s) => (s.id === m.plate2.id ? { ...s, x: cp[0].x } : s)) };
+    const caught = noStomp(noPlate);
+    console.log(`   (g) room 2 without the stomp: the shell was seen flipped in ${real.flipped} of ${LEADS.length} runs, and ${real.through} got through the door; with plate ${m.plate2.id} moved out of the shell's way, ${caught.through} of ${LEADS.length} did`);
+    if (real.flipped !== LEADS.length) fail(`room 2's shell was flipped in only ${real.flipped} of ${LEADS.length} no-stomp runs — (g) measured nothing`);
+    if (real.through) fail(`level fifteen's room 2 door let a ball through ${real.through} time(s) without the shell stomped`);
+    if (!caught.through) fail("a copy of level fifteen with room 2's shell plate moved away was not caught letting an unstomped run through — (g) proves nothing");
   }
 }
 

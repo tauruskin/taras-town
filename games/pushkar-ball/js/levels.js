@@ -1798,56 +1798,82 @@ export const LEVELS = [
     // to hole 1's edge. Every run finished with no heart lost (all printed by
     // 3s(c)). With hole 1 stoned over the door never lets him through (3s(b)).
     //
-    // Room 2, "a charger's dash opens a gate a shell would otherwise block".
-    // The pen's door (2700) is its gate. The shell patrols just inside it
-    // (2766-2796). Its box reaches 2740, the gate's span edge and no further:
-    // levels.mjs forbids a blocking enemy under a gate. The charger (2816-
-    // 2996, sees 380, faces him) sees him resting at the door, dashes, and
-    // meets the shell. The dash flips the shell and dazes the charger on
-    // plate q, and q opens the door while it sits there (DAZED 3.5s,
-    // config.js). In, stomp the shell, and on past the dazed charger. The
-    // plate starts at 2830, not 2822: a shell at its range's end pressed it
-    // at 2822 (simulated). The slowest run used 56% of the daze, from its
-    // start to past the charger (printed by finish.mjs 2g). A blind charger
-    // never lets him through (3s(d)).
+    // Room 2, "the dash flips the shell; the stomp opens the door". The
+    // shell patrols the pen's mouth (2766-2796), open to the sky above it.
+    // The pen is roofed 85 high from 2810, under the 92 a ball needs to pass
+    // over a shell (config.js), so an upright shell seals it. The charger
+    // (2816-2900, sees 380, faces him) sees him resting just short of the
+    // shell, dashes, meets the shell, flips it and is dazed. Plate s lies
+    // under the shell's range. The door stands on the pen's roof (3020) and
+    // needs `!s`. A flipped shell is still heavy, so the door stays shut
+    // until he stomps it. Then he jumps up onto the roof from the shell's
+    // well, and along the roof to the door.
     //
-    // Room 3, "make the lob press the timer the crate is leaning on". Timer t
-    // is set in the stone at the lane's end, cap facing left. Its zone runs
-    // 580-626, so the crate (top 595), shoved up the lane until it stops 1.25
-    // short of the stone (simulated), is touching it. That first touch
-    // presses it once, with the ball far off in the lane, and after that the
-    // crate only rests there. The gap in the roof (4270-4300) is 30 wide. At
-    // 36 a ball resting in it sat on the two corners, not grounded, and could
-    // not move at all (simulated). Popper 3 locks on the ball sitting in the
-    // gap; he runs. The lob comes down through the gap beside the crate onto
-    // the stone's face, and that is a fresh hit under its own key while the
-    // crate's key is still in `touched`: the per-presser fix in use. Every
-    // one of 36 runs saw the lob's key arrive with the crate's already
-    // there, the ball at x 4805-5061 when it did, and the slowest used 48% of
-    // the timer's 2s from the hit to through the gate at 5150 (all printed by
-    // finish.mjs 2g). A ball still in the gap when the lob lands is hit by
-    // it, so he must already be running. With the old single flag put back
-    // on the timer in a test, the lob is seen at the cap and the gate never
-    // lets him through. Popper 3's range cut short does the same. The ball
-    // alone never reaches the cap in 72 tries, and a gap 14 wider is caught
-    // reaching it (all 3s(e)). The crate left 20, 60 or 120 short, or never
-    // moved, still finishes every time (3s(f)). The lob presses the cap
-    // without it, and the crate can only ever go right.
+    // 3s(g): a route that walks through the flipped shell instead of
+    // stomping it never gets through (the flip seen in 3 of 3). A copy with
+    // the plate moved out of the shell's way lets all 3 through. The plate
+    // ends at 2790: a dazed charger's box starts no nearer than that, at the
+    // end of its range (2816 - 26, config.js).
     //
-    // The gate is 890 from the timer's press point, inside CIRCUIT.SEE's 900
-    // (config.js, levels.mjs).
+    // The door is 254 from the shell's home, past RETURN_CLEAR's 240
+    // (config.js). So it stays open for RETURN (4s) after the stomp, and the
+    // slowest run used 54% of that, 2.14s (printed by finish.mjs 2g). The
+    // first build opened this door with the dazed charger's plate as well.
+    // With the pen to cross, that cost 92% of the daze at level eleven's
+    // sloppy thumb (simulated), so the door went up onto the roof, out of
+    // the charger's way. A blind charger never lets him through (3s(d)).
+    //
+    // Room 3, "the crate holds the gate, the lob starts the timer". Timer t
+    // is set in the stone at the lane's end, cap facing left, and the gate at
+    // 5150 needs it and plate c (4280-4296). Only the crate, shoved up the
+    // lane until it stops flush (1.25 short of the stone, simulated), rests
+    // on c. 20 short, its right edge is at 4278.75 and off it. The cap's zone
+    // runs 580-626, so the flush crate (top 595) is also touching the timer.
+    // That first touch presses it once, with the ball far off in the lane,
+    // and it runs out with the crate still there. From then on only a fresh
+    // hit from something else can start it.
+    //
+    // The gap in the roof (4270-4300) is 30 wide. At 36 a ball resting in it
+    // sat on the two corners, not grounded, and could not move at all
+    // (simulated). Popper 3 locks on the ball sitting in the gap; he runs.
+    // The lob comes down through the gap beside the crate onto the stone's
+    // face, under its own key, while the crate's key is still in `touched`:
+    // the per-presser fix in use. Every one of 36 runs saw, in order: the
+    // crate press the timer, the timer run out with the crate still on it,
+    // and the lob's key arrive with the crate's there. The ball was at x
+    // 4679-5061 when it did, and the slowest run used 51% of the timer's 2.5s
+    // from the hit to through the gate (all printed by finish.mjs 2g). A ball
+    // still in the gap when the lob lands is hit by it, so he must already
+    // be running.
+    //
+    // With the old single flag put back on the timer in a test, the lob is
+    // seen at the cap and the gate never lets him through. Popper 3's range
+    // cut short does the same. The ball alone never reaches the cap in 72
+    // tries, and a gap 14 wider is caught reaching it (all 3s(e)). With the
+    // crate left 20, 60 or 120 short, or never moved, nobody gets through
+    // the gate (0 of 12). A copy whose gate needs only the timer lets all 12
+    // through. The crate can never be passed in the lane, so it only goes
+    // right. Left at 6 spots down the lane, it is still shoved home and every
+    // run finishes with no heart lost (all 3s(f)). The timer is 2.5s, not
+    // 2s: at 2s the slowest thumb used 63% (simulated).
+    //
+    // The gate is 890 from the timer's press point and 882 from plate c's
+    // middle, inside CIRCUIT.SEE's 900 (config.js, levels.mjs).
     //
     // Known, and left: at 568x320, while the ball sits in either opening,
     // nearly all of the dotted arc is above the top of the screen. One dot
     // shows, as at level thirteen, whose popper sits the same 220 ahead and
-    // about 150 above.
+    // about 150 above. And in room 2, a ball that lingers inside the pen's
+    // mouth after the charger wakes is within its dash, as in level
+    // fourteen's pen.
     //
     // Checkpoints: 2400, past room 1's door and out of the charger's sight
-    // (2816 - 380 = 2436), and 3400, past room 2. Neither is in a popper's
-    // reach (levels.mjs). Sections 1 and 2 of finish.mjs run three leads at
-    // start delays 0-4.5s and from both checkpoints: every run finished, none
-    // lost a heart (this level is in COUNTS_HEARTS), slowest 39.7s (printed
-    // by finish.mjs 1).
+    // (2816 - 380 = 2436), and 3400, past room 2 (2900 + 380 = 3280). Neither
+    // is in a popper's reach (levels.mjs). Sections 1 and 2 of finish.mjs run
+    // three leads at start delays 0-4.5s and from both checkpoints, with
+    // level eleven's sloppy thumb (up to 0.9s of hesitation before each go):
+    // every run finished, none lost a heart (this level is in COUNTS_HEARTS),
+    // slowest 44.1s (printed by finish.mjs 1).
     id: 15,
     theme: 'hills',
     bounds: { w: 5700, h: 1080 },
@@ -1889,9 +1915,11 @@ export const LEVELS = [
       { x: 1835, y: 580, w: 20, h: 75 },
       { x: 1835, y: 655, w: 365, h: 20 },
       { x: 2200, y: 0, w: 40, h: 675 },
-      // Room 2: the door wall over the pen's gate, and the pen's roof.
-      { x: 2700, y: 0, w: 40, h: 675 },
-      { x: 2810, y: 655, w: 216, h: 20 },
+      // Room 2: the pen's roof, the wall closing the pen's far end under
+      // it, and the door wall over the gate standing on the roof.
+      { x: 2810, y: 655, w: 260, h: 20 },
+      { x: 2930, y: 675, w: 20, h: 85 },
+      { x: 3020, y: 0, w: 40, h: 455 },
       // Room 3: popper 3's perch and posts, the lane roof, and the stone the
       // timer is set into, roof top down to the floor.
       { x: 4022, y: 435, w: 80, h: 20 },
@@ -1912,14 +1940,15 @@ export const LEVELS = [
 
     senders: [
       { id: 'p', kind: 'plate', x: 1757, y: 760, w: 404 },
-      { id: 'q', kind: 'plate', x: 2830, y: 760, w: 60 },
-      { id: 't', kind: 'timer', x: 4300, y: 626, face: 'left', time: 2 },
+      { id: 's', kind: 'plate', x: 2744, y: 760, w: 46 },
+      { id: 't', kind: 'timer', x: 4300, y: 626, face: 'left', time: 2.5 },
+      { id: 'c', kind: 'plate', x: 4280, y: 655, w: 16 },
     ],
 
     gates: [
       { x: 2200, y: 675, w: 40, h: 85, needs: ['!p'] },
-      { x: 2700, y: 675, w: 40, h: 85, needs: ['q'] },
-      { x: 5150, y: 560, w: 40, h: 200, needs: ['t'] },
+      { x: 3020, y: 455, w: 40, h: 200, needs: ['!s'] },
+      { x: 5150, y: 560, w: 40, h: 200, needs: ['t', 'c'] },
     ],
 
     bridges: [],
@@ -1929,7 +1958,7 @@ export const LEVELS = [
       { kind: 'popper', x: 1300, y: 435 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 240 },
       { kind: 'shell', x: 1935, y: 760 - CONFIG.ENEMY.SHELL.R, from: 1735, to: 2135, dir: 1 },
       { kind: 'shell', x: 2766, y: 760 - CONFIG.ENEMY.SHELL.R, from: 2766, to: 2796, dir: 1 },
-      { kind: 'charger', x: 2996, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 2816, to: 2996, dir: -1, see: 380 },
+      { kind: 'charger', x: 2900, y: 760 - CONFIG.ENEMY.CHARGER.R, from: 2816, to: 2900, dir: -1, see: 380 },
       { kind: 'popper', x: 4062, y: 435 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 240 },
     ],
 
