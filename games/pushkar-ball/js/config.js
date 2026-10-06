@@ -87,7 +87,9 @@ export const CONFIG = {
     // The hard floor under the slow vertical follow: the ball's CENTRE is
     // never drawn closer than this to the top of the view, in world units.
     //
-    // LERP_Y is 2.5 on purpose, so a fast climb outruns the camera. Driving
+    // LERP_Y is 2.5 on purpose, so a fast climb outruns the camera — in the
+    // air, or once past the deadzone; on the ground inside it, camera.js now
+    // eases to rest, at the same LERP_Y, so it still trails a fast one. Driving
     // level eleven's 200-unit slope onto room B's roof with this clamp
     // disabled leaves the ball's centre about 15 CSS px from the top edge at
     // 740x280, with no ground under it; the clamp lifts that to 39. (The

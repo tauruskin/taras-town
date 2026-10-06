@@ -183,7 +183,8 @@ export class Camera {
       // long as it stays — so it sat 40 too high on the screen at level
       // thirteen's room B door, and its button's cap, which has to be above a
       // jump, was cut off the top of a 740x280 view. Only on the ground, so
-      // a jump still moves the camera not at all.
+      // a jump still moves the camera not at all. So a climb on the ground is
+      // now followed, at LERP_Y, even one that never leaves the deadzone.
       const rest = want - C.DEADZONE_Y;
       this.y += (rest - this.y) * (1 - Math.exp(-C.LERP_Y * dt));
     }
