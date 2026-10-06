@@ -2644,6 +2644,41 @@ console.log('\n3p. level thirteen: rooms B and C need their poppers');
     if (!Number.isFinite(CONFIG.BALL.R)) fail('BALL.R is not a number');
     else if (!(width >= 2 * CONFIG.BALL.R)) fail(`level thirteen: room ${which}'s waiting spot is only ${width} wide, under a ball's width`);
   }
+
+  // Why the bracket: room B's lob comes down too steeply to hit the face of a
+  // cap on a post standing on the floor. A copy with the bracket gone and
+  // the button lowered 60 onto such a post (as the broken copy above), the ball resting at each spot the window
+  // scan tries that keeps it clear of the button: popper B's lob must never
+  // press it. Asked at popper B's own flight (the loaded popper's, never
+  // the config's), and at a much flatter 0.45s, which must press it, or
+  // this cannot fail.
+  const floorLob = (flight) => {
+    const d = structuredClone(data);
+    d.boxes = d.boxes.filter((bx) => !same(bx, r13.bracket));
+    d.senders = d.senders.map((s) => (s.id === 'b' ? { ...s, y: s.y + 60 } : s));
+    const iB = d.enemies.findIndex((e) => e.kind === 'popper' && !e.fixed && e.x === rw.pB.x);
+    d.enemies[iB] = { ...d.enemies[iB], flight };
+    let pressed = 0, tried = 0;
+    for (let x = rw.spotB; x > rw.spotB - 200; x -= 5) {
+      // Clear of the button: a ball touching it presses it itself.
+      if (Math.abs(x - rw.b.x) < 2 * CONFIG.BALL.R + 20) continue;
+      tried++;
+      let lob = false;
+      const steerTo = (lv) => (ball) => {
+        const b = sender(lv, 'b');
+        if (b.pressed && Math.abs(ball.x - b.x) > CONFIG.BALL.R + 20) lob = true;
+        return ball.x < x - 2 ? { right: true } : ball.x > x + 2 ? { left: true } : {};
+      };
+      play(d, steerTo, { from: rw.fromB, seconds: 14 });
+      if (lob) pressed++;
+    }
+    return { pressed, tried };
+  };
+  const own = floorLob(rw.pB.flight), flat = floorLob(0.45);
+  console.log(`   button on the floor, no bracket: popper B's lob (flight ${rw.pB.flight}s) pressed it from ${own.pressed} of ${own.tried} rests; a 0.45s lob from ${flat.pressed} of ${flat.tried}`);
+  if (!(own.tried > 0)) fail('3p: no rest clear of room B\'s button was tried with it on the floor');
+  if (own.pressed) fail(`level thirteen: room B's lob presses a button on the floor from ${own.pressed} rests, so the bracket is not needed`);
+  if (!flat.pressed) fail('3p cannot fail: even a 0.45s lob never pressed room B\'s button on the floor');
 }
 
 // --- 3q. level thirteen, room A: standing still is where the lob lands -----

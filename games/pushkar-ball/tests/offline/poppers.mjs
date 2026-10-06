@@ -66,6 +66,30 @@ function steps(level, seconds, each = () => {}) {
   if (at && Math.hypot(at.x - target.x, at.y - target.y) > 6) fail('the lob missed the locked spot at FLIGHT');
 }
 
+// --- 2b. a level's own `flight` is the one the lob keeps ---------------------
+// Level thirteen's room B sets its popper's flight, for a lower arc. Asked of
+// the loaded popper, as the arc and the lob both ask it. 0.6 is only a value
+// well away from FLIGHT, so a lob still keeping FLIGHT is told apart: at 0.6s
+// it has not come down yet.
+{
+  const OWN = 0.6;
+  const level = room({ enemies: [{ kind: 'popper', x: 1000, y: FLOOR - P.R, dir: 1, flight: OWN }] });
+  const p = level.enemies[0];
+  level.ball = ballAt(1250);
+  steps(level, DT);
+  const target = { ...p.target };
+  level.ball = ballAt(2500);
+  let firedAt = null, at = null;
+  steps(level, P.AIM + OWN + 0.5, () => {
+    if (p.state === 'fire' && firedAt === null) firedAt = level.time;
+    if (firedAt !== null && at === null && level.time - firedAt >= OWN - DT / 2) at = p.activeProjectile(level.time);
+  });
+  console.log(`\n2b. a popper with flight ${OWN}: loaded flight ${p.flight}; at ${OWN}s: ${at ? at.x.toFixed(1) + ',' + at.y.toFixed(1) : 'gone'}`);
+  if (p.flight !== OWN) fail(`the loaded popper's flight is ${p.flight}, not the level's ${OWN}`);
+  if (!at) fail(`the lob was gone before its own flight (${OWN}s)`);
+  if (at && Math.hypot(at.x - target.x, at.y - target.y) > 6) fail(`the lob missed the locked spot at its own flight (${OWN}s)`);
+}
+
 // --- 3. never behind itself; clamped to range --------------------------------
 {
   const level = room({ enemies: [{ kind: 'popper', x: 1000, y: FLOOR - P.R, dir: -1, range: 200 }] });

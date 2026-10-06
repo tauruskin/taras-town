@@ -68,11 +68,11 @@ function popperSees(p, level, P) {
 
 /**
  * The launch velocity that carries a lob from just above the popper to its
- * locked target in exactly FLIGHT seconds. The aim arc and the lob both ask
- * this, so the arc he is warned with is the arc that flies.
+ * locked target in exactly its `flight` seconds. The aim arc and the lob both
+ * ask this, so the arc he is warned with is the arc that flies.
  */
 function lobVelocity(p, cfg) {
-  const F = cfg.ENEMY.POPPER.FLIGHT;
+  const F = p.flight;
   const x0 = p.x, y0 = p.y - p.r;
   return { x0, y0, vx: (p.target.x - x0) / F, vy: (p.target.y - y0 - 0.5 * cfg.GRAVITY * F * F) / F };
 }
@@ -149,7 +149,7 @@ const POPPER_AIMED = {
  * (Level.update puts it among the pressers). `activeProjectile` ignores `t`
  * for it: an aimed lob belongs to the machine, not the clock.
  *
- * @param e   level data: { x, y, dir?: 1|-1, fixed?, period?, phase?, range? }
+ * @param e   level data: { x, y, dir?: 1|-1, fixed?, period?, phase?, range?, flight? }
  */
 export function makePopper(e, cfg) {
   const P = cfg.ENEMY.POPPER;
@@ -161,6 +161,10 @@ export function makePopper(e, cfg) {
       // How far ahead it notices and can reach: the level's, else CONFIG's.
       // Ask the loaded popper, never the config (levels.mjs does).
       range: e.range ?? P.RANGE,
+      // How long a lob takes to reach the spot it locked: the level's, else
+      // CONFIG's FLIGHT. A shorter flight is a lower arc. Ask the loaded
+      // popper, never the config.
+      flight: e.flight ?? P.FLIGHT,
       target: null, lob: null, lobNow: null,
       // Its body presses nothing and blocks nothing; its lob presses, through
       // its own loop in Level.update.
@@ -1052,7 +1056,7 @@ function drawAngryFace(ctx, cx, cy, s, cfg) {
  * throws is ever a surprise.
  */
 function drawAimArc(ctx, p, cfg) {
-  const F = cfg.ENEMY.POPPER.FLIGHT;
+  const F = p.flight;
   const L = lobVelocity(p, cfg);
   ctx.save();
   const P = cfg.ENEMY.POPPER, N = P.ARC_DOTS;

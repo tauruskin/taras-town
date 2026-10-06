@@ -1517,16 +1517,26 @@ export const LEVELS = [
     // is the arc: the first lock is 92 out in the room, and the dotted arc
     // is drawn there for AIM's whole second before anything flies.
     //
-    // Room B, "make it hit the button": button b's post is held out 70 from
+    // Room B, "make it hit the button": button b's post is held out 110 from
     // the door by a stone bracket, its cap facing the popper, 185-231 over
     // the floor. A jump's top reaches 171 (config.js), so only a lob reaches
-    // it. The lob comes down steeply, about 4.5 down for every 1 forward at
-    // the end (simulated, see poppers.mjs 4a), so a cap on a post standing on
-    // the floor is hit only on its top, which presses nothing. Up on the
-    // bracket, the lob locked on a ball resting under it at the door meets
-    // the cap's face over his head. Anywhere from 2030 to 2080 works with no
-    // heart lost (50 wide, printed by finish.mjs 3p). Further left, the lob
-    // misses the cap and comes down on him.
+    // it. The lob comes down steeply, so a cap on a post standing on the
+    // floor (the button lowered 60, bracket gone) is never pressed by it from
+    // any rest (finish.mjs 3p). Up on the bracket, the lob locked on a ball
+    // resting under it at the door meets the cap's face over his head.
+    // Anywhere from 2025 to 2080 works with no heart lost (55 wide, printed
+    // by finish.mjs 3p). Further left, the lob misses the cap and comes down
+    // on him.
+    //
+    // Popper B's own flight is 0.72s, not config.js's 1.1, for a lower arc.
+    // A lob always takes its whole flight, so at 1.1s the arc rose about 410
+    // over a ball resting at the door, and a settled camera shows only about
+    // 231 over it at 740x280: 2 of the arc's 12 dots were in view mid-aim at
+    // 740x280 and 3 at 568x320 (printed by shells.mjs's Node half). At 0.72
+    // it is 8 and 11. 0.70 is the floor: there the lob presses a cap on the
+    // floor and the bracket stops being the reason (3p's check fails, tried).
+    // The bracket stood 70 out at 1.1s; the flatter lob met the cap's face
+    // only from 2075, so it moved 40 further out (printed by finish.mjs 3p).
     //
     // Room C, "make it break the planks": a porch roof 140-175 over the floor
     // covers the foot of a 110 step. Under it the ball's top cannot rise past
@@ -1593,7 +1603,7 @@ export const LEVELS = [
       // Room B: the door wall above the gate, and the stone bracket that
       // holds button b's post out from it, 185 over the floor.
       { x: 2100, y: 0, w: 40, h: 575 },
-      { x: 2060, y: 525, w: 40, h: 50 },
+      { x: 2020, y: 525, w: 80, h: 50 },
       // Room C: the step up to the flag, 110 high, and the stone end of the
       // porch roof in front of it, which keeps a jump off the planks' face.
       { x: 2800, y: 650, w: 560, h: 110 },
@@ -1606,7 +1616,7 @@ export const LEVELS = [
     ],
 
     senders: [
-      { id: 'b', kind: 'button', x: 2030, y: 575, face: 'left' },
+      { id: 'b', kind: 'button', x: 1990, y: 575, face: 'left' },
     ],
 
     gates: [
@@ -1618,7 +1628,7 @@ export const LEVELS = [
 
     enemies: [
       { kind: 'popper', x: 700, y: 620 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 360 },
-      { kind: 'popper', x: 1860, y: 620 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 280 },
+      { kind: 'popper', x: 1860, y: 620 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 280, flight: 0.72 },
       { kind: 'popper', x: 2560, y: 620 - CONFIG.ENEMY.POPPER.R, dir: 1, range: 280 },
     ],
 
