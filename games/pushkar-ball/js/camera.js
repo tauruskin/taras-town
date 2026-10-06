@@ -175,6 +175,17 @@ export class Camera {
       // would make the camera lurch the moment the deadzone was crossed.
       const target = want - Math.sign(dy) * C.DEADZONE_Y;
       this.y += (target - this.y) * (1 - Math.exp(-C.LERP_Y * dt));
+    } else if (ball.grounded) {
+      // Inside the deadzone, a ball on the ground brings the camera to rest:
+      // the same place a settled camera rests, one deadzone above the aim
+      // point. Without this, a ball that has climbed out of a dip keeps the
+      // camera where the dip left it, low by however far it climbed, for as
+      // long as it stays — so it sat 40 too high on the screen at level
+      // thirteen's room B door, and its button's cap, which has to be above a
+      // jump, was cut off the top of a 740x280 view. Only on the ground, so
+      // a jump still moves the camera not at all.
+      const rest = want - C.DEADZONE_Y;
+      this.y += (rest - this.y) * (1 - Math.exp(-C.LERP_Y * dt));
     }
 
     // A hard floor under the slow follow above. `this.y` is the middle of the

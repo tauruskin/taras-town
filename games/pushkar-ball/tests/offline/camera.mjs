@@ -202,6 +202,64 @@ for (const [w, h] of SCREENS) {
   // 2 * DEADZONE_Y followed by a mid-air respawn, which belongs with the
   // hazards that will make it possible — not here.
   snapAgrees('after a jump and a landing');
+
+  // A ball that climbs out of a dip, less than a deadzone, and stays there.
+  // Before the grounded rest in camera.js, the camera stayed where the dip
+  // left it, low by the climb, for as long as the ball stood still: level
+  // thirteen's room B door is 40 above the dip before it, and its button's
+  // cap was cut off the top of a 740x280 view (LOOKed at). The ball is put
+  // on the step rather than driven up a slope so the climb is exactly the
+  // dip's depth. The same four seconds standing must bring the camera to
+  // where a snap puts it. The control, the same ball with `grounded` hidden
+  // from the camera, must NOT get there, or this setup never had the camera
+  // low in the first place and the check proves nothing.
+  {
+    const DIP = 40;
+    const stepped = () => loadLevel({
+      id: 95, theme: 'hills',
+      bounds: { w: 2400, h: 1080 },
+      spawn: { x: 400, y: 640 },
+      ground: [[[40, 760 + DIP], [800, 760 + DIP], [800, 760], [2000, 760]]],
+      boxes: [], platforms: [],
+    });
+    const climbed = (hide) => {
+      const lv = stepped();
+      const b = new Ball(lv.spawn.x, lv.spawn.y);
+      const cam = new Camera(lv);
+      cam.biasY = Camera.biasFor(h, scale, CONFIG.BALL.R, w);
+      cam.snap(b);
+      const seen = () => (hide ? { x: b.x, y: b.y, vx: b.vx, vy: b.vy, grounded: false } : b);
+      const run = (s) => {
+        for (let i = 0; i < Math.round(s / CONFIG.STEP); i++) {
+          lv.update(CONFIG.STEP);
+          b.update(CONFIG.STEP, input, lv);
+          cam.update(CONFIG.STEP, seen(), viewW, viewH);
+        }
+      };
+      run(4);
+      const low = b.y;
+      b.x = 1200; b.y = 760 - b.r - 1; b.vx = 0; b.vy = 0;
+      run(4);
+      const atRest = b.y + cam.biasY - CONFIG.CAMERA.DEADZONE_Y;
+      return { off: cam.y - atRest, climb: low - b.y, grounded: b.grounded };
+    };
+    const real = climbed(false);
+    const hid = climbed(true);
+    if (!(Math.abs(real.climb - DIP) < 2) || !real.grounded) {
+      fail(`on ${w}x${h} the climb check's ball climbed ${real.climb} and grounded=${real.grounded}; ` +
+           `it should have climbed ${DIP} and be standing`);
+    }
+    if (!(Math.abs(real.off) <= allowed)) {
+      fail(`on ${w}x${h} a ball standing ${DIP} above a dip left the camera ${real.off.toFixed(2)} ` +
+           `below where it rests (allowed ${allowed.toFixed(3)}): the screen shows ${real.off.toFixed(0)} less above him`);
+    }
+    if (!(hid.off > DIP / 2)) {
+      fail(`on ${w}x${h} with grounded hidden the camera was only ${hid.off} below rest; ` +
+           `the dip never left it low, so the check above proves nothing`);
+    }
+    console.log(`   ${w}x${h}: after a ${DIP} climb, camera ${real.off.toFixed(3)} from rest ` +
+                `(${hid.off.toFixed(1)} without the grounded rest)`);
+  }
 }
 
 // --- the reveal -----------------------------------------------------------

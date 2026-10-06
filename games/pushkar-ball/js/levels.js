@@ -1549,10 +1549,14 @@ export const LEVELS = [
     // 280 away on paper. Moved to 220 after LOOKing at 568x320: at 280, a
     // waiting ball's popper sat under the hearts.
     //
-    // Known, and left: at 740x280 a ball waiting at room B's door has the cap
-    // at the very top of the screen, half cut off. The cap has to sit above a
-    // jump, and that screen shows about 200 over the ball. The wire from the
-    // door and the dotted arc both lead up to it.
+    // At 740x280 a settled camera shows 231 over a resting ball's centre
+    // (config.js, CAMERA.TOP_CLEAR's note), and the cap's top is 211 over it,
+    // so the whole cap is on screen while he waits at room B's door. It was
+    // half cut off until camera.js brought a grounded ball's camera to rest:
+    // he comes up 40 out of the dip to the door, and the camera stayed where
+    // the dip left it, 40 low (LOOKed at 568x320 and 740x280, both before
+    // and after; camera.mjs holds the rest). The cap could not come down
+    // instead: it is 46 tall and its bottom must stay over a jump's 171.
     //
     // Sections 1 and 2 of finish.mjs run three leads at start delays 0-4.5s
     // and from both checkpoints. Every run finished and none lost a heart
