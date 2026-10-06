@@ -89,8 +89,7 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   // ball is higher than it has been — so whatever else the timing does, the
   // file left behind is the top of a bounce.
   //
-  // Forty samples 60ms apart, so the window is the 2.5s to 4.9s of the
-  // level. A full scan for the ball comes back in under ten milliseconds, so
+  // Samples about 60ms apart from 2.5s to 4.9s after the press. A full scan for the ball comes back in under ten milliseconds, so
   // the sleep is what makes this cover the bounce at all rather than a
   // quarter of a second of the approach: without it the whole loop ran before
   // the ball had even reached the pad, and left a picture of it rolling along
@@ -107,13 +106,25 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   const rest = await ballAt(ev);
   const dpr = await ev("(() => { const c = document.getElementById('game'); return c.width / parseFloat(c.style.width); })()");
   const across = rest ? 2 * Math.sqrt(rest.pixels / Math.PI) / dpr : 0;
+  // The window is bounded by the page's own clock, not by a count of
+  // samples. Forty samples was meant to end at 4.9s, but a sample costs
+  // about 78ms rather than 70 and every new highest frame adds a picture, so
+  // it really ended at 6.2-6.4s — in the gap — and failed on one run in two
+  // with the ball simply deflating (frames 38 and 39, every time).
+  const now = () => ev('performance.now()');
+  const WINDOW = [2500, 4900];
   await press(cdp, Buttons.right(W, H));
-  await sleep(2500);
-  let top = Infinity, lost = 0;
-  for (let i = 0; i < 40; i++) {
+  const pressed = await now();
+  await sleep(WINDOW[0]);
+  let top = Infinity, lost = 0, frames = 0, after = -Infinity, ended = 0;
+  for (;;) {
     const b = await ballAt(ev);
+    ended = (await now()) - pressed;
+    if (ended > WINDOW[1]) break;
+    frames++;
     if (!b) { lost++; }
-    else if (b.y < top) { top = b.y; await shoot(`${W}x${H}-4-pad`); }
+    else if (b.y < top) { top = b.y; after = b.y; await shoot(`${W}x${H}-4-pad`); }
+    else after = b.y;
     await sleep(60);
   }
   await release(cdp);
@@ -124,12 +135,19 @@ for (const [W, H] of [[568, 320], [740, 280]]) {
   // where it was resting cannot happen by rolling: the pad lifts it many
   // times that, so this is a floor and not a measurement.
   if (!rest) fail(`the ball was not on a ${W}x${H} screen at level five's spawn`);
-  else if (lost) fail(`the ball left a ${W}x${H} screen entirely on ${lost} of 40 frames over level five's pad`);
+  else if (frames < 20) fail(`only ${frames} frames of level five's pad were seen at ${W}x${H} in ${WINDOW[0]}-${WINDOW[1]}ms`);
+  else if (lost) fail(`the ball left a ${W}x${H} screen entirely on ${lost} of ${frames} frames over level five's pad`);
   else if (top > rest.y - across) {
     fail(`the ball never left the ground over level five's pad at ${W}x${H}: it rose to y=${top.toFixed(0)} `
          + `from a resting ${rest.y.toFixed(0)}, less than the ${across.toFixed(0)} it is wide, so this is not a bounce`);
+  } else if (!(after > top + across)) {
+    // The highest point has to be IN the window, not at its edge: the ball
+    // must be seen coming down at least a diameter from it before the end.
+    fail(`the window over level five's pad at ${W}x${H} ended before the top of the bounce: `
+         + `last seen at y=${after.toFixed(0)}, highest ${top.toFixed(0)}`);
   } else {
-    console.log(`   level five's pad: the ball rose to y=${top.toFixed(0)} of ${H}, `
+    console.log(`   level five's pad (${frames} frames, ${WINDOW[0]}-${ended.toFixed(0)}ms):`
+                + ` the ball rose to y=${top.toFixed(0)} of ${H}, `
                 + `${(rest.y - top).toFixed(0)} above its resting ${rest.y.toFixed(0)}, on screen throughout`);
   }
 }
