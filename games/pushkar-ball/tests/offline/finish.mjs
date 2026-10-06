@@ -746,8 +746,8 @@ function route14(level, lead) {
 // `touched` set — and how much of the timer it used from that hit to being
 // through the gate. Checked in 2g, 60% as level nine's 2b.
 const SPARE15 = [];
-// Room 2: from the charger's daze starting on its plate to the ball being out
-// past the charger's reach, against DAZED. Checked in 2g too.
+// Room 2: from the shell popping to the ball being through the door on the
+// pen's roof, against SHELL.RETURN. Checked in 2g too.
 const SPARE15B = [];
 // Room 1: every run from the spawn counts the flips, stomps, misses and
 // crates got back it actually saw, for 3s.
@@ -2831,6 +2831,11 @@ console.log('\n3s. level fifteen: each room needs its mechanic, and no crate is 
   const probe = loadLevel(data);
   const m = room15(probe);
   const cp = (data.checkpoints || []).map((c) => ({ x: c.x, y: c.y - R - CONFIG.CHECKPOINT.CLEARANCE }));
+  // level.enemies is made from data.enemies in order; say so once, by kind
+  // and x, rather than trust it silently.
+  data.enemies.forEach((e, j) => {
+    if (probe.enemies[j].kind !== e.kind || probe.enemies[j].x !== e.x) throw new Error(`level 15: loaded enemy ${j} is not data enemy ${j}`);
+  });
   const idx = (e) => probe.enemies.indexOf(e);
   const without = (i) => ({ ...data, enemies: data.enemies.filter((_, j) => j !== i) });
   const withEnemy = (i, patch) => ({ ...data, enemies: data.enemies.map((e, j) => (j === i ? { ...e, ...patch } : e)) });
@@ -2943,6 +2948,9 @@ console.log('\n3s. level fifteen: each room needs its mechanic, and no crate is 
     console.log(`   (c) room 1's crate pushed at ${runs - spots.length} times through a ${patrol.toFixed(1)}s patrol: ${misses} missed, ${recovered} got back, ${flips} flips seen; left at ${lane} spots in the lane, planks gone`);
     if (bad.length) { fail(`level fifteen's room 1 crate left a dead end or cost a heart ${bad.length} time(s):`); for (const b of bad.slice(0, 5)) console.log('        ' + b); }
     if (!misses) fail('no push in (c) missed the shell — the get-back was never tried');
+    // Every run ends on a flip (the one that is stomped), and each miss that
+    // flipped nothing still comes round to one: at least one flip per run.
+    if (flips < runs - spots.length) fail(`only ${flips} flips were seen in ${runs - spots.length} timed-push runs of level fifteen's room 1`);
     if (recovered < misses) fail(`${misses - recovered} of level fifteen's missed crates were never got back`);
   }
 
@@ -2979,13 +2987,17 @@ console.log('\n3s. level fifteen: each room needs its mechanic, and no crate is 
     }
     let swallowed = 0, flagOpened = 0, flagWon = 0;
     for (const lead of LEADS) {
-      let lobSeen = false, doorSeen = false;
+      let lobSeen = false, doorSeen = false, sets = 0;
       const r = play(data, (lv) => {
         const t = room15(lv).t;
         let cur = t.touched;
+        // The set already there answers as the old flag too, and every set
+        // the circuits hand over after it; `sets` counts those, so the
+        // emulation is seen to be in use.
+        cur.has = () => cur.size > 0;
         Object.defineProperty(t, 'touched', {
           get() { return cur; },
-          set(v) { cur = v; v.has = () => v.size > 0; },
+          set(v) { cur = v; v.has = () => v.size > 0; sets++; },
         });
         const drive = route15(lv, lead);
         const k3 = room15(lv).crate3;
@@ -2996,6 +3008,7 @@ console.log('\n3s. level fifteen: each room needs its mechanic, and no crate is 
           return drive(ball);
         };
       }, { from: cp[1], seconds: 40 });
+      if (!(sets > 0)) fail('the single-flag emulation never saw the timer\'s touched set replaced — it was not in use');
       if (lobSeen) swallowed++;
       if (r.ball.won) flagWon++;
       if (doorSeen) flagOpened++;
