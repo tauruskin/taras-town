@@ -66,3 +66,9 @@ What is known about it:
 - **Fix tried and reverted:** two-look grounded test, tap un-latched if still grounded 300ms later, air gap extrapolated by closing rate. Still 2/2 heart loss at 30 threads. New trace: ball reached the shell (dx -1.3, 3.0) then drifted to dx 37.6 → 83.1 **while holding left**. Latency alone does not explain this.
 - **Next leads (unverified):** (1) does `hands.hold('l')` survive a `hands.tap()`? Repeat holds returned in 0ms, suggesting hold skips a direction it thinks is already down — a tap may release it. (2) does a flipped shell push the ball away on contact? (3) screen-x conflates camera and world motion; a world-space reference is needed to separate them.
 - Open question for Oleksandr: is 30-thread load a fair bar, given 20 threads passes?
+
+## Oleksandr's decisions, 2026-10-07
+
+- **Next session:** check the two leads above (does a tap release `hold('l')`; does a flipped shell push the ball away) before any new fix.
+- **Level 12 `12-roomB-flipped` failing under 30-thread load: closed, accepted as is.** Do not investigate.
+- **Played and approved by thumb:** the camera resting fully when grounded, and level 13 room B's 0.72s lob. Nothing to change.
