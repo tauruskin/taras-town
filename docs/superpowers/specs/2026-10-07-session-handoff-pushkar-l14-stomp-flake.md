@@ -72,3 +72,4 @@ What is known about it:
 - **Next session:** check the two leads above (does a tap release `hold('l')`; does a flipped shell push the ball away) before any new fix.
 - **Level 12 `12-roomB-flipped` failing under 30-thread load: closed, accepted as is.** Do not investigate.
 - **Played and approved by thumb:** the camera resting fully when grounded, and level 13 room B's 0.72s lob. Nothing to change.
+- **`81915b0` (the instrumentation) has not been reviewed.** The next session's spec and quality reviews cover it along with whatever changes it makes to `stompLive`.
