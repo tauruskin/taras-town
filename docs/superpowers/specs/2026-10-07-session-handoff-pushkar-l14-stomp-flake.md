@@ -83,3 +83,7 @@ What is known about it:
   - (a) Fix `tap()` as above, and redesign `stompLive` so it only jumps from a clear run-up: back off to a fixed gap first, never jump from |dx| < ~20, and steer in world space (lead 3).
   - (b) Accept the flake.
   - Do not ship the `tap()` fix without (a).
+
+## Oleksandr's decision, 2026-10-07 (second session)
+
+- **(b): the level 14 live-stomp flake is accepted as is. Closed.** Do not fix `tap()` or redesign `stompLive` unless this is reopened. If either is ever touched, read the findings above first: fixing `tap()` alone makes the suite worse.
