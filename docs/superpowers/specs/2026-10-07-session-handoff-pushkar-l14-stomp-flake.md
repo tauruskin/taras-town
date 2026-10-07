@@ -73,3 +73,13 @@ What is known about it:
 - **Level 12 `12-roomB-flipped` failing under 30-thread load: closed, accepted as is.** Do not investigate.
 - **Played and approved by thumb:** the camera resting fully when grounded, and level 13 room B's 0.72s lob. Nothing to change.
 - **`81915b0` (the instrumentation) has not been reviewed.** The next session's spec and quality reviews cover it along with whatever changes it makes to `stompLive`.
+
+## Findings, second 2026-10-07 session (both leads checked; one fix round, reverted)
+
+- **Lead 1 is false, but the harness does have a bug.** A temporary probe logged the page's own pointer events while running `thumbs()` exactly as written. A tap does **not** release `hold('l')`; the direction finger stays down. What actually happens: **the jump finger is never lifted.** `tap()` sends `touchStart [thumb, jump]` and then `touchMove [thumb]`, and a touchMove that leaves a finger out does not lift it. The jump pointer stays down until the next `hold(null)`. The game jumps on `pointerdown` only (`input.js` `_down`), and Chrome sends no pointerdown for a finger that is already down. So **every tap after the first in a `stompLive` (or in `blind` with a thumb held) does nothing.** That is the "tap does nothing" in the first session's trace. The probe also showed that `touchEnd` with a list lifts exactly the fingers it names and no others.
+- **Lead 2 is false (checked in the code).** A flipped shell is `harmless`, so `hazardKnockDir` skips it. It is not a collider, and its flip kick moves only itself (`enemies.js`, `flipped`). The drift right while holding left fits a knockback from the other enemy.
+- **Fix tried and reverted:** `tap()` ends with `touchEnd [jump]`. Unloaded, `browser/shells` then **failed 3 of 5** runs, where before the fix it passed 3 of 3. The failures: level 14 `14-shellpopA` lost a heart at both sizes; once, level 12 `12-roomB-flipped` showed no shell and level 14 room B showed no charger. With re-jumps now working, `stompLive` jumps again when it lands *beside* the flipped shell (GROUND, dx 7.7, the shell half-hidden), and it bounces off away from it. **The old passes depended on the stuck finger swallowing every later jump.**
+- **So the real problem is `stompLive`'s steering, not latency.** It works only when the first jump lands, and any correction it tries makes things worse. Next step, for Oleksandr to decide:
+  - (a) Fix `tap()` as above, and redesign `stompLive` so it only jumps from a clear run-up: back off to a fixed gap first, never jump from |dx| < ~20, and steer in world space (lead 3).
+  - (b) Accept the flake.
+  - Do not ship the `tap()` fix without (a).
