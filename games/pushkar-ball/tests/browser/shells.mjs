@@ -849,10 +849,14 @@ const REACH = 400;
  */
 /** The ball and the stars only: no target colour, so no reach is needed. */
 const lookBall = () => look(null, 1, CONFIG.VIEW_H);
-const look = (hex, W, H) => {
+const look = (hex, W, H, more = null) => {
   const [r, g, b] = hex ? rgb(hex) : [-99, -99, -99];
   const [sr, sg, sb] = rgb(C.CHARGER_STAR);
   const reach = REACH * (H / CONFIG.VIEW_H);
+  // `more`, for stompLive's trace only: lit heart pixels in the hearts'
+  // corner, and another colour's centroid within REACH (the charger).
+  const [hr, hg, hb] = rgb(C.STAR_ON), [or, og, ob] = more ? rgb(more.other) : [-99, -99, -99];
+  const hb0 = more ? more.hearts : { x0: 0, y0: 0, x1: 0, y1: 0 };
   return ev(`(() => {
     const c = document.getElementById('game');
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
@@ -873,8 +877,21 @@ const look = (hex, W, H) => {
       const i = (y * c.width + x) * 4;
       if (Math.abs(d[i] - ${r}) < 6 && Math.abs(d[i + 1] - ${g}) < 6 && Math.abs(d[i + 2] - ${b}) < 6) { tn++; tx += x; ty += y; }
     }
+    let hearts = 0, on = 0, ox = 0, oy = 0;
+    if (${!!more}) {
+      for (let y = Math.floor(${hb0.y0} * dpr); y < ${hb0.y1} * dpr; y += 2) for (let x = Math.floor(${hb0.x0} * dpr); x < ${hb0.x1} * dpr; x += 2) {
+        const i = (y * c.width + x) * 4;
+        if (Math.abs(d[i] - ${hr}) <= 6 && Math.abs(d[i + 1] - ${hg}) <= 6 && Math.abs(d[i + 2] - ${hb}) <= 6) hearts++;
+      }
+      for (let y = 0; y < c.height; y += 4) for (let x = 0; x < c.width; x += 4) {
+        if (x < x0 || x > x1) continue;
+        const i = (y * c.width + x) * 4;
+        if (Math.abs(d[i] - ${or}) < 6 && Math.abs(d[i + 1] - ${og}) < 6 && Math.abs(d[i + 2] - ${ob}) < 6) { on++; ox += x; oy += y; }
+      }
+    }
     return { ball: { x: bx / dpr, y: by / dpr },
-             tgt: tn ? { x: tx / tn / dpr, y: ty / tn / dpr, n: tn } : null, stars };
+             tgt: tn ? { x: tx / tn / dpr, y: ty / tn / dpr, n: tn } : null, stars,
+             hearts, other: on ? { x: ox / on / dpr, y: oy / on / dpr, n: on } : null };
   })()`);
 };
 
@@ -912,11 +929,22 @@ async function waitForStars(seconds = 20) {
  */
 async function stompLive(hands, cam, hex, name, W, H, { whileStars = false, after = 3, seconds = 5 } = {}) {
   const scale = H / CONFIG.VIEW_H;
-  const first = await look(hex, W, H);
+  // The trace: every look and what it led to, printed only when the stomp
+  // goes wrong (a heart lost, or no pop), so a failure says what the ball,
+  // the target and the other kind were doing step by step.
+  const more = { hearts: heartBox(W, H), other: hex === C.SHELL_BODY ? C.CHARGER_BODY : C.SHELL_BODY };
+  const t0 = Date.now(), trace = [], heartsSeen = [];
+  const first = await look(hex, W, H, more);
   if (!first.ball || !first.tgt) { await hands.hold(null); return 'not there'; }
   if (whileStars && !first.stars) return 'not dazed';
   const ground = first.ball.y;
-  let k = 0, missing = 0, starless = 0, jumped = false, lastY = ground;
+  let k = 0, missing = 0, starless = 0, jumped = false, lastY = ground, prevQ = null, prevT = 0;
+  const report = (why) => {
+    const u = (v) => (v / scale).toFixed(1);
+    console.log(`   ${name}: ${why}; the steering, look by look (ms since the first look; world units, x/y from the screen's left/top; v from the look before):`);
+    console.log(`     first look: ball ${u(first.ball.x)},${u(first.ball.y)}, target ${u(first.tgt.x)},${u(first.tgt.y)}, stars ${first.stars}, hearts ${first.hearts}`);
+    for (const r of trace) console.log('     ' + r);
+  };
   const shot = () => cam.take(`${name}-${String(k++).padStart(2, '0')}`);
   await shot();
   const end = Date.now() + seconds * 1000;
@@ -926,11 +954,24 @@ async function stompLive(hands, cam, hex, name, W, H, { whileStars = false, afte
   // back to back as the ball comes down onto the target, which is when the
   // pop is. See `camera` for why never during a press.
   while (Date.now() < end) {
-    const q = await look(hex, W, H);
-    if (!q.tgt || q.tgt.n < 3) { if (++missing >= 2) break; } else missing = 0;
+    const tl = Date.now();
+    const q = await look(hex, W, H, more);
+    const now = Date.now(), act = [];
+    const row = () => {
+      const u = (v) => (v / scale).toFixed(1);
+      const dt = (now - prevT) / 1000;
+      const v = q.ball && prevQ?.ball ? `v ${u((q.ball.x - prevQ.ball.x) / dt)},${u((q.ball.y - prevQ.ball.y) / dt)}` : 'v ?';
+      trace.push(`${String(now - t0).padStart(5)}ms (look ${now - tl}ms) ball ${q.ball ? `${u(q.ball.x)},${u(q.ball.y)}` : '-'} ${v} `
+        + `${q.ball && Math.abs(q.ball.y - ground) < 1.5 ? 'GROUND' : 'air'} | target ${q.tgt ? `${u(q.tgt.x)},${u(q.tgt.y)} n${q.tgt.n}` : '-'} `
+        + `dx ${q.ball && q.tgt ? u(q.ball.x - q.tgt.x) : '-'} | other ${q.other ? `${u(q.other.x)},${u(q.other.y)} n${q.other.n}` : '-'} `
+        + `| stars ${q.stars} hearts ${q.hearts} | ${act.join(' ') || '-'} (${Date.now() - now}ms)`);
+      if (q.hearts != null) heartsSeen.push(q.hearts);
+      prevQ = q; prevT = now;
+    };
+    if (!q.tgt || q.tgt.n < 3) { if (++missing >= 2) { row(); break; } } else missing = 0;
     // Three looks running, because the last star can pass behind the ball.
-    if (whileStars && q.tgt && (q.stars ? (starless = 0) : ++starless >= 3)) { await hands.hold(null); return 'came round'; }
-    if (!q.ball || !q.tgt) continue;
+    if (whileStars && q.tgt && (q.stars ? (starless = 0) : ++starless >= 3)) { await hands.hold(null); row(); report('came round'); return 'came round'; }
+    if (!q.ball || !q.tgt) { row(); continue; }
     const dx = (q.ball.x - q.tgt.x) / scale;
     // Tolerances in world units. The steering band (4 on the ground, 3 in
     // the air) and jumping only from the target's near side are stomp14's in
@@ -940,20 +981,27 @@ async function stompLive(hands, cam, hex, name, W, H, { whileStars = false, afte
     // looks (chosen; the ball's own bounce is smaller).
     const grounded = Math.abs(q.ball.y - ground) < 1.5;
     if (grounded) {
-      await hands.hold(dx > 4 ? 'l' : dx < -4 ? 'r' : null);
-      if (dx > 0 && dx < 70 && !jumped) { await hands.tap(); jumped = true; }
+      const d = dx > 4 ? 'l' : dx < -4 ? 'r' : null;
+      await hands.hold(d); act.push(`hold ${d || '-'}`);
+      if (dx > 0 && dx < 70 && !jumped) { await hands.tap(); jumped = true; act.push('JUMP'); }
     } else {
       jumped = false;
-      await hands.hold(dx > 3 ? 'l' : dx < -3 ? 'r' : null);
+      const d = dx > 3 ? 'l' : dx < -3 ? 'r' : null;
+      await hands.hold(d); act.push(`hold ${d || '-'}`);
       if (q.ball.y > lastY && Math.abs(dx) < 30) {
         for (let i = 0; i < 5; i++) await shot();
+        act.push('5 pictures');
       }
     }
+    row();
     lastY = q.ball.y;
   }
   await hands.hold(null);
   for (let i = 0; i < after; i++) await shot();
-  return missing >= 2 ? 'gone' : 'still there';
+  const result = missing >= 2 ? 'gone' : 'still there';
+  const lost = first.hearts > 0 && heartsSeen.some((n) => n < first.hearts * 0.9);
+  if (result !== 'gone' || lost) report(`${result}${lost ? ', and a heart was lost' : ''}`);
+  return result;
 }
 
 /**
