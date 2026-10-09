@@ -6,6 +6,7 @@
 // pins everything that existed before animals, byte for byte.
 import { World, T } from '../../js/world.js';
 import { CONFIG } from '../../js/config.js';
+import { Animals } from '../../js/animals.js';
 
 const world = new World();
 const A = CONFIG.ANIMALS;
@@ -71,6 +72,170 @@ check('none standing on a neighbour',
       spots.every((s) => world.neighbourSpots.every((n) => Math.hypot(n.x - s.x, n.y - s.y) >= 60)));
 check('none standing on a parking space',
       spots.every((s) => world.parking.every((p) => Math.abs(p.x - s.x) >= 56 || Math.abs(p.y - s.y) >= 56)));
+
+// --- 3. the best friend ------------------------------------------------------
+console.log('');
+console.log('3. one best friend');
+
+const step = (animals, who, seconds) => {
+  for (let t = 0; t < seconds; t += 1 / 60) animals.update(1 / 60, who);
+};
+const first = (kind) => {
+  const s = spots.find((p) => p.kind === kind);
+  return s;
+};
+const foot = (x, y) => ({ mode: 'foot', x, y, flying: false, lift: 0 });
+
+{
+  const zoo = new Animals(world);
+  const dog = zoo.list[first('dog').id];
+  const cat = zoo.list[first('cat').id];
+
+  check('nobody is a friend to begin with', zoo.friend === null && zoo.friendId() === -1);
+  check('every animal starts idle at home',
+        zoo.list.every((a) => a.state === 'idle' && a.x === a.homeX && a.y === a.homeY));
+
+  check('patting says which kind it was', zoo.pat(dog) === 'dog');
+  check('a pat makes it happy', dog.state === 'happy');
+  check('and makes it the friend', zoo.friend === dog && zoo.friendId() === dog.id);
+
+  step(zoo, foot(dog.x, dog.y), A.HAPPY_TIME + 0.05);
+  check('happiness turns into following', dog.state === 'following', dog.state);
+
+  // Walk off; the dog keeps up.
+  let px = dog.x, py = dog.y;
+  for (let i = 0; i < 120; i++) { px += 150 / 60; zoo.update(1 / 60, foot(px, py)); }
+  const gap = Math.hypot(dog.x - px, dog.y - py);
+  check('a friend keeps up behind him', gap <= A.FOLLOW_GAP + 10, gap.toFixed(1) + 'px');
+
+  // Pat a second animal: only one friend, and the first goes home.
+  zoo.pat(cat);
+  check('patting another swaps the friend', zoo.friend === cat);
+  check('the old friend heads home', dog.state === 'home', dog.state);
+  check('exactly one animal is following or happy',
+        zoo.list.filter((a) => ['happy', 'following', 'waiting', 'flying'].includes(a.state)).length === 1);
+
+  // The old friend gets home and settles.
+  step(zoo, foot(cat.x, cat.y), 60);
+  check('the old friend gets home and goes back to idle', dog.state === 'idle', dog.state);
+
+  // Re-patting the friend keeps it.
+  step(zoo, foot(cat.x, cat.y), A.HAPPY_TIME + 0.05);
+  zoo.pat(cat);
+  check('re-patting the friend keeps it the friend', zoo.friend === cat && cat.state === 'happy');
+  step(zoo, foot(cat.x, cat.y), A.HAPPY_TIME + 0.05);
+  check('and it goes back to following', cat.state === 'following', cat.state);
+}
+
+// --- 4. waiting, and going home ---------------------------------------------
+console.log('');
+console.log('4. waiting');
+{
+  const zoo = new Animals(world);
+  const dog = zoo.list[first('dog').id];
+  zoo.pat(dog);
+  step(zoo, foot(dog.x, dog.y), A.HAPPY_TIME + 0.05);
+
+  step(zoo, { mode: 'drive', x: dog.x + 30, y: dog.y, flying: false, lift: 0 }, 0.1);
+  check('getting into a car leaves the friend waiting', dog.state === 'waiting', dog.state);
+  check('a waiting friend is not sent to other players', zoo.friendId() === -1);
+
+  const waitX = dog.x, waitY = dog.y;
+  step(zoo, { mode: 'inside', x: 9999, y: 9999, flying: false, lift: 0 }, 5);
+  check('it stays put while he is away', dog.x === waitX && dog.y === waitY);
+
+  step(zoo, foot(waitX + 20, waitY), 0.1);
+  check('coming back to it gets it following again', dog.state === 'following', dog.state);
+
+  step(zoo, { mode: 'inside', x: 0, y: 0, flying: false, lift: 0 }, 0.1);
+  check('going indoors leaves it waiting too', dog.state === 'waiting', dog.state);
+  zoo.pat(dog);
+  check('a waiting friend can be patted again', dog.state === 'happy' && zoo.friend === dog);
+  step(zoo, foot(dog.x, dog.y), A.HAPPY_TIME + 0.05);
+
+  step(zoo, { mode: 'inside', x: 0, y: 0, flying: false, lift: 0 }, A.WAIT_TIME + 0.5);
+  check('after WAIT_TIME it gives up and heads home', dog.state === 'home' || dog.state === 'idle', dog.state);
+  check('and is nobody\'s friend any more', zoo.friend === null);
+  step(zoo, { mode: 'inside', x: 0, y: 0, flying: false, lift: 0 }, 60);
+  check('it gets home', dog.state === 'idle' &&
+        Math.hypot(dog.x - dog.homeX, dog.y - dog.homeY) <= A.WANDER + 1, dog.state);
+}
+
+// --- 5. water ------------------------------------------------------------------
+console.log('');
+console.log('5. water');
+{
+  // A dry tile right beside water, and the water tile next to it.
+  const bank = (() => {
+    for (let r = 2; r < world.rows - 2; r++) {
+      for (let c = 2; c < world.cols - 2; c++) {
+        if (world.grid[r][c] === T.WATER && world.grid[r][c - 1] !== T.WATER &&
+            world.grid[r][c - 2] !== T.WATER && world.grid[r][c + 3] === T.WATER) {
+          return { land: (c - 1.5) * world.tile, water: (c + 2.5) * world.tile, y: (r + 0.5) * world.tile };
+        }
+      }
+    }
+    return null;
+  })();
+  check('found a river bank to test on', !!bank);
+
+  for (const [kind, swims] of [['cat', false], ['hen', false], ['dog', true], ['duck', true]]) {
+    const zoo = new Animals(world);
+    const a = zoo.list[first(kind).id];
+    a.x = bank.land - 60; a.y = bank.y;
+    zoo.pat(a);
+    step(zoo, foot(a.x, a.y), A.HAPPY_TIME + 0.05);
+    step(zoo, foot(bank.water, bank.y), 3);
+    const wet = world.isWaterAt(a.x, a.y);
+    check(kind + (swims ? ' swims after him' : ' waits at the water\'s edge'),
+          swims ? (a.state === 'following' && wet) : (a.state === 'waiting' && !wet),
+          a.state + (wet ? ', in water' : ', on land'));
+  }
+}
+
+// --- 6. a bird and the helicopter --------------------------------------------
+console.log('');
+console.log('6. flying');
+{
+  const zoo = new Animals(world);
+  const bird = zoo.list[first('bird').id];
+  const dog = zoo.list[first('dog').id];
+  zoo.pat(bird);
+  step(zoo, foot(bird.x, bird.y), A.HAPPY_TIME + 0.05);
+
+  const hx = bird.x + 30, hy = bird.y;
+  step(zoo, { mode: 'drive', x: hx, y: hy, flying: true, lift: 0.4 }, 0.1);
+  check('a bird takes off with him', bird.state === 'flying', bird.state);
+  step(zoo, { mode: 'drive', x: hx + 300, y: hy, flying: true, lift: 1 }, 2);
+  check('and flies at the helicopter\'s height', bird.lift === 1, String(bird.lift));
+  check('beside it', Math.hypot(bird.x - (hx + 300), bird.y - hy) < A.FLY_SIDE * 2,
+        Math.hypot(bird.x - (hx + 300), bird.y - hy).toFixed(1) + 'px');
+  check('a flying friend is still sent to other players', zoo.friendId() === bird.id);
+
+  step(zoo, foot(hx + 330, hy), 0.1);
+  check('landing turns it back to following', bird.state === 'following', bird.state);
+  step(zoo, foot(hx + 330, hy), 2);
+  check('and it settles back down to the ground', bird.lift === 0, String(bird.lift));
+
+  // A dog does not fly.
+  zoo.pat(dog);
+  step(zoo, foot(dog.x, dog.y), A.HAPPY_TIME + 0.05);
+  step(zoo, { mode: 'drive', x: dog.x, y: dog.y, flying: true, lift: 0.5 }, 0.1);
+  check('a dog waits when he takes off', dog.state === 'waiting', dog.state);
+}
+
+// --- 7. never stranded ---------------------------------------------------------
+console.log('');
+console.log('7. catching up');
+{
+  const zoo = new Animals(world);
+  const dog = zoo.list[first('dog').id];
+  zoo.pat(dog);
+  step(zoo, foot(dog.x, dog.y), A.HAPPY_TIME + 0.05);
+  step(zoo, foot(dog.x + 2000, dog.y), 1 / 60);
+  const d = Math.hypot(dog.x - (dog.homeX + 2000), dog.y - dog.homeY);
+  check('a friend left far behind is brought within reach at once', d <= A.CATCHUP, d.toFixed(0) + 'px');
+}
 
 console.log('');
 process.exit(fail ? 1 : 0);
