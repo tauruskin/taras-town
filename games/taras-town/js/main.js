@@ -23,12 +23,14 @@ import { Camera } from './camera.js';
 import { Input } from './input.js';
 import { Menu, drawMissionIcon, drawSoundButton, drawHomeButton, drawMusicButton, drawNameplate } from './ui.js';
 import { createNpcs } from './npc.js';
+import { Animals, drawAnimal, trail } from './animals.js';
 import { Missions } from './missions.js';
 import { Effects, drawCoin } from './effects.js';
 import { Coins } from './coins.js';
 import { initAudio, setMuted, playAccept, playPickup, playSuccess, playDenied,
          playFootstep, playSwimStroke, loadSounds,
-         startRotor, stopRotor } from './audio.js';
+         startRotor, stopRotor,
+         playWoof, playMeow, playQuack, playTweet, playCluck } from './audio.js';
 import { startMusic, stopMusic, setMusicMuted, updateMusic } from './music.js';
 import { loadGame, saveGame } from './save.js';
 import { Net, roomFromUrl } from './net.js';
@@ -59,6 +61,7 @@ const camera = new Camera(world);
 const input = new Input(canvas);
 const menu = new Menu();
 const npcs = createNpcs(world);
+const animals = new Animals(world);
 const missions = new Missions(world);
 const effects = new Effects();
 const coins = new Coins(world);
@@ -341,6 +344,7 @@ function update(dt) {
     else if (action.kind === 'job') takeJob(action.npc);
     else if (action.kind === 'enter-house') enterHouse(action.building);
     else if (action.kind === 'leave-house') leaveHouse();
+    else if (action.kind === 'pat') patAnimal(action.animal);
   }
 
   // --- move ------------------------------------------------------------
@@ -395,6 +399,13 @@ function update(dt) {
   // Checked against whatever is carrying the player, so a delivery can be
   // finished by driving up to the door as well as by walking to it.
   const who = mode === DRIVING ? drivenCar : player;
+  animals.update(dt, {
+    mode: mode === INSIDE ? 'inside' : mode === DRIVING ? 'drive' : 'foot',
+    x: who.x,
+    y: who.y,
+    flying: !!isFlying(),
+    lift,
+  });
   const event = missions.update(who.x, who.y);
   if (event && event.kind === 'checkpoint') passCheckpoint();
   else if (event && event.kind === 'done') completeJob(event.job);
@@ -548,6 +559,7 @@ function render() {
     if (missions.canOffer(npc)) npc.drawGlow(ctx, clock);
   }
   for (const npc of visibleNpcs) npc.draw(ctx, clock);
+  animals.drawGround(ctx, view);
 
   if (net) drawGhosts(ctx, view);
 
@@ -560,6 +572,7 @@ function render() {
 
   // The helicopter goes over the top of the trees it is flying above.
   if (isFlying()) drawFlyingBody(ctx, drivenCar, lift);
+  animals.drawAir(ctx, view);
 
   // Badges go on top of the leaves. They are the only sign that a job is on
   // offer here, so a tree must never be able to hide one.
@@ -813,6 +826,7 @@ function findAction() {
 
   const npc = findNpcWithJob();
   const house = findDoorToEnter();
+  const pet = animals.nearest(player.x, player.y);
 
   // Standing between two things, the nearer one wins — the same rule the car
   // and the neighbour already settle it by.
@@ -820,6 +834,7 @@ function findAction() {
   if (npc) options.push({ kind: 'job', npc, d: Math.hypot(npc.x - player.x, npc.y - player.y) });
   if (nearbyCar) options.push({ kind: 'enter', car: nearbyCar, d: Math.hypot(nearbyCar.x - player.x, nearbyCar.y - player.y) });
   if (house) options.push({ kind: 'enter-house', building: house.b, d: house.d });
+  if (pet) options.push({ kind: 'pat', animal: pet.animal, d: pet.d });
 
   if (!options.length) return null;
   options.sort((a, b) => a.d - b.d);
@@ -1170,6 +1185,13 @@ function findCarToEnter() {
 /** Is he in the air right now? */
 function isFlying() {
   return mode === DRIVING && drivenCar && drivenCar.air;
+}
+
+const PAT_SOUNDS = { dog: playWoof, cat: playMeow, duck: playQuack, bird: playTweet, hen: playCluck };
+
+/** A pat: it hops, hearts come out, and it becomes his best friend. */
+function patAnimal(a) {
+  PAT_SOUNDS[animals.pat(a)]();
 }
 
 function enterHouse(building) {
@@ -1600,6 +1622,7 @@ function drawActionButton() {
   const colour = action.kind === 'exit' || action.kind === 'leave-house' ||
                  action.kind === 'land' ? '#FF9F45'
                : action.kind === 'enter' || action.kind === 'enter-house' ? '#5AC85A'
+               : action.kind === 'pat' ? '#FF7AA8'
                : '#4EA8FF';
 
   ctx.save();
@@ -1628,6 +1651,7 @@ function drawActionButton() {
       action.kind === 'land') drawPersonIcon();
   else if (action.kind === 'enter') drawCarIcon(colour);
   else if (action.kind === 'enter-house') drawDoorIcon();
+  else if (action.kind === 'pat') drawHandIcon();
   else drawMissionIcon(ctx, action.npc.mission, 22);
 
   ctx.restore();
@@ -1648,6 +1672,23 @@ function drawCarIcon(colour) {
   roundRectPath(-16, 11, 11, 6, 3); ctx.fill();
   roundRectPath(7, -17, 11, 6, 3); ctx.fill();
   roundRectPath(7, 11, 11, 6, 3); ctx.fill();
+}
+
+/** An open hand, for patting. */
+function drawHandIcon() {
+  ctx.fillStyle = '#FFFFFF';
+  roundRectPath(-11, -4, 22, 18, 7);
+  ctx.fill();
+  for (let i = 0; i < 4; i++) {
+    roundRectPath(-11 + i * 6, -17 + (i === 0 || i === 3 ? 3 : 0), 5, 16, 2.5);
+    ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(-11, 4);
+  ctx.rotate(-0.7);
+  roundRectPath(-3, -10, 5.5, 13, 2.7);
+  ctx.fill();
+  ctx.restore();
 }
 
 /** A tiny open doorway, for the "go inside" button. */
