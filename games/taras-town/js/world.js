@@ -153,6 +153,12 @@ export class World {
 
     // Which parts of the town he can WALK to, without swimming for it.
     this._mainland = this._findMainland();
+
+    // Where the animals live. LAST, and it must stay last: every spot before
+    // it — neighbours, parking, and above all the order houses are made in,
+    // which is what his furniture is saved under — has to be untouched by
+    // their arrival. Appending is safe; anything earlier is not.
+    this.animalSpots = this._findAnimalSpots();
   }
 
   /**
@@ -1087,6 +1093,76 @@ export class World {
 
         out.push({ x, y });
       }
+    }
+    return out;
+  }
+
+  /**
+   * Homes for the animals: ducks by water, birds by park trees, dogs on park
+   * and pavement, cats and hens in back gardens.
+   *
+   * Each kind takes evenly spaced picks from its own sweep, so they spread
+   * across the whole town instead of bunching at the top-left where a sweep
+   * starts. Deterministic like everything else here, so every phone agrees
+   * which dog is number 7 — that number is all that goes over the wire.
+   */
+  _findAnimalSpots() {
+    const A = CONFIG.ANIMALS;
+    const tile = this.tile;
+    const pond = this.props.find((p) => p.kind === 'pond');
+
+    const nearWater = (x, y) => {
+      const r = tile * 2;
+      for (let dy = -r; dy <= r; dy += tile / 2) {
+        for (let dx = -r; dx <= r; dx += tile / 2) {
+          if (this.isWaterAt(x + dx, y + dy)) return true;
+        }
+      }
+      return !!pond && x > pond.x - r && x < pond.x + pond.w + r &&
+             y > pond.y - r && y < pond.y + pond.h + r;
+    };
+    const nearTree = (x, y) => this.trees.some((t) => Math.hypot(t.x - x, t.y - y) < 90);
+
+    // Never on a neighbour (a pat would steal the job button), never on a
+    // parking space (a car would be parked on it), never on the spawn.
+    const free = (s) =>
+      !this.isWaterAt(s.x, s.y) &&
+      Math.hypot(s.x - this.spawn.x, s.y - this.spawn.y) > 120 &&
+      this.neighbourSpots.every((n) => Math.hypot(n.x - s.x, n.y - s.y) >= 60) &&
+      this.parking.every((p) => Math.abs(p.x - s.x) >= 56 || Math.abs(p.y - s.y) >= 56);
+
+    const sweep = (match, extra) =>
+      this.sweepSpots(match, A.GAP, 0.3, A.HALF, 1)
+        .filter(free)
+        .filter((s) => extra(s.x, s.y));
+
+    const kinds = [
+      ['duck', sweep((k) => k !== T.ROAD && k !== T.WATER, nearWater)],
+      ['bird', sweep((k) => k === T.PARK, nearTree)],
+      ['dog',  sweep((k) => k === T.SIDEWALK || k === T.PARK, () => true)],
+      ['cat',  sweep((k) => k === T.GRASS, () => true)],
+      ['hen',  sweep((k) => k === T.GRASS, () => true)],
+    ];
+
+    const out = [];
+    const clear = (s) => out.every((o) => Math.hypot(o.x - s.x, o.y - s.y) >= A.GAP);
+
+    for (const [kind, cands] of kinds) {
+      const want = A.COUNT[kind];
+      let got = 0;
+      // Evenly spaced through the candidates; when a pick is taken (a cat
+      // where a hen wanted to be), walk on to the next free one.
+      for (let i = 0; i < want; i++) {
+        const start = Math.floor(((i + 0.5) * cands.length) / want);
+        for (let k = 0; k < cands.length; k++) {
+          const s = cands[(start + k) % cands.length];
+          if (!clear(s)) continue;
+          out.push({ id: out.length, kind, x: s.x, y: s.y });
+          got++;
+          break;
+        }
+      }
+      if (got < want) console.warn('[world] only ' + got + ' of ' + want + ' ' + kind + ' spots');
     }
     return out;
   }

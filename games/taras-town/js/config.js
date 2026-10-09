@@ -48,6 +48,36 @@ export const CONFIG = {
     FAR_GAP: 1100,      // and the rest, so the town does not feel crowded
   },
 
+  // The animals he can pat. Every one of these is a guess awaiting a thumb.
+  //
+  // Few on purpose: the town is a 96x72 map and he should MEET an animal now
+  // and then, not wade through them.
+  ANIMALS: {
+    COUNT: { dog: 5, cat: 4, duck: 5, bird: 6, hen: 4 },
+    HALF: 12,             // half the box an animal needs to stand in
+    GAP: 140,             // how far apart any two animals live
+    PAT_RADIUS: 56,       // how close he must be for the hand to appear
+    WANDER: 10,           // how far an idle animal potters from its spot
+    HAPPY_TIME: 1.0,      // seconds of hearts and hopping after a pat
+    FOLLOW_GAP: 40,       // how far behind him a friend walks
+    SPEED: 200,           // a friend's pace; a bit quicker than his 175
+    CATCHUP: 400,         // further behind than this and it is put nearer...
+    CATCHUP_TO: 260,      // ...this far behind, so it can never be stranded
+    RETURN_RADIUS: 60,    // come back this close to a waiting friend and it follows again
+    WAIT_TIME: 30,        // seconds a friend waits before wandering home
+    HOME_SPEED: 90,       // an unhurried walk home
+    HOME_SNAP: 900,       // further from home than this, and unseen, it is simply home
+    UNSEEN: 520,          // this far from him counts as off screen
+    FLY_SIDE: 34,         // where a bird flies, beside the helicopter
+    COLORS: {
+      dog:  { body: '#D9A066', ear: '#8B5A2B' },
+      cat:  { body: '#9AA3AD', ear: '#6F7882' },
+      duck: { body: '#FFFFFF', ear: '#2E9E5B', beak: '#FFB238' },
+      bird: { body: '#4FA3FF', ear: '#FFE36B', beak: '#FFB238' },
+      hen:  { body: '#C8642E', ear: '#E53935', beak: '#FFB238' },
+    },
+  },
+
   // Everything about the insides of houses.
   INTERIOR: {
     DOOR_STEP: 26,     // how far outside the front wall the doorstep sits
