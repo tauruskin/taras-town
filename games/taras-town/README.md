@@ -382,6 +382,9 @@ already generates the same animals.
 
 `tests/offline/animals.mjs` covers placement and the state machine;
 `tests/browser/pat.mjs` walks to a dog, pats it, and watches it follow.
+Only the dog is checked by a suite. All five kinds — and the bird flying
+beside the helicopter — were looked at on the live site and judged good on
+2026-10-09; redraw any of them and that look has to be done again.
 
 ## Music
 
