@@ -352,6 +352,37 @@ There is no drowning, no timer and no way to fail. `tests/offline/swimming.mjs`
 checks the thing that would actually matter: from every one of the water tiles,
 in four directions, there is always a way back to dry land.
 
+## Animals
+
+On screen the game is called «Місто пригод» now; the folder, and every path in
+this file, stay `games/taras-town`.
+
+There are 24 animals (`CONFIG.ANIMALS.COUNT`) of five kinds: **dogs** in the
+parks and on the pavement, **cats** and **hens** in back gardens, **ducks** by
+the pond and the river, and **birds** under the park trees. They are placed at
+`world.animalSpots`, which is generated **last** in the `World` constructor so
+that adding them cannot move a neighbour, a parking space or a house's `seed`.
+
+He pats one with the action button and it becomes his **best friend**, with
+hearts and a synthesised woof, meow, quack, tweet or cluck (`playWoof` and its
+friends in `audio.js` — no new audio files). The behaviour is `js/animals.js`, a
+state machine that changes only on a timer, a distance or a pat:
+idle, then happy (patted), then following. If he gets into a vehicle or a house
+— or a cat or hen reaches water — the friend is **waiting**; after `WAIT_TIME`
+(30s) it goes **home** and is idle again. Patting the friend again keeps it;
+patting a different animal sends the old one home. Dogs and ducks swim along
+with him. A bird friend flies beside the helicopter at its lift. A friend left
+far behind is moved nearer (`CATCHUP`) rather than stranded. Animals are never
+solid, and the friend is not saved.
+
+In a shared game the only new thing on the wire is `friend`: the integer id of
+the animal following that player, or -1. The host forces it to an integer, and
+every other phone draws that animal trailing that player, since every phone
+already generates the same animals.
+
+`tests/offline/animals.mjs` covers placement and the state machine;
+`tests/browser/pat.mjs` walks to a dog, pats it, and watches it follow.
+
 ## Music
 
 There is no music file. The tune is a few lines of note data played through the

@@ -51,6 +51,7 @@ the drawing surface.
 | `menu-buttons` | Presses the middle of every button in the shop at seven screen sizes and checks the right one answers. |
 | `net` | Room parsing, roster merging, forgetting players who go quiet — and the exact list of fields that may cross the wire. |
 | `vehicles` | Every vehicle's numbers are sane and its prices climb; each one drives 4000 frames without wedging or escaping (boats on the water, cars on the road); and swapping between them in 400 different places never leaves one inside a wall. |
+| `animals` | Every kind is placed somewhere sensible and reachable, generation order leaves neighbours and parking alone, and the follow / wait / home state machine behaves, including swimming, re-patting and catch-up. |
 | `pwa` | `manifest.json` is valid and internally consistent, every icon exists at the size it claims, and the service worker's precache list is neither missing a real file nor missing a real `js/*.js` file. |
 
 ### `browser/` — drives a real browser
@@ -79,6 +80,7 @@ game.**
 | `multiplayer-rejoin` | The host leaves; the other player takes over hosting on its own; the first rejoins. Nobody reloads anything. |
 | `bumping` | Walking into another player moves them — **and neither player can ever be stuck**, including one leaned on while backed against a wall. |
 | `music` | Music starts by itself after the first tap, keeps playing, stops when the game is hidden, and starts again when it comes back — counted by wrapping `createOscillator`, so no test-only code ships. |
+| `pat` | Walk to a dog, pat it with the action button, and it follows. |
 | `pwa` | Loads the game online so the service worker installs, cuts the network off entirely, then opens the game again as a fresh visit and confirms it still boots and plays. |
 
 ### `_helpers.mjs`

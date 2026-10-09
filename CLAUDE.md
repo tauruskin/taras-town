@@ -66,7 +66,9 @@ any game added later:
     stated exception survives; a rule with an unexamined one does not.
 - **Relative paths only.** GitHub Pages serves from `/taras-town/`, so a leading
   `/` silently looks at the top of the whole site and fails.
-- **Nothing leaves the phone** except, in a shared game, position and a name.
+- **Nothing leaves the phone** except, in a shared game, position, a name, and
+  which animal is following him — `friend`, an index into the animals every
+  phone already generates, forced to an integer by the host.
   No accounts, no analytics, no third-party requests. Every `localStorage` read
   and write is wrapped in try/catch, and returns defaults on any failure — a
   private-mode browser gets a playable game with no memory, never an error.
@@ -191,6 +193,12 @@ than inheriting it by proximity:
   which: `'land'` is stopped by water, `'water'` by land. A chosen boat is
   `save.boat`, kept apart from `save.vehicle` so buying a speedboat does not
   turn the car parked at the kerb into one.
+- **Animals live at `world.animalSpots`, generated LAST in the World
+  constructor.** Last is load-bearing: anything inserted before it can move a
+  neighbour, a parking space or a house's `seed`. Their behaviour is
+  `js/animals.js` — one best friend at a time, a state machine that changes
+  only on a timer, a distance or a pat. Animals are never solid and never
+  blocked; a friend left far behind is moved nearer rather than stranded.
 
 ## The shape of the thing — Pushkar Ball
 
