@@ -63,6 +63,7 @@ const PRECACHE = [
   './games/taras-town/js/car.js',
   './games/taras-town/js/flight.js',
   './games/taras-town/js/npc.js',
+  './games/taras-town/js/animals.js',
   './games/taras-town/js/missions.js',
   './games/taras-town/js/ui.js',
   './games/taras-town/js/coins.js',
