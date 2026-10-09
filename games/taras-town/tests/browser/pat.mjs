@@ -102,6 +102,14 @@ const here = await pos();
 const away = { x: here.x + (here.x > world.width / 2 ? -320 : 320), y: here.y };
 for (const wp of route(here, away) || [away]) await walkTo(wp.x, wp.y, 40);
 await sleep(800);
+// Without these two, the pixel count could be some OTHER dog that lives
+// here, or this dog never having moved, and the check would still pass.
+const end = await pos();
+const otherDog = world.animalSpots.find((s) => s.kind === 'dog' && s.id !== dog.id &&
+  Math.hypot(s.x - end.x, s.y - end.y) < 500);
+check('no other dog lives where the walk ended', !otherDog, otherDog ? 'dog ' + otherDog.id : '');
+const fromHome = Math.hypot(dog.x - end.x, dog.y - end.y);
+check('the walk ended well away from this dog\'s home', fromHome > 250, fromHome.toFixed(0) + 'px');
 const n = await dogPixelsNearMiddle();
 check('the dog is still beside him', n > 20, n + ' dog-coloured pixels');
 await shoot('2-followed');

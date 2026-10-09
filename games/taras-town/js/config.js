@@ -61,7 +61,7 @@ export const CONFIG = {
     HAPPY_TIME: 1.0,      // seconds of hearts and hopping after a pat
     FOLLOW_GAP: 40,       // how far behind him a friend walks
     SPEED: 200,           // a friend's pace; a bit quicker than his 175
-    CATCHUP: 400,         // further behind than this and it is put nearer...
+    CATCHUP: 560,         // further behind than this (past UNSEEN, so off screen) it is put nearer...
     CATCHUP_TO: 260,      // ...this far behind, so it can never be stranded
     RETURN_RADIUS: 60,    // come back this close to a waiting friend and it follows again
     WAIT_TIME: 30,        // seconds a friend waits before wandering home
