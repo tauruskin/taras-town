@@ -67,8 +67,8 @@ at random:
 |---|---|---|
 | idle | pottering near home: a fixed wobble from time and id | patted → happy |
 | happy | ~1 s of hearts and hop | timer → following |
-| following | moves toward a point ~40 px behind him | he enters vehicle/house, or a land-only animal reaches water → waiting; bird + take-off → flying; another animal patted → home |
-| waiting | sits by where he left, wags | he is within 60 px on foot → following; `WAIT_TIME` passes → home |
+| following | moves toward a point ~40 px behind him | he enters vehicle/house, or a land-only animal reaches water → waiting; bird + take-off → flying; another animal patted → home; patted itself → happy |
+| waiting | sits by where he left, wags | he is within 60 px on foot → following; patted → happy; `WAIT_TIME` passes → home |
 | flying (bird only) | beside the helicopter at its `lift` | helicopter lands → following |
 | home | walks back to its spot | arrives → idle |
 
@@ -86,8 +86,9 @@ INSIDE), `isFlying()`, `lift`, `player.swimming`. Flying stays
 
 - `findAction()` (main.js) adds `{kind:'pat', animal, d}` for the nearest
   animal within reach while on foot; it competes on distance with jobs and
-  doors exactly like today. The current best friend is not offered (it is
-  already following).
+  doors exactly like today. The current best friend can be patted again at
+  any time: it does its happy hop, hearts and sound, stays his friend, and
+  goes back to following (from waiting too). Patting never removes a friend.
 - The press dispatcher gets one branch: `pat` → `animals.pat(action.animal)`.
 - `drawActionButton()` gets its own hand-icon branch — the existing fallback
   calls `drawMissionIcon(action.npc.mission)` and would throw.
@@ -132,7 +133,8 @@ Offline `tests/offline/animals.mjs`:
   every duck is within 2 tiles of water.
 - `neighbourSpots`, `parking` and building seeds are unchanged by the addition
   (compare against values captured before the change).
-- Exactly one best friend after any sequence of pats.
+- Exactly one best friend after any sequence of pats; re-patting the friend
+  (following or waiting) keeps it and returns it to following.
 - Each transition fires: pat → happy → following; vehicle → waiting;
   return → following; `WAIT_TIME` → home → idle; bird + take-off → flying at
   `lift`; land → following; land-only animal at water → waiting.
