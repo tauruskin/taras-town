@@ -340,6 +340,7 @@ export class Net {
         id, x: p.x, y: p.y, angle: p.angle, mode: p.mode,
         hat: p.hat, shirt: p.shirt, car: p.car, vehicle: p.vehicle,
         name: p.name,
+        friend: Number.isInteger(p.friend) ? p.friend : -1,
       });
     }
 

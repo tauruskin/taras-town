@@ -160,10 +160,10 @@ host.peer = { id: 'hostid' };
 host.status = 'host';
 host.isHost = true;
 host.guests.set('g1', { open: true, send: (m) => sent.push(m) });
-host.others.set('g1', { x: 5, y: 6, angle: 0.1, mode: 'foot', hat: 1, shirt: 1, car: 1, vehicle: 2, name: 'Sasha', seen: 0 });
+host.others.set('g1', { x: 5, y: 6, angle: 0.1, mode: 'foot', hat: 1, shirt: 1, car: 1, vehicle: 2, name: 'Sasha', friend: 3, seen: 0 });
 
 for (let i = 0; i < 20; i++) {
-  host.update(0.05, { x: 10, y: 20, angle: 0.3, mode: 'drive', hat: 2, shirt: 3, car: 4, vehicle: 5, name: 'Taras' });
+  host.update(0.05, { x: 10, y: 20, angle: 0.3, mode: 'drive', hat: 2, shirt: 3, car: 4, vehicle: 5, name: 'Taras', friend: -1 });
 }
 check('the host does send updates', sent.length > 0, sent.length + ' messages');
 const rate = sent.length / 1.0;
@@ -179,9 +179,21 @@ for (const m of sent) for (const p of m.p) for (const k of Object.keys(p)) field
 // `name` was added deliberately, so children playing together can tell each
 // other apart. It is the ONE piece of typed text that crosses the wire, and
 // the three checks below are what keep it the only one.
-check('only position, appearance and a name are sent',
-      [...fields].sort().join(',') === 'angle,car,hat,id,mode,name,shirt,vehicle,x,y',
+// `friend` was added deliberately (Oct 2026): which animal is following him,
+// as an index into the town every phone already generates. A number, never
+// text -- the host forces it to an integer.
+check('only position, appearance, a name and a friend are sent',
+      [...fields].sort().join(',') === 'angle,car,friend,hat,id,mode,name,shirt,vehicle,x,y',
       [...fields].sort().join(','));
+
+const bad = new Net('testroom');
+bad.peer = { id: 'h2' }; bad.status = 'host'; bad.isHost = true;
+const sent2 = [];
+bad.guests.set('g', { open: true, send: (m) => sent2.push(m) });
+bad.others.set('g', { x: 1, y: 1, angle: 0, mode: 'foot', hat: 0, shirt: 0, car: 0, vehicle: 0, name: 'A', friend: 'hello', seen: 0 });
+for (let i = 0; i < 20; i++) bad.update(0.05, { x: 0, y: 0, angle: 0, mode: 'foot', hat: 0, shirt: 0, car: 0, vehicle: 0, name: 'B', friend: -1 });
+check('a friend that is not a whole number goes out as -1',
+      sent2.length > 0 && sent2.every((m) => m.p.every((p) => Number.isInteger(p.friend))));
 
 // A name is words that a PERSON chose. If a second such field ever appears,
 // this fails, which is the point.

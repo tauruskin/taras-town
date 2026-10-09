@@ -441,6 +441,7 @@ function update(dt) {
         ? vehicleIndexOf(drivenCar.spec.id)
         : save.vehicle,
       name: save.name || '',
+      friend: animals.friendId(),
     });
     updateGhosts(dt);
   }
@@ -951,6 +952,14 @@ function updateGhosts(dt) {
     g.car.repaint(p.car);
     // Look only: a stand-in must never be nudged around the town.
     g.car.setVehicleVisual(p.vehicle || 0);
+    // Their best friend, if any: an index into the animals every phone
+    // already generates, so nothing but the number crossed the wire.
+    const f = Number.isInteger(p.friend) ? world.animalSpots[p.friend] : null;
+    if (!f) g.pet = null;
+    else if (!g.pet || g.pet.id !== f.id) {
+      g.pet = { id: f.id, kind: f.kind, x: g.x, y: g.y, facing: 1, moving: false };
+    }
+    if (g.pet && g.mode === ON_FOOT) trail(g.pet, g.x, g.y, dt);
   }
 
   // Anybody the network has forgotten loses their stand-in too.
@@ -981,6 +990,10 @@ function drawGhosts(ctx, view) {
       if (g.car.air) {
         drawFlyingShadow(ctx, g.car, 1);
         drawFlyingBody(ctx, g.car, 1);
+        if (g.pet && g.pet.kind === 'bird') {
+          drawAnimal(ctx, 'bird', g.x + CONFIG.ANIMALS.FLY_SIDE, g.y + CONFIG.ANIMALS.FLY_SIDE * 0.4,
+                     { time: clock, seed: g.pet.id, lift: 1, pose: 'walk' });
+        }
       } else {
         g.car.draw(ctx);
       }
@@ -1000,6 +1013,13 @@ function drawGhosts(ctx, view) {
       g.player.swimPhase = clock * 2.4;
 
       g.player.draw(ctx);
+      if (g.pet) {
+        drawAnimal(ctx, g.pet.kind, g.pet.x, g.pet.y, {
+          time: clock, seed: g.pet.id, facing: g.pet.facing,
+          pose: g.pet.moving ? 'walk' : 'stand',
+          swim: g.pet.kind !== 'bird' && world.isWaterAt(g.pet.x, g.pet.y),
+        });
+      }
     }
   }
 }
