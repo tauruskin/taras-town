@@ -399,3 +399,59 @@ export function playDenied() {
   note(392.00, 0, 0.14, 0.12, 'sine');     // G4
   note(293.66, 0.10, 0.22, 0.11, 'sine');  // D4
 }
+
+/**
+ * A note that slides from one pitch to another — the bones of every animal
+ * noise below. Same envelope as note(), for the same reason: no clicks.
+ */
+function slide(f0, f1, start, dur, gain = 0.14, type = 'triangle') {
+  if (!ctx || muted) return;
+  try {
+    const t = ctx.currentTime + start;
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, t);
+    osc.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(gain, t + 0.015);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(env);
+    env.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  } catch (err) {
+    // Never let a sound take the game down.
+  }
+}
+
+/** Two friendly woofs. */
+export function playWoof() {
+  slide(320, 180, 0, 0.13, 0.16, 'square');
+  slide(340, 190, 0.18, 0.13, 0.14, 'square');
+}
+
+/** A rising-then-falling meow. */
+export function playMeow() {
+  slide(520, 820, 0, 0.18, 0.12, 'triangle');
+  slide(820, 480, 0.17, 0.25, 0.12, 'triangle');
+}
+
+/** Quack quack. */
+export function playQuack() {
+  slide(600, 420, 0, 0.11, 0.12, 'sawtooth');
+  slide(600, 420, 0.15, 0.11, 0.10, 'sawtooth');
+}
+
+/** A little tweet-tweet. */
+export function playTweet() {
+  slide(2400, 3400, 0, 0.07, 0.08, 'sine');
+  slide(2600, 3600, 0.11, 0.07, 0.08, 'sine');
+}
+
+/** A cluck-cluck. */
+export function playCluck() {
+  slide(700, 380, 0, 0.06, 0.12, 'square');
+  slide(720, 400, 0.12, 0.06, 0.11, 'square');
+  slide(900, 500, 0.24, 0.10, 0.10, 'square');
+}
